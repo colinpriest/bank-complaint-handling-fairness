@@ -1,0 +1,37 @@
+# Core dependencies
+numpy>=1.21.0
+pandas>=1.3.0
+requests>=2.26.0
+python-dotenv>=0.19.0
+tqdm>=4.62.0
+sodapy>=2.2.0
+
+# Language detection
+langid>=1.1.6
+
+# Statistics
+scipy>=1.7.0
+statsmodels>=0.13.0
+scikit-learn>=1.0.0
+
+# LLM providers and structured outputs
+openai>=1.0.0
+anthropic>=0.34.0
+google-generativeai>=0.8.0
+instructor>=1.3.0
+pydantic>=2.0.0
+typing-extensions>=4.0.0
+
+# Token counting (optional but recommended for accurate cost tracking)
+tiktoken>=0.5.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Dashboard (optional - only needed for visualization)
+streamlit>=1.28.0
+plotly>=5.0.0
+
+# Web scraping (optional - alternative to direct API/CSV)
+playwright>=1.40.0
