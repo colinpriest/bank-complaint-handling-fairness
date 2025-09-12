@@ -61,6 +61,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Geography Effects
 
+- **Hypothesis**: H₀: Subtle geographic and socio-economic injection does not affect remedy tier assignments
 - **Finding**: CONFIRMED...
 - **F Statistic**: 11.823
 - **P Value**: 0.001
