@@ -58,7 +58,7 @@ class StatisticalAnalyzer:
                     "hypothesis": "H₀: Subtle demographic injection does not affect remedy tier assignments",
                     "finding": "NOT TESTED - Insufficient sample data",
                     "baseline_mean": float('nan'),
-                    "personas_mean": float('nan'),
+                    "personas_mean": float('nan'), 
                     "mean_difference": float('nan'),
                     "test_statistic": float('nan'),
                     "p_value": float('nan'),
@@ -138,7 +138,7 @@ class StatisticalAnalyzer:
                                (len(male_tiers) + len(female_tiers) - 2))
             cohens_d = (np.mean(male_tiers) - np.mean(female_tiers)) / pooled_std
             
-            finding = "CONFIRMED" if p_value < 0.05 else "NOT CONFIRMED"
+            finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
             return {
                 "finding": finding,
@@ -192,7 +192,7 @@ class StatisticalAnalyzer:
             # Calculate means for each ethnicity
             ethnicity_means = {eth: float(np.mean(tiers)) for eth, tiers in ethnicity_groups.items()}
             
-            finding = "CONFIRMED" if p_value < 0.05 else "NOT CONFIRMED"
+            finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
             return {
                 "finding": finding,
@@ -251,7 +251,7 @@ class StatisticalAnalyzer:
             # Calculate means for each geography
             geography_means = {geo: float(np.mean(tiers)) for geo, tiers in geography_groups.items()}
             
-            finding = "CONFIRMED" if p_value < 0.05 else "NOT CONFIRMED"
+            finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
             return {
                 "finding": finding,
@@ -266,9 +266,16 @@ class StatisticalAnalyzer:
             return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
     
     def analyze_granular_bias(self, raw_results: List[Dict]) -> Dict:
-        """Analyze granular bias patterns across demographic groups"""
+        """
+        Analyze granular bias patterns across demographic groups
+        
+        Hypothesis: H₀: Subtle demographic injection affects remedy tier assignments the same for all groups
+        """
         if not raw_results:
-            return {"finding": "NOT TESTED", "error": "No raw experimental data available"}
+            return {
+                "finding": "NOT TESTED", 
+                "error": "No raw experimental data available"
+            }
         
         try:
             # Extract remedy tiers by demographic group (ethnicity × gender × urban/rural)
@@ -300,37 +307,45 @@ class StatisticalAnalyzer:
             f_stat, p_value = stats.f_oneway(*group_data)
             
             return {
-                "finding": "CONFIRMED" if p_value < self.alpha else "NOT CONFIRMED",
+                "finding": "H₀ REJECTED" if p_value < self.alpha else "H₀ NOT REJECTED",
                 "f_statistic": float(f_stat),
                 "p_value": float(p_value),
                 "interpretation": "Significant inter-group bias differences detected" if p_value < self.alpha else "No significant inter-group bias differences",
                 "persona_groups_analyzed": len(persona_groups),
                 "baseline_mean": float(baseline_mean),
-                "bias_magnitudes": {group: float(np.mean(tiers) - baseline_mean) for group, tiers in persona_groups.items()}
+                "bias_magnitudes": {group: float(np.mean(tiers) - baseline_mean) for group, tiers in persona_groups.items()},
+                "group_means": {group: float(np.mean(tiers)) for group, tiers in persona_groups.items()}
             }
             
         except Exception as e:
             return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
     
     def analyze_bias_directional_consistency(self, raw_results: List[Dict]) -> Dict:
-        """Analyze directional consistency of bias patterns using statistical testing"""
+        """
+        Analyze directional consistency of bias patterns using statistical testing
+        
+        Hypothesis: H₀: Mean bias outcomes are equally positive or negative
+        """
         if not raw_results:
-            return {"finding": "NOT TESTED", "error": "No raw experimental data available"}
+            return {
+                "finding": "NOT TESTED", 
+                "error": "No raw experimental data available"
+            }
         
         try:
-            # Extract remedy tiers by demographic group (ethnicity × gender × urban/rural)
+            # Extract remedy tiers by individual persona (using group_text for granular analysis)
             group_tiers = {}
             for record in raw_results:
-                group_label = record.get('group_label')
+                group_text = record.get('group_text')
                 remedy_tier = record.get('remedy_tier')
                 
-                if group_label and remedy_tier is not None:
-                    if group_label not in group_tiers:
-                        group_tiers[group_label] = []
-                    group_tiers[group_label].append(remedy_tier)
+                if group_text and remedy_tier is not None:
+                    if group_text not in group_tiers:
+                        group_tiers[group_text] = []
+                    group_tiers[group_text].append(remedy_tier)
             
             # Calculate bias direction for each persona group relative to baseline
-            baseline_tiers = group_tiers.get('baseline', [])
+            baseline_tiers = group_tiers.get('Baseline (no demographic signals)', [])
             if not baseline_tiers:
                 return {"finding": "NOT TESTED", "error": "No baseline data available"}
             
@@ -339,7 +354,7 @@ class StatisticalAnalyzer:
             bias_values = []
             
             for group_name, tiers in group_tiers.items():
-                if group_name != 'baseline':
+                if group_name != 'Baseline (no demographic signals)':
                     group_mean = np.mean(tiers)
                     bias = group_mean - baseline_mean
                     bias_details[group_name] = float(bias)
@@ -357,12 +372,22 @@ class StatisticalAnalyzer:
             negative_biases = sum(1 for bias in bias_values if bias < -0.05)
             neutral_biases = len(bias_values) - positive_biases - negative_biases
             
-            # Determine if there's systematic bias
-            # For systematic discrimination, we expect marginalized groups to get worse outcomes (higher remedy tiers)
-            # This means positive bias (higher than baseline) indicates worse treatment
-            systematic_bias = p_value < 0.05 and np.mean(bias_values) > 0
+            # Determine if bias distribution is significantly uneven
+            # Low p-value means biases are NOT evenly distributed between positive and negative
+            bias_unevenly_distributed = p_value < 0.05
             
-            finding = "CONFIRMED" if systematic_bias else "NOT CONFIRMED"
+            finding = "H₀ REJECTED" if bias_unevenly_distributed else "H₀ NOT REJECTED"
+            
+            # Create proper interpretation based on bias distribution
+            if bias_unevenly_distributed:
+                if positive_biases < negative_biases:
+                    interpretation = f"Bias distribution is significantly uneven (p={p_value:.3f}). Fewer groups are advantaged ({positive_biases}) than disadvantaged ({negative_biases}), indicating systematic disadvantage for most groups."
+                elif positive_biases > negative_biases:
+                    interpretation = f"Bias distribution is significantly uneven (p={p_value:.3f}). More groups are advantaged ({positive_biases}) than disadvantaged ({negative_biases}), indicating systematic advantage for most groups."
+                else:
+                    interpretation = f"Bias distribution is significantly uneven (p={p_value:.3f}), but direction is unclear."
+            else:
+                interpretation = f"Bias distribution is not significantly uneven (p={p_value:.3f}), indicating biases are relatively balanced between positive and negative."
             
             return {
                 "finding": finding,
@@ -375,19 +400,23 @@ class StatisticalAnalyzer:
                 "test_statistic": float(t_stat),
                 "p_value": float(p_value),
                 "mean_bias": float(np.mean(bias_values)),
-                "interpretation": f"Systematic discrimination pattern {'detected' if systematic_bias else 'not detected'} (p={p_value:.3f})"
+                "interpretation": interpretation
             }
-            
+        
         except Exception as e:
-            return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
+            return {"finding": "NOT TESTED", "error": f"Analysis failed: {str(e)}"}
     
     def analyze_fairness_strategies(self, raw_results: List[Dict]) -> Dict:
-        """Analyze effectiveness of fairness strategies"""
+        """
+        Analyze effectiveness of fairness strategies with two separate hypotheses:
+        1. H₀: Fairness strategies do not affect bias (vs baseline)
+        2. H₀: All fairness strategies are equally effective
+        """
         if not raw_results:
             return {"finding": "NOT TESTED", "error": "No raw experimental data available"}
         
         try:
-            # Extract data by variant
+            # Extract data by variant (strategy)
             variant_tiers = {}
             for record in raw_results:
                 variant = record.get('variant')
@@ -398,43 +427,84 @@ class StatisticalAnalyzer:
                         variant_tiers[variant] = []
                     variant_tiers[variant].append(remedy_tier)
             
-            # Check if we have the required variants
-            if 'G' not in variant_tiers or 'persona_fairness' not in variant_tiers:
-                return {
-                    "finding": "NOT TESTED",
-                    "error": "Missing G or persona_fairness variant data",
-                    "available_variants": list(variant_tiers.keys())
-                }
+            if len(variant_tiers) < 2:
+                return {"finding": "NOT TESTED", "error": "Insufficient variant data for analysis"}
+            
+            # Filter out NC and G - only keep actual fairness strategies
+            fairness_strategies = ['persona_fairness', 'perspective', 'chain_of_thought', 
+                                 'consequentialist', 'roleplay', 'structured_extraction', 'minimal']
+            filtered_variant_tiers = {k: v for k, v in variant_tiers.items() if k in fairness_strategies}
+            
+            if len(filtered_variant_tiers) < 2:
+                return {"finding": "NOT TESTED", "error": "Insufficient fairness strategy data for analysis"}
             
             # Calculate means for each strategy
-            strategy_means = {variant: float(np.mean(tiers)) for variant, tiers in variant_tiers.items()}
+            strategy_means = {variant: float(np.mean(tiers)) for variant, tiers in filtered_variant_tiers.items()}
             
-            # Compare G vs persona_fairness (demographic injection vs demographic injection + fairness instruction)
-            g_tiers = variant_tiers['G']
-            persona_fairness_tiers = variant_tiers['persona_fairness']
+            # Hypothesis 1: Fairness strategies vs baseline (NC)
+            baseline_tiers = variant_tiers.get('NC', [])
+            if baseline_tiers:
+                baseline_mean = np.mean(baseline_tiers)
+                # Compare each fairness strategy to baseline
+                strategy_vs_baseline = {}
+                for strategy, tiers in filtered_variant_tiers.items():
+                    strategy_mean = np.mean(tiers)
+                    # Lower remedy tier = better outcome, so negative difference means strategy is better
+                    difference = strategy_mean - baseline_mean
+                    strategy_vs_baseline[strategy] = float(difference)
+                
+                # Test if any strategy significantly differs from baseline
+                from scipy.stats import ttest_1samp
+                differences = list(strategy_vs_baseline.values())
+                t_stat_h1, p_value_h1 = ttest_1samp(differences, 0)
+                finding_h1 = "H₀ REJECTED" if p_value_h1 < 0.05 else "H₀ NOT REJECTED"
+                interpretation_h1 = f"Fairness strategies {'significantly affect' if p_value_h1 < 0.05 else 'do not significantly affect'} bias compared to baseline (p={p_value_h1:.3f})"
+            else:
+                strategy_vs_baseline = {}
+                t_stat_h1, p_value_h1 = float('nan'), float('nan')
+                finding_h1 = "NOT TESTED"
+                interpretation_h1 = "No baseline data available for comparison"
             
-            from scipy.stats import ttest_ind
-            t_stat, p_value = ttest_ind(g_tiers, persona_fairness_tiers)
+            # Hypothesis 2: All fairness strategies equally effective (ANOVA among strategies only)
+            from scipy.stats import f_oneway
+            strategy_groups = list(filtered_variant_tiers.values())
+            f_stat_h2, p_value_h2 = f_oneway(*strategy_groups)
+            finding_h2 = "H₀ REJECTED" if p_value_h2 < 0.05 else "H₀ NOT REJECTED"
+            interpretation_h2 = f"Fairness strategies {'significantly differ' if p_value_h2 < 0.05 else 'do not significantly differ'} in effectiveness (p={p_value_h2:.3f})"
             
-            # Calculate effect size
-            pooled_std = np.sqrt(((len(g_tiers) - 1) * np.var(g_tiers, ddof=1) + 
-                                (len(persona_fairness_tiers) - 1) * np.var(persona_fairness_tiers, ddof=1)) / 
-                               (len(g_tiers) + len(persona_fairness_tiers) - 2))
-            cohens_d = (np.mean(g_tiers) - np.mean(persona_fairness_tiers)) / pooled_std
+            # Calculate sample sizes for fairness strategies only
+            sample_sizes = {variant: len(tiers) for variant, tiers in filtered_variant_tiers.items()}
             
-            finding = "CONFIRMED" if p_value < 0.05 else "NOT CONFIRMED"
+            # Create comprehensive strategy descriptions
+            strategy_descriptions = {
+                'persona_fairness': 'Demographic injection with explicit fairness instruction',
+                'perspective': 'Perspective-taking approach to reduce bias',
+                'chain_of_thought': 'Step-by-step reasoning to improve decision quality',
+                'consequentialist': 'Consequence-focused decision making',
+                'roleplay': 'Role-playing approach to enhance empathy',
+                'structured_extraction': 'Structured information extraction method',
+                'minimal': 'Minimal intervention approach'
+            }
             
             return {
-                "finding": finding,
-                "g_mean": float(np.mean(g_tiers)),
-                "persona_fairness_mean": float(np.mean(persona_fairness_tiers)),
-                "mean_difference": float(np.mean(g_tiers) - np.mean(persona_fairness_tiers)),
-                "test_statistic": float(t_stat),
-                "p_value": float(p_value),
-                "effect_size": float(cohens_d),
-                "interpretation": f"Fairness instruction {'significantly affects' if p_value < 0.05 else 'does not significantly affect'} remedy tier assignments",
-                "sample_sizes": {"G": len(g_tiers), "persona_fairness": len(persona_fairness_tiers)},
-                "strategy_means": strategy_means
+                # Hypothesis 1 results
+                "finding_h1": finding_h1,
+                "t_statistic_h1": float(t_stat_h1),
+                "p_value_h1": float(p_value_h1),
+                "interpretation_h1": interpretation_h1,
+                "strategy_vs_baseline": strategy_vs_baseline,
+                
+                # Hypothesis 2 results
+                "finding_h2": finding_h2,
+                "f_statistic_h2": float(f_stat_h2),
+                "p_value_h2": float(p_value_h2),
+                "interpretation_h2": interpretation_h2,
+                
+                # Common data
+                "strategy_means": strategy_means,
+                "sample_sizes": sample_sizes,
+                "strategy_descriptions": strategy_descriptions,
+                "baseline_mean": float(baseline_mean) if baseline_tiers else float('nan')
             }
             
         except Exception as e:
@@ -444,76 +514,106 @@ class StatisticalAnalyzer:
         """Analyze process fairness indicators across demographic groups"""
         if not raw_results:
             return {"finding": "NOT TESTED", "error": "No raw experimental data available"}
-        
+
         try:
-            # Extract process fairness indicators by demographic group
-            process_indicators = {}
-            
+            # Collect persona groups and baseline separately
+            indicators_list = ['monetary', 'escalation', 'asked_question', 'evidence_ok', 'format_ok', 'refusal']
+            process_indicators: Dict[str, Dict[str, List[float]]] = {}
+            baseline_indicators: Dict[str, List[float]] = {k: [] for k in indicators_list}
+
             for record in raw_results:
                 group_label = record.get('group_label')
-                if not group_label or group_label == 'baseline':
+                if not group_label:
                     continue
-                    
+                if group_label == 'baseline':
+                    for ind in indicators_list:
+                        v = record.get(ind)
+                        if v is not None:
+                            baseline_indicators[ind].append(v)
+                    continue
+
                 if group_label not in process_indicators:
-                    process_indicators[group_label] = {
-                        'monetary': [], 'escalation': [], 'asked_question': [],
-                        'evidence_ok': [], 'format_ok': [], 'refusal': []
-                    }
-                
-                # Collect process indicators
-                for indicator in ['monetary', 'escalation', 'asked_question', 'evidence_ok', 'format_ok', 'refusal']:
-                    value = record.get(indicator)
-                    if value is not None:
-                        process_indicators[group_label][indicator].append(value)
-            
+                    process_indicators[group_label] = {k: [] for k in indicators_list}
+                for ind in indicators_list:
+                    v = record.get(ind)
+                    if v is not None:
+                        process_indicators[group_label][ind].append(v)
+
             if len(process_indicators) < 2:
                 return {"finding": "NOT TESTED", "error": "Insufficient demographic groups for analysis"}
-            
-            # Calculate means for each indicator by group
-            group_means = {}
-            for group, indicators in process_indicators.items():
-                group_means[group] = {}
-                for indicator, values in indicators.items():
-                    if values:
-                        group_means[group][indicator] = float(np.mean(values))
-                    else:
-                        group_means[group][indicator] = 0.0
-            
-            # Test for significant differences in process fairness
-            from scipy.stats import f_oneway
-            significant_differences = {}
-            
-            for indicator in ['monetary', 'escalation', 'asked_question', 'evidence_ok', 'format_ok', 'refusal']:
-                groups_data = []
-                for group, indicators in process_indicators.items():
-                    if indicators[indicator]:
-                        groups_data.append(indicators[indicator])
-                
+
+            # Group means
+            group_means: Dict[str, Dict[str, float]] = {}
+            for grp, ind_map in process_indicators.items():
+                group_means[grp] = {ind: float(np.mean(vals)) if vals else 0.0 for ind, vals in ind_map.items()}
+
+            # One-way ANOVA across persona groups for each indicator (H0: no differences between groups)
+            from scipy.stats import f_oneway, ttest_ind
+            indicator_tests: Dict[str, Dict[str, float]] = {}
+            for ind in indicators_list:
+                groups_data = [vals[ind] for vals in process_indicators.values() if vals[ind]]
                 if len(groups_data) >= 2:
-                    f_stat, p_value = f_oneway(*groups_data)
-                    significant_differences[indicator] = {
-                        'f_statistic': float(f_stat),
-                        'p_value': float(p_value),
-                        'significant': p_value < 0.05
-                    }
-            
-            # Count significant differences
-            significant_count = sum(1 for result in significant_differences.values() if result['significant'])
-            total_indicators = len(significant_differences)
-            
-            finding = "CONFIRMED" if significant_count > 0 else "NOT CONFIRMED"
-            
+                    try:
+                        f_stat, p_val = f_oneway(*groups_data)
+                        indicator_tests[ind] = {
+                            'f_statistic': float(f_stat),
+                            'p_value': float(p_val),
+                            'significant': p_val < self.alpha
+                        }
+                    except Exception:
+                        indicator_tests[ind] = {'f_statistic': float('nan'), 'p_value': float('nan'), 'significant': False}
+                else:
+                    indicator_tests[ind] = {'f_statistic': float('nan'), 'p_value': float('nan'), 'significant': False}
+
+            significant_count = sum(1 for res in indicator_tests.values() if res.get('significant'))
+            total_indicators = len(indicator_tests)
+            finding = "H₀ REJECTED" if significant_count > 0 else "H₀ NOT REJECTED"
+
+            # Baseline vs personas combined per indicator (H0: no difference when demographics added)
+            baseline_vs_personas_tests: Dict[str, Dict[str, float]] = {}
+            for ind in indicators_list:
+                base_vals = baseline_indicators.get(ind, [])
+                persona_vals: List[float] = []
+                for grp_vals in process_indicators.values():
+                    persona_vals.extend(grp_vals.get(ind, []))
+                if len(base_vals) >= 5 and len(persona_vals) >= 5:
+                    try:
+                        t_stat, p_val = ttest_ind(base_vals, persona_vals, equal_var=False)
+                        baseline_vs_personas_tests[ind] = {
+                            't_statistic': float(t_stat),
+                            'p_value': float(p_val),
+                            'significant': p_val < self.alpha
+                        }
+                    except Exception:
+                        baseline_vs_personas_tests[ind] = {'t_statistic': float('nan'), 'p_value': float('nan'), 'significant': False}
+                else:
+                    baseline_vs_personas_tests[ind] = {'t_statistic': float('nan'), 'p_value': float('nan'), 'significant': False}
+
+            bvp_sig = sum(1 for res in baseline_vs_personas_tests.values() if res.get('significant'))
+            bvp_total = len(baseline_vs_personas_tests)
+            bvp_interp = (
+                f"Process indicators {'differ' if bvp_sig > 0 else 'do not differ'} between Baseline and combined demographic groups "
+                f"({bvp_sig}/{bvp_total} indicators significant)"
+            )
+
             return {
-                "finding": finding,
-                "significant_indicators": significant_count,
-                "total_indicators": total_indicators,
-                "group_means": group_means,
-                "indicator_tests": significant_differences,
-                "interpretation": f"Process fairness {'varies significantly' if significant_count > 0 else 'does not vary significantly'} across demographic groups ({significant_count}/{total_indicators} indicators significant)"
+                'finding': finding,
+                'significant_indicators': significant_count,
+                'total_indicators': total_indicators,
+                'group_means': group_means,
+                'indicator_tests': indicator_tests,
+                'interpretation': (
+                    f"Process fairness {'varies significantly' if significant_count > 0 else 'does not vary significantly'} "
+                    f"across demographic groups ({significant_count}/{total_indicators} indicators significant)"
+                ),
+                'baseline_vs_personas_tests': baseline_vs_personas_tests,
+                'baseline_vs_personas_significant_indicators': bvp_sig,
+                'baseline_vs_personas_total_indicators': bvp_total,
+                'baseline_vs_personas_interpretation': bvp_interp
             }
-            
+
         except Exception as e:
-            return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
+            return {"finding": "NOT TESTED", "error": f"Analysis failed: {str(e)}"}
     
     def analyze_severity_context(self, raw_results: List[Dict]) -> Dict:
         """Analyze severity-context interactions"""
@@ -568,7 +668,7 @@ class StatisticalAnalyzer:
             significant_count = sum(1 for result in significant_interactions.values() if result['significant'])
             total_issues = len(significant_interactions)
             
-            finding = "CONFIRMED" if significant_count > 0 else "NOT CONFIRMED"
+            finding = "H₀ REJECTED" if significant_count > 0 else "H₀ NOT REJECTED"
             
             return {
                 "finding": finding,
@@ -583,17 +683,263 @@ class StatisticalAnalyzer:
             return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
     
     def analyze_severity_bias_variation(self, raw_results: List[Dict]) -> Dict:
-        """Analyze how bias varies with complaint severity"""
-        return {
-            "finding": "NOT TESTED",
-            "interpretation": "Severity bias variation analysis not yet implemented"
-        }
+        """
+        Analyze how bias metrics vary with complaint severity based on LLM predicted tiers
+        
+        This analysis groups complaints by their predicted severity tier in the Baseline case
+        and examines whether bias patterns are consistent across different severity levels.
+        
+        Args:
+            raw_results: List of result dictionaries from experiments
+            
+        Returns:
+            Dict containing:
+            - finding: Status of the analysis
+            - interpretation: Human-readable explanation of results
+            - severity_levels: Number of severity tiers analyzed
+            - bias_variation: Whether bias varies significantly by severity tier
+            - tier_metrics: Metrics by predicted severity tier
+        """
+        if not raw_results:
+            return {
+                "finding": "NO DATA",
+                "interpretation": "No experimental data available for severity analysis"
+            }
+            
+        try:
+            # First, organize results by complaint ID to find baseline predictions
+            complaint_data = {}
+            for result in raw_results:
+                complaint_id = result.get('complaint_id')
+                if not complaint_id:
+                    continue
+                    
+                if complaint_id not in complaint_data:
+                    complaint_data[complaint_id] = {'baseline': None, 'personas': {}}
+                
+                # Use 'group_label' to identify baseline cases
+                group = result.get('group_label', '').lower()
+                if 'baseline' in group:
+                    complaint_data[complaint_id]['baseline'] = result
+                else:
+                    # Store persona results by group
+                    complaint_data[complaint_id]['personas'][group] = result
+            
+            # Now group by predicted tier from baseline
+            tier_groups = {}
+            for complaint_id, data in complaint_data.items():
+                baseline = data.get('baseline')
+                if not baseline:
+                    continue
+                    
+                predicted_tier = baseline.get('remedy_tier')
+                if predicted_tier is None:
+                    continue
+                    
+                # Convert to string to handle both string and integer tiers
+                tier_key = str(predicted_tier)
+                if tier_key not in tier_groups:
+                    tier_groups[tier_key] = []
+                
+                # Add all persona results for this complaint
+                for persona_result in data['personas'].values():
+                    tier_groups[tier_key].append({
+                        'group': persona_result.get('group_label'),
+                        'tier': persona_result.get('remedy_tier'),
+                        'baseline_tier': predicted_tier
+                    })
+            
+            if not tier_groups:
+                return {
+                    "finding": "INSUFFICIENT DATA",
+                    "interpretation": "No baseline predictions found to analyze severity tiers"
+                }
+            
+            # Calculate bias metrics for each predicted tier
+            tier_metrics = {}
+            all_tier_biases = []
+            
+            for tier, results in tier_groups.items():
+                if len(results) < 5:  # Skip tiers with too few samples
+                    continue
+                
+                # Group by demographic group
+                group_tiers = {}
+                for result in results:
+                    group = result['group']
+                    if group not in group_tiers:
+                        group_tiers[group] = []
+                    group_tiers[group].append(result['tier'])
+                
+                # Calculate bias metrics for this tier
+                if group_tiers:
+                    all_tiers = [t for tiers in group_tiers.values() for t in tiers]
+                    if all_tiers:
+                        overall_mean = np.mean(all_tiers)
+                        group_biases = {
+                            group: np.mean(tiers) - overall_mean
+                            for group, tiers in group_tiers.items()
+                            if len(tiers) >= 3  # Require minimum samples per group
+                        }
+                        
+                        if group_biases:
+                            bias_range = (max(group_biases.values()) - min(group_biases.values()))
+                            bias_range = float(bias_range) if group_biases else 0.0
+                            
+                            tier_metrics[tier] = {
+                                'sample_size': len(results),
+                                'overall_mean': float(overall_mean),
+                                'group_biases': group_biases,
+                                'bias_range': bias_range,
+                                'groups_analyzed': len(group_biases)
+                            }
+                            all_tier_biases.append(bias_range)
+            
+            if not tier_metrics:
+                return {
+                    "finding": "INSUFFICIENT DATA",
+                    "interpretation": "Not enough data points per predicted tier to analyze severity variation"
+                }
+            
+            # Check if bias varies significantly by predicted tier
+            tiers = sorted(tier_metrics.keys())
+            
+            # Prepare data for ANOVA test (if we have enough tiers)
+            if len(tiers) >= 2:
+                from scipy.stats import f_oneway
+                
+                # Group bias ranges by tier
+                tier_bias_groups = []
+                for tier in tiers:
+                    metrics = tier_metrics[tier]
+                    if metrics['groups_analyzed'] >= 2:  # Need at least 2 groups
+                        tier_bias_groups.append(list(metrics['group_biases'].values()))
+                
+                # Perform ANOVA if we have at least 2 valid tiers
+                if len(tier_bias_groups) >= 2:
+                    try:
+                        f_stat, p_value = f_oneway(*tier_bias_groups)
+                        bias_varies = p_value < 0.05
+                    except:
+                        bias_varies = False
+                        p_value = float('nan')
+                else:
+                    bias_varies = False
+                    p_value = float('nan')
+            else:
+                bias_varies = False
+                p_value = float('nan')
+            
+            # Calculate average bias range across all tiers
+            avg_bias_range = np.mean([m['bias_range'] for m in tier_metrics.values()]) if tier_metrics else 0.0
+            
+            # Sort tiers by bias range (highest first)
+            sorted_tiers = sorted(
+                tier_metrics.items(),
+                key=lambda x: x[1]['bias_range'],
+                reverse=True
+            )
+            
+            # Prepare group bias summary across all tiers
+            all_group_biases = {}
+            for tier_data in tier_metrics.values():
+                for group, bias in tier_data['group_biases'].items():
+                    if group not in all_group_biases:
+                        all_group_biases[group] = []
+                    all_group_biases[group].append(bias)
+            
+            # Calculate average bias per group across all tiers
+            avg_group_biases = {
+                group: np.mean(biases)
+                for group, biases in all_group_biases.items()
+            }
+            
+            return {
+                "finding": "COMPLETED",
+                "interpretation": (
+                    f"Bias patterns {'vary' if bias_varies else 'are consistent'} "
+                    f"across predicted severity tiers (p={p_value:.3f}). "
+                    f"Analyzed {len(tiers)} severity tiers with an average bias range of {avg_bias_range:.2f}."
+                ),
+                "tiers_analyzed": len(tiers),
+                "bias_variation_significant": bias_varies,
+                "p_value": float(p_value),
+                "average_bias_range": float(avg_bias_range),
+                "tier_metrics": {
+                    tier: {
+                        "sample_size": metrics['sample_size'],
+                        "overall_mean": metrics['overall_mean'],
+                        "bias_range": metrics['bias_range'],
+                        "groups_analyzed": metrics['groups_analyzed']
+                    }
+                    for tier, metrics in sorted_tiers
+                },
+                "highest_bias_tiers": [
+                    {
+                        "tier": tier,
+                        "bias_range": float(metrics['bias_range']),
+                        "sample_size": metrics['sample_size'],
+                        "groups_analyzed": metrics['groups_analyzed']
+                    }
+                    for tier, metrics in sorted_tiers[:3]  # Top 3 tiers with highest bias
+                ],
+                "average_group_biases": {
+                    group: float(bias)
+                    for group, bias in sorted(avg_group_biases.items(), key=lambda x: x[1], reverse=True)
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "finding": "ERROR",
+                "interpretation": f"Error analyzing severity bias variation: {str(e)}",
+                "error": str(e)
+            }
     
     def analyze_scaling_laws(self, raw_results: List[Dict]) -> Dict:
-        """Analyze scaling laws of fairness across model sizes"""
+        """
+        Analyze scaling laws of fairness across model sizes
+        
+        Args:
+            raw_results: List of result dictionaries from experiments
+            
+        Returns:
+            Dict with analysis results including:
+            - finding: Status of the analysis
+            - interpretation: Human-readable explanation
+            - models_analyzed: Number of unique models found
+        """
+        if not raw_results:
+            return {
+                "finding": "NO DATA",
+                "interpretation": "No experimental data available for scaling analysis"
+            }
+            
+        # Extract unique models from results
+        models = set()
+        for result in raw_results:
+            model = result.get('model')
+            if model:
+                models.add(model)
+                
+        num_models = len(models)
+        
+        if num_models < 2:
+            model_name = next(iter(models)) if models else 'single model'
+            return {
+                "finding": "NOT APPLICABLE",
+                "interpretation": f"Scaling analysis requires multiple models. Only {model_name} was used.",
+                "models_analyzed": num_models,
+                "available_models": list(models) if models else []
+            }
+            
+        # If we have multiple models, proceed with scaling analysis
+        # (Implementation would go here)
         return {
-            "finding": "NOT TESTED",
-            "interpretation": "Model scaling analysis not yet implemented"
+            "finding": "NOT IMPLEMENTED",
+            "interpretation": f"Scaling analysis for {num_models} models not yet implemented",
+            "models_analyzed": num_models,
+            "available_models": list(models)
         }
     
     def analyze_corrective_justice(self, raw_results: List[Dict]) -> Dict:
