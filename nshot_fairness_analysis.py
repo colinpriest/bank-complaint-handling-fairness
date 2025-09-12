@@ -1324,10 +1324,18 @@ Your Decision:
         analysis["persona_specific_bias"] = {}
         for persona, diffs in persona_bias.items():
             if diffs:
+                # Calculate p-value using one-sample t-test against null hypothesis of no bias (mean=0)
+                if len(diffs) > 1:
+                    t_stat, p_value = stats.ttest_1samp(diffs, 0)
+                    p_value = float(p_value)
+                else:
+                    p_value = 1.0  # Not enough data for test
+                
                 analysis["persona_specific_bias"][persona] = {
                     "mean_tier_shift": float(np.mean(diffs)),
                     "std_tier_shift": float(np.std(diffs)),
-                    "n_samples": len(diffs)
+                    "n_samples": len(diffs),
+                    "p_value": p_value
                 }
         
         # Strategy effectiveness analysis
@@ -1348,11 +1356,19 @@ Your Decision:
                     effectiveness_scores.append(reduction)
             
             if effectiveness_scores:
+                # Calculate p-value using one-sample t-test against null hypothesis of no reduction (mean=0)
+                if len(effectiveness_scores) > 1:
+                    t_stat, p_value = stats.ttest_1samp(effectiveness_scores, 0)
+                    p_value = float(p_value)
+                else:
+                    p_value = 1.0  # Not enough data for test
+                
                 strategy_effectiveness[strategy_name] = {
                     "mean_bias_reduction": float(np.mean(effectiveness_scores)),
                     "positive_reduction_rate": float(np.mean(np.array(effectiveness_scores) > 0)),
                     "median_reduction": float(np.median(effectiveness_scores)),
-                    "n_samples": len(effectiveness_scores)
+                    "n_samples": len(effectiveness_scores),
+                    "p_value": p_value
                 }
         
         analysis["strategy_effectiveness"] = strategy_effectiveness
@@ -1720,15 +1736,20 @@ Your Decision:
         
         # Persona-specific bias
         report.append("\n### Persona-Specific Bias\n")
-        report.append("| Persona | Mean Tier Shift | Std Dev | N |")
-        report.append("|---------|-----------------|---------|---|")
+        report.append("| Persona | Mean Tier Shift | Std Dev | N | P-value |")
+        report.append("|---------|-----------------|---------|---|---------|")
         
         for persona, stats in analysis.get("persona_specific_bias", {}).items():
             persona_label = persona.replace("_", " ").title()
+            p_val = stats.get('p_value', 1.0)
+            p_val_str = f"{p_val:.4f}" if p_val >= 0.0001 else "<0.0001"
+            if p_val < 0.05:
+                p_val_str = f"**{p_val_str}**"  # Bold if significant
             report.append(f"| {persona_label} | "
                         f"{stats['mean_tier_shift']:+.3f} | "
                         f"{stats['std_tier_shift']:.3f} | "
-                        f"{stats['n_samples']} |")
+                        f"{stats['n_samples']} | "
+                        f"{p_val_str} |")
         
         # Process fairness analysis
         if "process_fairness" in analysis:
@@ -1785,8 +1806,8 @@ Your Decision:
         # Strategy effectiveness
         if "strategy_effectiveness" in analysis and analysis["strategy_effectiveness"]:
             report.append("\n### Strategy Effectiveness\n")
-            report.append("| Strategy | Mean Reduction | Success Rate | Median Reduction | N |")
-            report.append("|----------|----------------|--------------|------------------|---|")
+            report.append("| Strategy | Mean Reduction | Success Rate | Median Reduction | N | P-value |")
+            report.append("|----------|----------------|--------------|------------------|---|---------|")
             
             # Sort strategies by effectiveness
             strategies_sorted = sorted(
@@ -1796,11 +1817,16 @@ Your Decision:
             )
             
             for strategy_name, eff in strategies_sorted:
+                p_val = eff.get('p_value', 1.0)
+                p_val_str = f"{p_val:.4f}" if p_val >= 0.0001 else "<0.0001"
+                if p_val < 0.05:
+                    p_val_str = f"**{p_val_str}**"  # Bold if significant
                 report.append(f"| {strategy_name.replace('_', ' ').title()} | "
                             f"{eff['mean_bias_reduction']:+.3f} | "
                             f"{eff['positive_reduction_rate']:.1%} | "
                             f"{eff['median_reduction']:+.3f} | "
-                            f"{eff['n_samples']} |")
+                            f"{eff['n_samples']} | "
+                            f"{p_val_str} |")
             
             best_strategy = strategies_sorted[0]
             report.append(f"\n**Best performing strategy**: {best_strategy[0].replace('_', ' ').title()} "
@@ -1894,7 +1920,7 @@ Your Decision:
         report.append("7. Consider ensemble approaches combining multiple mitigation strategies")
         
         # Save report
-        report_path = output_path / "analysis_report.md"
+        report_path = output_path / "nshot_analysis_results.md"
         with open(report_path, "w", encoding="utf-8") as f:
             f.write("\n".join(report))
         
@@ -2034,7 +2060,35 @@ def main():
         print(f"  Success rate: {best_effectiveness['positive_reduction_rate']:.1%}")
         print(f"  Mean bias reduction: {best_effectiveness['mean_bias_reduction']:+.3f}")
     
-    print("\nFull report available at:", Path(args.output_dir) / "analysis_report.md")
+    print("\nFull report available at:", Path(args.output_dir) / "nshot_analysis_results.md")
+    
+    # Print final cache statistics
+    print("\n" + "="*60)
+    print("FINAL CACHE STATISTICS")
+    print("="*60)
+    if hasattr(analyzer, 'stats'):
+        total_requests = analyzer.stats.get('total_requests', 0)
+        cache_hits = analyzer.stats.get('cache_hits', 0)
+        cache_misses = analyzer.stats.get('cache_misses', 0)
+        api_calls = analyzer.stats.get('api_calls', 0)
+        
+        if total_requests > 0:
+            hit_rate = (cache_hits / total_requests) * 100
+            print(f"Total LLM requests: {total_requests}")
+            print(f"Cache hits: {cache_hits} ({hit_rate:.1f}%)")
+            print(f"Cache misses: {cache_misses}")
+            print(f"Actual API calls: {api_calls}")
+            print(f"API calls saved: {cache_hits}")
+            
+            if hit_rate < 50:
+                print("\n⚠️  Low cache hit rate detected! Check if:")
+                print("  - Cache directory exists and is writable")
+                print("  - Not using --clear-cache flag unnecessarily")
+                print("  - Running same experiments with same parameters")
+        else:
+            print("No requests made in this session")
+    
+    print("="*60)
 
 
 if __name__ == "__main__":

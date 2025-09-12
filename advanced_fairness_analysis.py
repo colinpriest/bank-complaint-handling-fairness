@@ -2939,26 +2939,15 @@ class AdvancedFairnessAnalyzer:
                                 "cfpb_outcome": cfpb_match.iloc[0]["Company response to consumer"]
                             })
             
-            # If no ID matching or few matches, use statistical simulation
+            # If no ID matching or few matches, raise an error
             if len(matched_data) < 50:
-                print("  > Using statistical simulation approach...")
-                
-                # Take a random sample of LLM predictions for comparison
-                llm_sample = data.sample(n=min(1000, len(data)))
-                
-                # Create simulated matches based on outcome distributions
-                for _, row in llm_sample.iterrows():
-                    # Randomly sample a CFPB outcome based on actual distribution
-                    sampled_cfpb = cfpb_complete.sample(n=1).iloc[0]
-                    
-                    matched_data.append({
-                        "llm_tier": row.get("remedy_tier"),
-                        "ground_truth_tier": sampled_cfpb["ground_truth_tier"],
-                        "model": row.get("model"),
-                        "group_label": row.get("group_label"),
-                        "fairness_strategy": row.get("fairness_strategy"),
-                        "cfpb_outcome": sampled_cfpb["Company response to consumer"]
-                    })
+                print("  > Insufficient matched data for ground truth validation")
+                print(f"  > Found only {len(matched_data)} matches, need at least 50")
+                raise ValueError(
+                    "Insufficient matched data for ground truth validation. "
+                    "Need at least 50 matches between LLM predictions and CFPB outcomes. "
+                    "Consider using a larger dataset or improving the matching criteria."
+                )
             
             if len(matched_data) > 0:
                 matched_df = pd.DataFrame(matched_data)

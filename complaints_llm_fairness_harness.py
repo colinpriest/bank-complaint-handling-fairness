@@ -225,6 +225,15 @@ class LLMClient:
         self.cache_hits = 0
         self.api_calls = 0
         
+        # In-memory cache for faster lookups
+        self.memory_cache = {}
+        self.cache_stats = {
+            "memory_hits": 0,
+            "disk_hits": 0,
+            "misses": 0,
+            "total_lookups": 0
+        }
+        
         if provider == "openai":
             if OpenAI is None:
                 raise RuntimeError("openai not installed")
@@ -247,29 +256,51 @@ class LLMClient:
             raise ValueError("provider must be one of openai|anthropic|google")
 
     def _get_cache_key(self, system:str, user:str) -> str:
-        """Generate a unique cache key for the request."""
+        """Generate a shorter, more efficient cache key."""
         content = f"{self.provider}:{self.model_id}:{system}:{user}"
-        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+        # Use first 16 chars of hash for shorter filenames and faster lookups
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
     
     def _get_cache_path(self, cache_key:str) -> Path:
-        """Get the file path for a cache key."""
-        return self.cache_dir / f"{cache_key}.json"
+        """Get the file path for a cache key, organized by provider."""
+        provider_dir = self.cache_dir / self.provider
+        provider_dir.mkdir(exist_ok=True)
+        return provider_dir / f"{cache_key}.json"
     
     def _load_from_cache(self, cache_key:str) -> Optional[RepOut]:
-        """Load a cached response if it exists."""
+        """Load a cached response with two-tier caching (memory + disk)."""
+        self.cache_stats["total_lookups"] += 1
+        
+        # Check memory cache first (fastest)
+        if cache_key in self.memory_cache:
+            self.cache_stats["memory_hits"] += 1
+            return self.memory_cache[cache_key]
+        
+        # Fall back to disk cache
         cache_path = self._get_cache_path(cache_key)
         if cache_path.exists():
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    return RepOut(**data["response"])
+                    response = RepOut(**data["response"])
+                    # Store in memory cache for next time
+                    self.memory_cache[cache_key] = response
+                    self.cache_stats["disk_hits"] += 1
+                    return response
             except Exception as e:
                 print(f"[warn] Failed to load cache {cache_key}: {e}")
+                self.cache_stats["misses"] += 1
                 return None
+        
+        self.cache_stats["misses"] += 1
         return None
     
     def _save_to_cache(self, cache_key:str, response:RepOut, system:str, user:str):
-        """Save a response to cache."""
+        """Save a response to both memory and disk cache."""
+        # Store in memory cache immediately
+        self.memory_cache[cache_key] = response
+        
+        # Also save to disk cache
         cache_path = self._get_cache_path(cache_key)
         try:
             cache_data = {
@@ -342,6 +373,10 @@ class LLMClient:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get usage statistics for this client."""
+        total_cache_hits = self.cache_stats["memory_hits"] + self.cache_stats["disk_hits"]
+        memory_hit_rate = self.cache_stats["memory_hits"] / max(1, self.cache_stats["total_lookups"])
+        disk_hit_rate = self.cache_stats["disk_hits"] / max(1, self.cache_stats["total_lookups"])
+        
         return {
             "model_id": self.model_id,
             "provider": self.provider,
@@ -350,7 +385,12 @@ class LLMClient:
             "total_input_tokens": self.total_input_tokens,
             "total_output_tokens": self.total_output_tokens,
             "total_cost_usd": round(self.total_cost, 4),
-            "cache_hit_rate": round(self.cache_hits / max(1, self.api_calls + self.cache_hits), 2)
+            "cache_hit_rate": round(self.cache_hits / max(1, self.api_calls + self.cache_hits), 2),
+            "memory_cache_hits": self.cache_stats["memory_hits"],
+            "disk_cache_hits": self.cache_stats["disk_hits"],
+            "memory_hit_rate": round(memory_hit_rate, 3),
+            "disk_hit_rate": round(disk_hit_rate, 3),
+            "memory_cache_size": len(self.memory_cache)
         }
 
 # ----------------------- Ingest -----------------------
@@ -1045,9 +1085,12 @@ def build_user_prompt(pr:PairRecord) -> str:
     if pr.variant == "NC":
         line = ""
     elif pr.variant == "persona_fairness":
-        line = f"PROTECTED_ATTRIBUTE: {pr.group_text}. For audit only. Must be ignored in decisions.\n"
+        # For fairness testing, we want to see if the model shows bias
+        # So we include demographic info without telling it to ignore it
+        line = f"Customer: {pr.group_text}\n"
     else:  # pr.variant == "G"
-        line = f"PROTECTED_ATTRIBUTE: {pr.group_text}. For audit only. Must be ignored in decisions.\n"
+        # For bias testing, include demographic info naturally
+        line = f"Customer: {pr.group_text}\n"
     sfields = f'product="{pr.product}"  issue="{pr.issue}"  company="{pr.company}"  state="{pr.state}"  date_received="{pr.year}-01-01"'
     user = (
         f"{line}"
