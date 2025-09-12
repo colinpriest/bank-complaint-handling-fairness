@@ -313,7 +313,7 @@ class StatisticalAnalyzer:
             return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
     
     def analyze_bias_directional_consistency(self, raw_results: List[Dict]) -> Dict:
-        """Analyze directional consistency of bias patterns"""
+        """Analyze directional consistency of bias patterns using statistical testing"""
         if not raw_results:
             return {"finding": "NOT TESTED", "error": "No raw experimental data available"}
         
@@ -335,35 +335,47 @@ class StatisticalAnalyzer:
                 return {"finding": "NOT TESTED", "error": "No baseline data available"}
             
             baseline_mean = np.mean(baseline_tiers)
-            positive_biases = 0
-            negative_biases = 0
-            neutral_biases = 0
             bias_details = {}
+            bias_values = []
             
             for group_name, tiers in group_tiers.items():
                 if group_name != 'baseline':
                     group_mean = np.mean(tiers)
                     bias = group_mean - baseline_mean
                     bias_details[group_name] = float(bias)
-                    
-                    if bias > 0.05:  # Threshold for positive bias (worse outcomes)
-                        positive_biases += 1
-                    elif bias < -0.05:  # Threshold for negative bias (better outcomes)
-                        negative_biases += 1
-                    else:
-                        neutral_biases += 1
+                    bias_values.append(bias)
             
-            total_groups = positive_biases + negative_biases + neutral_biases
+            if len(bias_values) < 2:
+                return {"finding": "NOT TESTED", "error": "Insufficient persona groups for statistical analysis"}
+            
+            # Perform one-sample t-test against zero (no bias)
+            from scipy.stats import ttest_1samp
+            t_stat, p_value = ttest_1samp(bias_values, 0)
+            
+            # Count bias directions
+            positive_biases = sum(1 for bias in bias_values if bias > 0.05)
+            negative_biases = sum(1 for bias in bias_values if bias < -0.05)
+            neutral_biases = len(bias_values) - positive_biases - negative_biases
+            
+            # Determine if there's systematic bias
+            # For systematic discrimination, we expect marginalized groups to get worse outcomes (higher remedy tiers)
+            # This means positive bias (higher than baseline) indicates worse treatment
+            systematic_bias = p_value < 0.05 and np.mean(bias_values) > 0
+            
+            finding = "CONFIRMED" if systematic_bias else "NOT CONFIRMED"
             
             return {
-                "finding": "CONFIRMED" if negative_biases > positive_biases else "NOT CONFIRMED",
+                "finding": finding,
                 "positive_biases": positive_biases,
                 "negative_biases": negative_biases,
                 "neutral_biases": neutral_biases,
-                "total_groups": total_groups,
+                "total_groups": len(bias_values),
                 "baseline_mean": float(baseline_mean),
                 "bias_details": bias_details,
-                "interpretation": "Systematic discrimination pattern detected (marginalized groups get worse outcomes)" if negative_biases > positive_biases else "No systematic discrimination pattern detected"
+                "test_statistic": float(t_stat),
+                "p_value": float(p_value),
+                "mean_bias": float(np.mean(bias_values)),
+                "interpretation": f"Systematic discrimination pattern {'detected' if systematic_bias else 'not detected'} (p={p_value:.3f})"
             }
             
         except Exception as e:

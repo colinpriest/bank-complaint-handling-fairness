@@ -90,14 +90,17 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Bias Directional Consistency
 
-- **Finding**: CONFIRMED...
+- **Finding**: NOT CONFIRMED...
 - **Positive Biases**: 0
 - **Negative Biases**: 2
 - **Neutral Biases**: 1
 - **Total Groups**: 3
 - **Baseline Mean**: 1.839 (Tier 2: Small monetary remedy)
 - **Bias Details**: 3 items
-- **Interpretation**: Systematic discrimination pattern detected (marginalized groups get worse outcomes)...
+- **Test Statistic**: -1.853
+- **P Value**: 0.205
+- **Mean Bias**: -0.158 (Tier 0: No action taken)
+- **Interpretation**: Systematic discrimination pattern not detected (p=0.205)...
 
 ### Fairness Strategies
 
