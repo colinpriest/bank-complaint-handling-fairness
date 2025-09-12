@@ -35,6 +35,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Gender Effects
 
+- **Hypothesis**: H₀: Subtle gender injection does not affect remedy tier assignments
 - **Finding**: CONFIRMED...
 - **Male Mean**: 1.681 (Tier 2: Small monetary remedy)
 - **Female Mean**: 1.548 (Tier 2: Small monetary remedy)

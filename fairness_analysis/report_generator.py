@@ -82,15 +82,19 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             content += f"### {analysis_name.replace('_', ' ').title()}\n\n"
             
             if isinstance(analysis_data, dict):
-                content += self._format_analysis_data(analysis_data)
+                content += self._format_analysis_data(analysis_data, analysis_name)
             else:
                 content += f"Analysis completed: {type(analysis_data).__name__}\n\n"
                 
         return content
         
-    def _format_analysis_data(self, data: Dict[str, Any]) -> str:
+    def _format_analysis_data(self, data: Dict[str, Any], analysis_name: str = "") -> str:
         """Format analysis data for report display"""
         content = ""
+        
+        # Add hypothesis for gender effects analysis
+        if analysis_name == "gender_effects":
+            content += "- **Hypothesis**: H₀: Subtle gender injection does not affect remedy tier assignments\n"
         
         # Define remedy tier labels
         tier_labels = {
