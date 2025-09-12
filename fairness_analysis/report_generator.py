@@ -145,7 +145,13 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                         else:
                             content += f"  - {sub_key}: {sub_value}\n"
                 else:
-                    content += f"- **{key.replace('_', ' ').title()}**: {len(value)} items\n"
+                    # Special handling for sample_sizes dictionary
+                    if key == 'sample_sizes':
+                        content += f"- **{key.replace('_', ' ').title()}**:\n"
+                        for sub_key, sub_value in value.items():
+                            content += f"  - {sub_key}: {sub_value}\n"
+                    else:
+                        content += f"- **{key.replace('_', ' ').title()}**: {len(value)} items\n"
             elif isinstance(value, list):
                 content += f"- **{key.replace('_', ' ').title()}**: {len(value)} entries\n"
             else:

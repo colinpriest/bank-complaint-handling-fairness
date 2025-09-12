@@ -44,7 +44,9 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 - **P Value**: 0.041
 - **Effect Size**: 0.098
 - **Interpretation**: Gender significantly affects remedy tier assignments...
-- **Sample Sizes**: 2 items
+- **Sample Sizes**:
+  - male: 1811
+  - female: 577
 
 ### Ethnicity Effects
 
@@ -57,7 +59,10 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
   - white: 1.653 (Small monetary remedy)
   - hispanic: 1.840 (Small monetary remedy)
 - **Interpretation**: Ethnicity significantly affects remedy tier assignments...
-- **Sample Sizes**: 3 items
+- **Sample Sizes**:
+  - black: 577
+  - white: 640
+  - hispanic: 594
 
 ### Geography Effects
 
@@ -69,7 +74,9 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
   - urban_affluent: 1.603 (Small monetary remedy)
   - urban_poor: 1.840 (Small monetary remedy)
 - **Interpretation**: Geography significantly affects remedy tier assignments...
-- **Sample Sizes**: 2 items
+- **Sample Sizes**:
+  - urban_affluent: 1217
+  - urban_poor: 594
 
 ### Granular Bias
 
@@ -102,7 +109,9 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 - **P Value**: 0.188
 - **Effect Size**: -0.062
 - **Interpretation**: Fairness instruction does not significantly affect remedy tier assignments...
-- **Sample Sizes**: 2 items
+- **Sample Sizes**:
+  - G: 916
+  - persona_fairness: 895
 - **Strategy Means**:
   - NC: 1.839 (Small monetary remedy)
   - G: 1.639 (Small monetary remedy)
