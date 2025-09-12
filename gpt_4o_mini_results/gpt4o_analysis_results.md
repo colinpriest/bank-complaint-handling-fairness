@@ -48,6 +48,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Ethnicity Effects
 
+- **Hypothesis**: H₀: Subtle ethnicity injection does not affect remedy tier assignments
 - **Finding**: CONFIRMED...
 - **F Statistic**: 6.804
 - **P Value**: 0.001

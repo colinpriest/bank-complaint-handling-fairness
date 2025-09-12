@@ -96,6 +96,10 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
         if analysis_name == "gender_effects":
             content += "- **Hypothesis**: H₀: Subtle gender injection does not affect remedy tier assignments\n"
         
+        # Add hypothesis for ethnicity effects analysis
+        if analysis_name == "ethnicity_effects":
+            content += "- **Hypothesis**: H₀: Subtle ethnicity injection does not affect remedy tier assignments\n"
+        
         # Define remedy tier labels
         tier_labels = {
             0: "No action taken",
