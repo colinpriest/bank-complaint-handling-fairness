@@ -22,175 +22,322 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Demographic Injection
 
-- **Hypothesis**: H₀: Subtle demographic injection does not affect remedy tier assignments...
-- **Finding**: H₀ REJECTED...
-- **Baseline Mean**: 1.839 (Tier 2: Small monetary remedy)
-- **Personas Mean**: 1.681 (Tier 2: Small monetary remedy)
-- **Mean Difference**: 0.158
-- **Test Statistic**: 2.781
-- **P Value**: 0.005
-- **Effect Size**: 0.113
-- **Interpretation**: Significant effect of demographic injection detected (p=0.005)...
-- **Sample Sizes**: baseline=905, persona=1811...
+- **Hypothesis 1**: H₀: Subdemographic injection does not affect any recommendations
+- **Hypothesis 2**: H₀: Subtle demographic injection does not affect mean remedy tier assignments
+- **Hypothesis 3**: H₀: The tier recommendation distribution does not change after injection
+
+#### Hypothesis 1
+- **Hypothesis**: H₀: Subdemographic injection does not affect any recommendations
+- **Test Name**: Count test for paired differences
+- **Test Statistic**: 2027 different pairs out of 10000 (20.3%)
+- **P-Value**: N/A (deterministic test: reject if count > 0)
+- **Result**: H₀ REJECTED
+- **Implications**: Demographic injection DOES affect recommendations: 2027 of 10000 comparisons (20.3%) showed different tier assignments
+- **Details**: 5x5 Grid of Baseline (rows) vs Persona-Injected (columns) Tier Counts:
+
+```
+         Persona Tier
+         0     1     2     3     4
+    +-----+-----+-----+-----+-----+
+  0 |   91|   23|    8|    2|    0|  Baseline Tier 0
+    +-----+-----+-----+-----+-----+
+  1 |  102|  563|   28|   11|    0|  Baseline Tier 1
+    +-----+-----+-----+-----+-----+
+  2 |    0|    5|    7|    0|    0|  Baseline Tier 2
+    +-----+-----+-----+-----+-----+
+  3 |    0|    2|    6|   13|    2|  Baseline Tier 3
+    +-----+-----+-----+-----+-----+
+  4 |   13|    9|   23|   34|   58|  Baseline Tier 4
+    +-----+-----+-----+-----+-----+
+```
+  - Diagonal (no change): 732 pairs
+  - Off-diagonal (changed): 268 pairs
+
+#### Hypothesis 2
+- **Hypothesis**: H₀: Subtle demographic injection does not affect mean remedy tier assignments
+- **Test Name**: Paired t-test
+- **Test Statistic**: -2.033
+- **P-Value**: 0.0423
+- **Result**: H₀ REJECTED
+- **Implications**: Significant difference in mean remedy tiers between baseline and persona conditions (p=0.042)
+- **Details**: Summary Statistics
+
+| Condition        | Count | Mean Tier | Std Dev | SEM |
+|------------------|-------|-----------|---------|-----|
+| Baseline         |  1000 |     1.345 |   1.159 | 0.037 |
+| Persona-Injected | 10000 |     1.395 |   0.978 | 0.012 |
+| **Difference**   |   -   | **+0.050** |   0.770 | 0.024 |
+
+
+#### Hypothesis 3
+- **Hypothesis**: H₀: The tier recommendation distribution does not change after injection
+- **Test Name**: Stuart-Maxwell test for marginal homogeneity
+- **Test Statistic**: χ² = 146.254 (df = 4)
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Tier distribution changes after injection (p=0.000)
+- **Details**: Marginal Distributions
+
+| Condition        | Tier 0 | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Total |
+|------------------|--------|--------|--------|--------|--------|-------|
+| Baseline         |    124 |    704 |     12 |     23 |    137 |  1000 |
+| Baseline (%)     |  12.4% |  70.4% |   1.2% |   2.3% |  13.7% |   -   |
+| Persona-Injected |   1069 |   7149 |     91 |    150 |   1541 | 10000 |
+| Persona-Inj. (%) |  10.7% |  71.5% |   0.9% |   1.5% |  15.4% |   -   |
+| **Δ (pp)**       |  -1.7 |  +1.1 |  -0.3 |  -0.8 |  +1.7 |   -   |
+
 
 ### Gender Effects
 
-- **Hypothesis**: H₀: Subtle gender injection does not affect remedy tier assignments
-- **Finding**: CONFIRMED...
-- **Male Mean**: 1.681 (Tier 2: Small monetary remedy)
-- **Female Mean**: 1.548 (Tier 2: Small monetary remedy)
-- **Mean Difference**: 0.133
-- **Test Statistic**: 2.042
-- **P Value**: 0.041
-- **Effect Size**: 0.098
-- **Interpretation**: Gender significantly affects remedy tier assignments...
-- **Sample Sizes**:
-  - male: 1811
-  - female: 577
+- **Hypothesis**: H₀: Gender injection does not cause statistically different outcomes across baseline, male, and female groups
+- **Test Name**: One-way ANOVA
+- **Test Statistic**: F = 1.235
+- **P-Value**: 0.2910
+- **Result**: H₀ NOT REJECTED
+- **Implications**: Gender does not significantly affect remedy tier assignments (p=0.291)
+- **Details**: Summary Statistics
+
+| Condition | Count | Mean Tier | Std Dev | SEM |
+|-----------|-------|-----------|---------|-----|
+| Baseline  |  1000 |     1.345 |   1.159 | 0.037 |
+| Female    |  4995 |     1.383 |   1.198 | 0.017 |
+| Male      |  5005 |     1.406 |   1.175 | 0.017 |
 
 ### Ethnicity Effects
 
-- **Hypothesis**: H₀: Subtle ethnicity injection does not affect remedy tier assignments
-- **Finding**: CONFIRMED...
-- **F Statistic**: 6.804
-- **P Value**: 0.001
-- **Ethnicity Means**:
-  - black: 1.548 (Small monetary remedy)
-  - white: 1.653 (Small monetary remedy)
-  - hispanic: 1.840 (Small monetary remedy)
-- **Interpretation**: Ethnicity significantly affects remedy tier assignments...
-- **Sample Sizes**:
-  - black: 577
-  - white: 640
-  - hispanic: 594
+- **Hypothesis**: H₀: Ethnicity injection does not cause statistically different remedy tier assignments
+- **Test Name**: One-way ANOVA
+- **Test Statistic**: F = 0.598
+- **P-Value**: 0.6159
+- **Result**: H₀ NOT REJECTED
+- **Implications**: Ethnicity does not significantly affect remedy tier assignments
+- **Details**: Summary Statistics
+
+| Condition | Count | Mean Tier | Std Dev | SEM |
+|-----------|-------|-----------|---------|-----|
+| Baseline  |  1000 |     1.345 |   1.159 | 0.037 |
+| Asian     |  2504 |     1.414 |   1.197 | 0.024 |
+| Black     |  2479 |     1.403 |   1.197 | 0.024 |
+| Latino    |  2482 |     1.371 |   1.170 | 0.023 |
+| White     |  2535 |     1.389 |   1.181 | 0.023 |
 
 ### Geography Effects
 
-- **Hypothesis**: H₀: Subtle geographic and socio-economic injection does not affect remedy tier assignments
-- **Finding**: CONFIRMED...
-- **F Statistic**: 11.823
-- **P Value**: 0.001
-- **Geography Means**:
-  - urban_affluent: 1.603 (Small monetary remedy)
-  - urban_poor: 1.840 (Small monetary remedy)
-- **Interpretation**: Geography significantly affects remedy tier assignments...
-- **Sample Sizes**:
-  - urban_affluent: 1217
-  - urban_poor: 594
+- **Hypothesis**: H₀: Geographic injection does not cause statistically different remedy tier assignments
+- **Test Name**: One-way ANOVA
+- **Test Statistic**: F = 59.881
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Geography significantly affects remedy tier assignments
+- **Details**: Summary Statistics
+
+| Condition | Count | Mean Tier | Std Dev | SEM |
+|-----------|-------|-----------|---------|-----|
+| Baseline     |  1000 |     1.345 |   1.159 | 0.037 |
+| Rural        |  3352 |     1.214 |   1.048 | 0.018 |
+| Urban Affluent |  3335 |     1.503 |   1.261 | 0.022 |
+| Urban Poor   |  3313 |     1.468 |   1.219 | 0.021 |
 
 ### Granular Bias
 
-- **Finding**: CONFIRMED...
-- **F Statistic**: 6.804
-- **P Value**: 0.001
-- **Interpretation**: Significant inter-group bias differences detected...
-- **Persona Groups Analyzed**: 3
-- **Baseline Mean**: 1.839 (Tier 2: Small monetary remedy)
-- **Bias Magnitudes**: 3 items
+- **Hypothesis**: H₀: Demographic injection affects remedy tier assignments equally across all demographic groups
+- **Test Name**: One-way ANOVA across demographic groups
+- **Test Statistic**: F = 7.746
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Significant inter-group bias differences detected across 24 demographic groups
+- **Groups Analyzed**: 24 demographic combinations
+- **Details**: Top and Bottom Performing Groups
+
+| Group | Count | Mean Tier | Std Dev | SEM | Bias |
+|-------|-------|-----------|---------|-----|------|
+| **Baseline** |  1000 |     1.345 |   1.159 | 0.037 | 0.000 |
+| **Top 5 Groups** | | | | | |
+| white male urban ... |   432 |     1.646 |   1.351 | 0.065 | +0.301 |
+| black female urba... |   396 |     1.619 |   1.302 | 0.065 | +0.274 |
+| white female urba... |   413 |     1.545 |   1.270 | 0.062 | +0.200 |
+| asian male urban ... |   408 |     1.537 |   1.236 | 0.061 | +0.192 |
+| white female urba... |   439 |     1.524 |   1.255 | 0.060 | +0.179 |
+| **Bottom 5 Groups** | | | | | |
+| white male urban ... |   401 |     1.252 |   1.014 | 0.051 | -0.093 |
+| asian female rural   |   414 |     1.188 |   1.095 | 0.054 | -0.157 |
+| latino female rural  |   424 |     1.175 |   1.037 | 0.050 | -0.170 |
+| black female rural   |   431 |     1.097 |   1.056 | 0.051 | -0.248 |
+| white female rural   |   413 |     1.070 |   0.951 | 0.047 | -0.275 |
 
 ### Bias Directional Consistency
 
-- **Finding**: NOT CONFIRMED...
-- **Positive Biases**: 0
-- **Negative Biases**: 2
-- **Neutral Biases**: 1
-- **Total Groups**: 3
-- **Baseline Mean**: 1.839 (Tier 2: Small monetary remedy)
-- **Bias Details**: 3 items
-- **Test Statistic**: -1.853
-- **P Value**: 0.205
-- **Mean Bias**: -0.158 (Tier 0: No action taken)
-- **Interpretation**: Systematic discrimination pattern not detected (p=0.205)...
+- **Hypothesis**: H₀: Mean bias outcomes are equally positive or negative
+- **Finding**: NOT TESTED...
+- **Error**: No baseline data available...
 
 ### Fairness Strategies
 
-- **Finding**: NOT CONFIRMED...
-- **G Mean**: 1.639 (Tier 2: Small monetary remedy)
-- **Persona Fairness Mean**: 1.724 (Tier 2: Small monetary remedy)
-- **Mean Difference**: -0.085
-- **Test Statistic**: -1.316
-- **P Value**: 0.188
-- **Effect Size**: -0.062
-- **Interpretation**: Fairness instruction does not significantly affect remedy tier assignments...
-- **Sample Sizes**:
-  - G: 916
-  - persona_fairness: 895
+- **Hypothesis 1**: H₀: Fairness strategies do not affect bias
+- **Hypothesis 2**: H₀: All fairness strategies are equally effective
+- **Finding 1**: H₀ NOT REJECTED
+- **T-Statistic 1**: -0.462
+- **P-Value 1**: 0.661
+- **Interpretation 1**: Fairness strategies do not significantly affect bias compared to baseline (p=0.661)
+- **Finding 2**: H₀ REJECTED
+- **F-Statistic 2**: 83.477
+- **P-Value 2**: 0.000
+- **Interpretation 2**: Fairness strategies significantly differ in effectiveness (p=0.000)
+- **Strategy Vs Baseline**: 7 items
 - **Strategy Means**:
-  - NC: 1.839 (Small monetary remedy)
-  - G: 1.639 (Small monetary remedy)
-  - persona_fairness: 1.724 (Small monetary remedy)
+  - persona_fairness: 1.237 (Process improvement)
+  - consequentialist: 1.602 (Small monetary remedy)
+  - chain_of_thought: 1.318 (Process improvement)
+  - perspective: 1.341 (Process improvement)
+  - minimal: 1.387 (Process improvement)
+  - roleplay: 0.734 (Process improvement)
+  - structured_extraction: 1.461 (Process improvement)
+- **Sample Sizes**:
+  - persona_fairness: 1416
+  - consequentialist: 1432
+  - chain_of_thought: 1492
+  - perspective: 1420
+  - minimal: 1386
+  - roleplay: 1412
+  - structured_extraction: 1442
+- **Strategy Descriptions**: 7 items
+- **Baseline Mean**: 1.345 (Tier 1: Process improvement)
 
 ### Process Fairness
 
-- **Finding**: CONFIRMED...
-- **Significant Indicators**: 1
+- **Hypothesis (Group ANOVA)**: H₀: There are no differences in process fairness between demographic groups.
+- **Hypothesis (Baseline vs Personas)**: H₀: There are no differences in process when demographic data is added (Baseline vs all personas combined).
+- **Finding (Group ANOVA)**: H₀ REJECTED — Differences detected between demographic groups (2/6 indicators significant).
+- **Finding (Baseline vs Personas)**: H₀ NOT REJECTED — No significant change in process indicators when demographic data is added (0/6 indicators significant).
+- **Significant Indicators**: 2
 - **Total Indicators**: 6
 - **Group Means**:
-  - black_female_urban: {'monetary': 0.23570190641247835, 'escalation': 0.2027729636048527, 'asked_question': 0.2027729636048527, 'evidence_ok': 0.8180242634315424, 'format_ok': 1.0, 'refusal': 0.0}
-  - white_male_affluent: {'monetary': 0.28125, 'escalation': 0.2234375, 'asked_question': 0.165625, 'evidence_ok': 0.7875, 'format_ok': 1.0, 'refusal': 0.0}
-  - hispanic_male_working: {'monetary': 0.35353535353535354, 'escalation': 0.25925925925925924, 'asked_question': 0.1717171717171717, 'evidence_ok': 0.82996632996633, 'format_ok': 1.0, 'refusal': 0.0}
+
+| Group | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
+| --- | --- | --- | --- | --- | --- | --- |
+| black_male_rural | 0.128 | 0.112 | 0.000 | 0.000 | 0.000 | 0.000 |
+| latino_female_urban_poor | 0.183 | 0.149 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white_male_urban_affluent | 0.238 | 0.212 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian_male_urban_affluent | 0.198 | 0.172 | 0.000 | 0.000 | 0.000 | 0.000 |
+| black_female_rural | 0.126 | 0.090 | 0.000 | 0.000 | 0.000 | 0.000 |
+| black_female_urban_affluent | 0.170 | 0.156 | 0.000 | 0.000 | 0.000 | 0.000 |
+| latino_male_urban_poor | 0.166 | 0.148 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white_male_urban_poor | 0.122 | 0.096 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian_female_urban_affluent | 0.177 | 0.169 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white_female_rural | 0.100 | 0.067 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white_male_rural | 0.137 | 0.112 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian_female_rural | 0.138 | 0.100 | 0.000 | 0.000 | 0.000 | 0.000 |
+| latino_male_rural | 0.141 | 0.109 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian_male_urban_poor | 0.194 | 0.168 | 0.000 | 0.000 | 0.000 | 0.000 |
+| black_female_urban_poor | 0.230 | 0.197 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white_female_urban_poor | 0.203 | 0.180 | 0.000 | 0.000 | 0.000 | 0.000 |
+| latino_male_urban_affluent | 0.177 | 0.157 | 0.000 | 0.000 | 0.000 | 0.000 |
+| black_male_urban_poor | 0.191 | 0.167 | 0.000 | 0.000 | 0.000 | 0.000 |
+| latino_female_rural | 0.112 | 0.093 | 0.000 | 0.000 | 0.000 | 0.000 |
+| black_male_urban_affluent | 0.204 | 0.179 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white_female_urban_affluent | 0.205 | 0.171 | 0.000 | 0.000 | 0.000 | 0.000 |
+| latino_female_urban_affluent | 0.197 | 0.171 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian_female_urban_poor | 0.200 | 0.175 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian_male_rural | 0.128 | 0.104 | 0.000 | 0.000 | 0.000 | 0.000 |
+
+- **Indicator Tests**:
+
+| Indicator | F-Statistic | p-value | Significant |
+| --- | --- | --- | --- |
+| monetary | 8.906 | 0.000 | Yes |
+| escalation | 10.629 | 0.000 | Yes |
+| asked_question | nan | nan | No |
+| evidence_ok | nan | nan | No |
+| format_ok | nan | nan | No |
+| refusal | nan | nan | No |
+
+- **Baseline vs Personas (summary)**: 0 of 6 indicators significant.
+- **Interpretation (Baseline vs Personas)**: Process indicators do not differ between Baseline and combined demographic groups (0/6 indicators significant)
+
+- **Baseline vs Personas Tests**:
+
+| Indicator | t-Statistic | p-value | Significant |
+| --- | --- | --- | --- |
+| monetary | 0.208 | 0.835 | No |
+| escalation | -0.618 | 0.536 | No |
+| asked_question | nan | nan | No |
+| evidence_ok | nan | nan | No |
+| format_ok | nan | nan | No |
+| refusal | nan | nan | No |
+
+- **Significant Indicators**: 2 of 6. Significant: monetary, escalation
+- **Non-significant Indicators**: asked_question, evidence_ok, format_ok, refusal
+
+- **Grouped by Gender**:
+
+| Gender | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
+| --- | --- | --- | --- | --- | --- | --- |
+| female | 0.170 | 0.143 | 0.000 | 0.000 | 0.000 | 0.000 |
+| male | 0.169 | 0.145 | 0.000 | 0.000 | 0.000 | 0.000 |
+
+- **Grouped by Ethnicity**:
+
+| Ethnicity | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
+| --- | --- | --- | --- | --- | --- | --- |
+| black | 0.175 | 0.150 | 0.000 | 0.000 | 0.000 | 0.000 |
+| hispanic | 0.163 | 0.138 | 0.000 | 0.000 | 0.000 | 0.000 |
+| white | 0.168 | 0.140 | 0.000 | 0.000 | 0.000 | 0.000 |
+| asian | 0.172 | 0.148 | 0.000 | 0.000 | 0.000 | 0.000 |
+
+- **Grouped by Geography**:
+
+| Geography | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
+| --- | --- | --- | --- | --- | --- | --- |
+| urban_affluent | 0.196 | 0.173 | 0.000 | 0.000 | 0.000 | 0.000 |
+| urban_poor | 0.186 | 0.160 | 0.000 | 0.000 | 0.000 | 0.000 |
+| rural | 0.126 | 0.098 | 0.000 | 0.000 | 0.000 | 0.000 |
+
 - **Indicator Tests**: 6 items
-- **Interpretation**: Process fairness varies significantly across demographic groups (1/6 indicators significant)...
+- **Interpretation**: Process fairness varies significantly across demographic groups (2/6 indicators significant)...
+- **Baseline Vs Personas Tests**: 6 items
+- **Baseline Vs Personas Significant Indicators**: 0
+- **Baseline Vs Personas Total Indicators**: 6
+- **Baseline Vs Personas Interpretation**: Process indicators do not differ between Baseline and combined demographic groups (0/6 indicators si...
 
 ### Severity Bias Variation
 
-- **Finding**: NOT TESTED...
-- **Interpretation**: Severity bias variation analysis not yet implemented...
+- **Hypothesis**: H₀: Issue severity does not affect bias
+- **Bias by Baseline Tier**:
+
+| Tier | Description | Mean Remedy Tier | Mean Bias | Bias Range | Sample Size | Groups |
+|------|-------------|------------------|-----------|------------|-------------|--------|
+| 0 | No action taken | 0.68 | 0.00 | 0.55 | 1240 | 24 |
+| 1 | Process improvement | 1.06 | 0.00 | 0.35 | 7040 | 24 |
+| 2 | Small monetary remedy | 1.93 | 0.00 | 1.50 | 120 | 24 |
+| 3 | Moderate monetary remedy | 2.76 | 0.00 | 2.25 | 230 | 24 |
+| 4 | High monetary remedy | 2.80 | 0.00 | 1.32 | 1370 | 24 |
+- **Highest Bias Tiers**:
+  - **Tier 3** (Moderate monetary remedy): Bias range = 2.25 (n=230)
+  - **Tier 2** (Small monetary remedy): Bias range = 1.50 (n=120)
+  - **Tier 4** (High monetary remedy): Bias range = 1.32 (n=1370)
+- **Finding**: H₀ NOT REJECTED...
+- **Interpretation**: Bias patterns are consistent across predicted severity tiers (p=0.998). Analyzed 5 severity tiers wi...
+- **Tiers Analyzed**: 5
+- **Bias Variation Significant**: False...
+- **P Value**: 0.998
+- **Average Bias Range**: 1.194
+- **Tier Metrics**: 5 items
+- **Highest Bias Tiers**: 3 entries
+- **Average Group Biases**: 24 items
 
 ### Severity Context
 
-- **Finding**: CONFIRMED...
-- **Significant Issues**: 13
-- **Total Issues**: 21
-- **Issue Means**:
-  - Unexpected or other fees: {'black_female_urban': 1.3125}
-  - Unable to get your credit report or credit score: {'white_male_affluent': 1.0, 'black_female_urban': 1.0, 'hispanic_male_working': 1.5}
-  - Incorrect information on your report: {'hispanic_male_working': 1.4444444444444444, 'black_female_urban': 1.8085106382978724, 'white_male_affluent': 2.3098591549295775}
-  - Charged fees or interest you didn't expect: {'white_male_affluent': 3.5714285714285716}
-  - Improper use of your report: {'black_female_urban': 1.5, 'white_male_affluent': 1.4109589041095891, 'hispanic_male_working': 1.5}
-  - Advertising and marketing, including promotional offers: {'hispanic_male_working': 1.7142857142857142}
-  - Problem with a company's investigation into an existing issue: {'hispanic_male_working': 1.8888888888888888}
-  - Managing an account: {'black_female_urban': 1.0625, 'white_male_affluent': 2.5483870967741935, 'hispanic_male_working': 4.0}
-  - Written notification about debt: {'hispanic_male_working': 1.0}
-  - Wrong amount charged or received: {'hispanic_male_working': 2.0, 'black_female_urban': 1.5625}
-  - Confusing or misleading advertising or marketing: {'white_male_affluent': 1.25, 'hispanic_male_working': 2.25}
-  - Electronic communications: {'black_female_urban': 1.0}
-  - Problem with a company's investigation into an existing problem: {'hispanic_male_working': 1.45, 'black_female_urban': 1.3673469387755102, 'white_male_affluent': 1.0}
-  - Problems at the end of the loan or lease: {'white_male_affluent': 1.0, 'black_female_urban': 1.0}
-  - Closing your account: {'hispanic_male_working': 1.0, 'black_female_urban': 3.8125}
-  - Applying for a mortgage or refinancing an existing mortgage: {'white_male_affluent': 1.5384615384615385}
-  - Took or threatened to take negative or legal action: {'black_female_urban': 1.2413793103448276}
-  - Other service problem: {'white_male_affluent': 1.0, 'hispanic_male_working': 2.0}
-  - Getting a credit card: {'black_female_urban': 2.875, 'hispanic_male_working': 3.7857142857142856}
-  - Dealing with your lender or servicer: {'white_male_affluent': 1.0, 'black_female_urban': 1.6, 'hispanic_male_working': 1.75}
-  - Other features, terms, or problems: {'hispanic_male_working': 2.903225806451613}
-  - Communication tactics: {'black_female_urban': 1.4444444444444444, 'white_male_affluent': 1.0}
-  - Credit monitoring or identity theft protection services: {'white_male_affluent': 1.3076923076923077}
-  - Trouble during payment process: {'black_female_urban': 1.0, 'white_male_affluent': 2.1875}
-  - Opening an account: {'hispanic_male_working': 1.0}
-  - Struggling to pay mortgage: {'white_male_affluent': 4.0, 'hispanic_male_working': 2.6}
-  - Problem with fraud alerts or security freezes: {'black_female_urban': 1.0, 'white_male_affluent': 1.0}
-  - Problem when making payments: {'white_male_affluent': 1.5625, 'black_female_urban': 1.3571428571428572}
-  - Problem with additional add-on products or services: {'black_female_urban': 4.0}
-  - Managing the loan or lease: {'hispanic_male_working': 3.6, 'black_female_urban': 1.6666666666666667, 'white_male_affluent': 1.375}
-  - Problem with a lender or other company charging your account: {'white_male_affluent': 3.78125, 'black_female_urban': 4.0}
-  - Other transaction problem: {'black_female_urban': 1.15}
-  - Struggling to pay your loan: {'white_male_affluent': 2.125, 'hispanic_male_working': 1.0}
-  - Repossession: {'hispanic_male_working': 3.769230769230769}
-  - Fraud or scam: {'white_male_affluent': 4.0}
-  - Closing an account: {'black_female_urban': 4.0}
-  - Getting a loan or lease: {'black_female_urban': 1.0, 'hispanic_male_working': 1.4}
-  - Problem caused by your funds being low: {'white_male_affluent': 1.4285714285714286}
-  - Money was not available when promised: {'hispanic_male_working': 3.076923076923077}
-  - Struggling to repay your loan: {'black_female_urban': 1.5}
-  - Charged upfront or unexpected fees: {'white_male_affluent': 1.0}
-- **Interaction Tests**: 21 items
-- **Interpretation**: Severity-context interactions are significant (13/21 issue types show significant group differences)...
+- **Hypothesis**: H₀: All demographic groups are treated equally across different types of complaints.
+- **Finding**: H₀ REJECTED...
+- **Significant Issues**: 15
+- **Total Issues**: 73
+- **Interaction Tests**: 73 items
+- **Interpretation**: Severity-context interactions are significant (15/73 issue types show significant group differences)...
 
 ### Model Scaling
 
-- **Finding**: NOT TESTED...
-- **Interpretation**: Model scaling analysis not yet implemented...
+- **Finding**: NO DATA...
+- **Interpretation**: No experimental data available for scaling analysis...
 
 ### Corrective Justice
 

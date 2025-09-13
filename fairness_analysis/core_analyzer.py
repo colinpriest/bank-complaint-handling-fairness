@@ -44,12 +44,16 @@ class AdvancedFairnessAnalyzer:
             threads_per_model=threads_per_model
         )
         
-    def run_all_analyses(self) -> Dict:
+    def run_all_analyses(self, use_cache: bool = False) -> Dict:
         """Run all statistical analyses"""
         print("\n[ANALYSIS] Running all statistical analyses...")
         
-        # Load existing results first
-        self._load_existing_results()
+        # Only load existing results if cache is requested
+        if use_cache:
+            self._load_existing_results()
+        else:
+            # Load fresh raw results for analysis
+            self._load_raw_results()
         
         analyses = {}
         
@@ -98,10 +102,30 @@ class AdvancedFairnessAnalyzer:
             print(f"[ERROR] Analysis failed: {e}")
             
         return analyses
+    
+    def _load_raw_results(self):
+        """Load only raw experimental results without cached analysis data"""
+        # Load raw experimental results from runs.jsonl
+        runs_file = Path("out/runs.jsonl")
+        if runs_file.exists():
+            print(f"[DATA] Loaded experimental results from: {runs_file}")
+            with open(runs_file, 'r', encoding='utf-8') as f:
+                self.raw_results = []
+                for line in f:
+                    if line.strip():
+                        self.raw_results.append(json.loads(line))
+            
+            # Apply sample size filtering if specified
+            if self.sample_size and len(self.raw_results) > self.sample_size:
+                print(f"[DATA] Filtering to sample size: {self.sample_size} (from {len(self.raw_results)} total records)")
+                self.raw_results = self._filter_to_experiment_samples(self.raw_results, self.sample_size)
+        else:
+            print("[WARNING] No experimental results found. Run experiments first.")
+            self.raw_results = []
         
-    def generate_comprehensive_report(self, filename: str = "advanced_research_summary.md") -> str:
+    def generate_comprehensive_report(self, filename: str = "advanced_research_summary.md", use_cache: bool = False) -> str:
         """Generate comprehensive analysis report"""
-        analyses = self.run_all_analyses()
+        analyses = self.run_all_analyses(use_cache=use_cache)
         return self.report_generator.generate_comprehensive_report(analyses, filename)
         
     def generate_directional_fairness_report(self) -> str:

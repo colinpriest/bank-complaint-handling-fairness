@@ -6,9 +6,10 @@ from fairness analysis results.
 """
 
 import json
+import math
+import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional
-import numpy as np
 
 
 class ReportGenerator:
@@ -93,19 +94,283 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
         """Format analysis data for report display"""
         content = ""
         
-        # Add hypothesis for gender effects analysis
+        # Define remedy tier labels (needed for severity bias analysis)
+        tier_labels = {
+            0: "No action taken",
+            1: "Process improvement", 
+            2: "Small monetary remedy",
+            3: "Moderate monetary remedy",
+            4: "High monetary remedy"
+        }
+        
+        # Special handling for gender effects analysis
         if analysis_name == "gender_effects":
-            content += "- **Hypothesis**: H₀: Subtle gender injection does not affect remedy tier assignments\n"
+            hypothesis = data.get('hypothesis', 'H₀: Gender injection does not cause statistically different outcomes across baseline, male, and female groups')
+            test_name = data.get('test_name', 'One-way ANOVA')
+            test_statistic = data.get('test_statistic', 'N/A')
+            p_value = data.get('p_value', 'N/A')
+            finding = data.get('finding', 'N/A')
+            interpretation = data.get('interpretation', 'N/A')
+            
+            content += f"- **Hypothesis**: {hypothesis}\n"
+            content += f"- **Test Name**: {test_name}\n"
+            content += f"- **Test Statistic**: F = {test_statistic:.3f}\n" if isinstance(test_statistic, (int, float)) else f"- **Test Statistic**: {test_statistic}\n"
+            content += f"- **P-Value**: {p_value:.4f}\n" if isinstance(p_value, (int, float)) else f"- **P-Value**: {p_value}\n"
+            content += f"- **Result**: {finding}\n"
+            content += f"- **Implications**: {interpretation}\n"
+            
+            # Add details table
+            baseline_mean = data.get('baseline_mean', float('nan'))
+            baseline_std = data.get('baseline_std', float('nan'))
+            baseline_sem = data.get('baseline_sem', float('nan'))
+            baseline_count = data.get('baseline_count', 0)
+            female_mean = data.get('female_mean', float('nan'))
+            female_std = data.get('female_std', float('nan'))
+            female_sem = data.get('female_sem', float('nan'))
+            female_count = data.get('female_count', 0)
+            male_mean = data.get('male_mean', float('nan'))
+            male_std = data.get('male_std', float('nan'))
+            male_sem = data.get('male_sem', float('nan'))
+            male_count = data.get('male_count', 0)
+            
+            content += "- **Details**: Summary Statistics\n\n"
+            content += "| Condition | Count | Mean Tier | Std Dev | SEM |\n"
+            content += "|-----------|-------|-----------|---------|-----|\n"
+            
+            # Baseline row
+            baseline_mean_str = f"{baseline_mean:.3f}" if isinstance(baseline_mean, (int, float)) and not str(baseline_mean).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            baseline_std_str = f"{baseline_std:.3f}" if isinstance(baseline_std, (int, float)) and not str(baseline_std).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            baseline_sem_str = f"{baseline_sem:.3f}" if isinstance(baseline_sem, (int, float)) and not str(baseline_sem).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            content += f"| Baseline  | {baseline_count:>5} | {baseline_mean_str:>9} | {baseline_std_str:>7} | {baseline_sem_str:>3} |\n"
+            
+            # Female row
+            female_mean_str = f"{female_mean:.3f}" if isinstance(female_mean, (int, float)) and not str(female_mean).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            female_std_str = f"{female_std:.3f}" if isinstance(female_std, (int, float)) and not str(female_std).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            female_sem_str = f"{female_sem:.3f}" if isinstance(female_sem, (int, float)) and not str(female_sem).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            content += f"| Female    | {female_count:>5} | {female_mean_str:>9} | {female_std_str:>7} | {female_sem_str:>3} |\n"
+            
+            # Male row
+            male_mean_str = f"{male_mean:.3f}" if isinstance(male_mean, (int, float)) and not str(male_mean).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            male_std_str = f"{male_std:.3f}" if isinstance(male_std, (int, float)) and not str(male_std).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            male_sem_str = f"{male_sem:.3f}" if isinstance(male_sem, (int, float)) and not str(male_sem).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            content += f"| Male      | {male_count:>5} | {male_mean_str:>9} | {male_std_str:>7} | {male_sem_str:>3} |\n"
+            
+            content += "\n"
+            
+            # Return early to skip generic processing for gender effects
+            return content
         
-        # Add hypothesis for ethnicity effects analysis
+        # Special handling for ethnicity effects analysis
         if analysis_name == "ethnicity_effects":
-            content += "- **Hypothesis**: H₀: Subtle ethnicity injection does not affect remedy tier assignments\n"
+            finding = data.get('finding', 'N/A')
+            f_statistic = data.get('f_statistic', 'N/A')
+            p_value = data.get('p_value', 'N/A')
+            interpretation = data.get('interpretation', 'N/A')
+            ethnicity_means = data.get('ethnicity_means', {})
+            ethnicity_stds = data.get('ethnicity_stds', {})
+            ethnicity_sems = data.get('ethnicity_sems', {})
+            sample_sizes = data.get('sample_sizes', {})
+            
+            content += "- **Hypothesis**: H₀: Ethnicity injection does not cause statistically different remedy tier assignments\n"
+            content += "- **Test Name**: One-way ANOVA\n"
+            content += f"- **Test Statistic**: F = {f_statistic:.3f}\n" if isinstance(f_statistic, (int, float)) else f"- **Test Statistic**: {f_statistic}\n"
+            content += f"- **P-Value**: {p_value:.4f}\n" if isinstance(p_value, (int, float)) else f"- **P-Value**: {p_value}\n"
+            content += f"- **Result**: {finding}\n"
+            content += f"- **Implications**: {interpretation}\n"
+            
+            # Add details table for ethnicity groups
+            if ethnicity_means and sample_sizes:
+                content += "- **Details**: Summary Statistics\n\n"
+                content += "| Condition | Count | Mean Tier | Std Dev | SEM |\n"
+                content += "|-----------|-------|-----------|---------|-----|\n"
+                
+                # Get baseline data from analysis results
+                baseline_count = data.get('baseline_count', 1000)
+                baseline_mean = data.get('baseline_mean', 1.345)
+                baseline_std = data.get('baseline_std', 1.159)
+                baseline_sem = data.get('baseline_sem', 0.037)
+                
+                # Format baseline row
+                baseline_mean_str = f"{baseline_mean:.3f}" if isinstance(baseline_mean, (int, float)) and not str(baseline_mean).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                baseline_std_str = f"{baseline_std:.3f}" if isinstance(baseline_std, (int, float)) and not str(baseline_std).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                baseline_sem_str = f"{baseline_sem:.3f}" if isinstance(baseline_sem, (int, float)) and not str(baseline_sem).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                content += f"| Baseline  | {baseline_count:>5} | {baseline_mean_str:>9} | {baseline_std_str:>7} | {baseline_sem_str:>3} |\n"
+                
+                # Sort ethnicities for consistent ordering
+                sorted_ethnicities = sorted(ethnicity_means.keys())
+                
+                for ethnicity in sorted_ethnicities:
+                    mean_val = ethnicity_means[ethnicity]
+                    std_val = ethnicity_stds.get(ethnicity, float('nan'))
+                    sem_val = ethnicity_sems.get(ethnicity, float('nan'))
+                    count = sample_sizes.get(ethnicity, 0)
+                    
+                    mean_str = f"{mean_val:.3f}" if isinstance(mean_val, (int, float)) else "N/A"
+                    std_str = f"{std_val:.3f}" if isinstance(std_val, (int, float)) and not str(std_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    sem_str = f"{sem_val:.3f}" if isinstance(sem_val, (int, float)) and not str(sem_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    
+                    # Capitalize ethnicity name
+                    ethnicity_display = ethnicity.capitalize()
+                    content += f"| {ethnicity_display:<9} | {count:>5} | {mean_str:>9} | {std_str:>7} | {sem_str:>3} |\n"
+            
+            content += "\n"
+            
+            # Return early to skip generic processing for ethnicity effects
+            return content
         
-        # Add hypothesis for geography effects analysis
+        # Special handling for geography effects analysis
+        if analysis_name == "geography_effects":
+            finding = data.get('finding', 'N/A')
+            f_statistic = data.get('f_statistic', 'N/A')
+            p_value = data.get('p_value', 'N/A')
+            interpretation = data.get('interpretation', 'N/A')
+            geography_means = data.get('geography_means', {})
+            geography_stds = data.get('geography_stds', {})
+            geography_sems = data.get('geography_sems', {})
+            sample_sizes = data.get('sample_sizes', {})
+            
+            content += "- **Hypothesis**: H₀: Geographic injection does not cause statistically different remedy tier assignments\n"
+            content += "- **Test Name**: One-way ANOVA\n"
+            content += f"- **Test Statistic**: F = {f_statistic:.3f}\n" if isinstance(f_statistic, (int, float)) else f"- **Test Statistic**: {f_statistic}\n"
+            content += f"- **P-Value**: {p_value:.4f}\n" if isinstance(p_value, (int, float)) else f"- **P-Value**: {p_value}\n"
+            content += f"- **Result**: {finding}\n"
+            content += f"- **Implications**: {interpretation}\n"
+            
+            # Add details table for geography groups
+            if geography_means and sample_sizes:
+                content += "- **Details**: Summary Statistics\n\n"
+                content += "| Condition | Count | Mean Tier | Std Dev | SEM |\n"
+                content += "|-----------|-------|-----------|---------|-----|\n"
+                
+                # Get baseline data from analysis results
+                baseline_count = data.get('baseline_count', 1000)
+                baseline_mean = data.get('baseline_mean', 1.345)
+                baseline_std = data.get('baseline_std', 1.159)
+                baseline_sem = data.get('baseline_sem', 0.037)
+                
+                # Format baseline row
+                baseline_mean_str = f"{baseline_mean:.3f}" if isinstance(baseline_mean, (int, float)) and not str(baseline_mean).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                baseline_std_str = f"{baseline_std:.3f}" if isinstance(baseline_std, (int, float)) and not str(baseline_std).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                baseline_sem_str = f"{baseline_sem:.3f}" if isinstance(baseline_sem, (int, float)) and not str(baseline_sem).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                content += f"| Baseline     | {baseline_count:>5} | {baseline_mean_str:>9} | {baseline_std_str:>7} | {baseline_sem_str:>3} |\n"
+                
+                # Sort geography groups for consistent ordering
+                sorted_geographies = sorted(geography_means.keys())
+                
+                for geography in sorted_geographies:
+                    mean_val = geography_means[geography]
+                    std_val = geography_stds.get(geography, float('nan'))
+                    sem_val = geography_sems.get(geography, float('nan'))
+                    count = sample_sizes.get(geography, 0)
+                    
+                    mean_str = f"{mean_val:.3f}" if isinstance(mean_val, (int, float)) else "N/A"
+                    std_str = f"{std_val:.3f}" if isinstance(std_val, (int, float)) and not str(std_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    sem_str = f"{sem_val:.3f}" if isinstance(sem_val, (int, float)) and not str(sem_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    
+                    # Format geography name for display
+                    geography_display = geography.replace('_', ' ').title()
+                    content += f"| {geography_display:<12} | {count:>5} | {mean_str:>9} | {std_str:>7} | {sem_str:>3} |\n"
+            
+            content += "\n"
+            
+            # Return early to skip generic processing for geography effects
+            return content
+        
+        # Special handling for granular bias analysis
+        if analysis_name == "granular_bias":
+            finding = data.get('finding', 'N/A')
+            f_statistic = data.get('f_statistic', 'N/A')
+            p_value = data.get('p_value', 'N/A')
+            interpretation = data.get('interpretation', 'N/A')
+            group_means = data.get('group_means', {})
+            group_stds = data.get('group_stds', {})
+            group_sems = data.get('group_sems', {})
+            group_counts = data.get('group_counts', {})
+            persona_groups_analyzed = data.get('persona_groups_analyzed', 0)
+            
+            content += "- **Hypothesis**: H₀: Demographic injection affects remedy tier assignments equally across all demographic groups\n"
+            content += "- **Test Name**: One-way ANOVA across demographic groups\n"
+            content += f"- **Test Statistic**: F = {f_statistic:.3f}\n" if isinstance(f_statistic, (int, float)) else f"- **Test Statistic**: {f_statistic}\n"
+            content += f"- **P-Value**: {p_value:.4f}\n" if isinstance(p_value, (int, float)) else f"- **P-Value**: {p_value}\n"
+            content += f"- **Result**: {finding}\n"
+            content += f"- **Implications**: {interpretation}\n"
+            
+            # Add summary statistics
+            if group_means and group_counts:
+                content += f"- **Groups Analyzed**: {persona_groups_analyzed} demographic combinations\n"
+                
+                # Get baseline data from analysis results
+                baseline_count = data.get('baseline_count', 1000)
+                baseline_mean = data.get('baseline_mean', 1.345)
+                baseline_std = data.get('baseline_std', 1.159)
+                baseline_sem = data.get('baseline_sem', 0.037)
+                
+                content += "- **Details**: Top and Bottom Performing Groups\n\n"
+                
+                # Sort groups by mean tier (descending)
+                sorted_groups = sorted(group_means.items(), key=lambda x: x[1], reverse=True)
+                
+                # Show top 5 and bottom 5 groups
+                content += "| Group | Count | Mean Tier | Std Dev | SEM | Bias |\n"
+                content += "|-------|-------|-----------|---------|-----|------|\n"
+                
+                # Baseline row first
+                baseline_mean_str = f"{baseline_mean:.3f}" if isinstance(baseline_mean, (int, float)) else "N/A"
+                baseline_std_str = f"{baseline_std:.3f}" if isinstance(baseline_std, (int, float)) else "N/A"
+                baseline_sem_str = f"{baseline_sem:.3f}" if isinstance(baseline_sem, (int, float)) else "N/A"
+                content += f"| **Baseline** | {baseline_count:>5} | {baseline_mean_str:>9} | {baseline_std_str:>7} | {baseline_sem_str:>3} | 0.000 |\n"
+                
+                # Top 5 groups
+                content += f"| **Top 5 Groups** | | | | | |\n"
+                for i, (group, mean_val) in enumerate(sorted_groups[:5]):
+                    std_val = group_stds.get(group, float('nan'))
+                    sem_val = group_sems.get(group, float('nan'))
+                    count = group_counts.get(group, 0)
+                    bias = mean_val - baseline_mean
+                    
+                    mean_str = f"{mean_val:.3f}" if isinstance(mean_val, (int, float)) else "N/A"
+                    std_str = f"{std_val:.3f}" if isinstance(std_val, (int, float)) and not str(std_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    sem_str = f"{sem_val:.3f}" if isinstance(sem_val, (int, float)) and not str(sem_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    bias_str = f"{bias:+.3f}" if isinstance(bias, (int, float)) else "N/A"
+                    
+                    # Shorten group name if too long
+                    group_display = group.replace('_', ' ')
+                    if len(group_display) > 20:
+                        group_display = group_display[:17] + "..."
+                    
+                    content += f"| {group_display:<20} | {count:>5} | {mean_str:>9} | {std_str:>7} | {sem_str:>3} | {bias_str:>6} |\n"
+                
+                # Bottom 5 groups
+                content += f"| **Bottom 5 Groups** | | | | | |\n"
+                for i, (group, mean_val) in enumerate(sorted_groups[-5:]):
+                    std_val = group_stds.get(group, float('nan'))
+                    sem_val = group_sems.get(group, float('nan'))
+                    count = group_counts.get(group, 0)
+                    bias = mean_val - baseline_mean
+                    
+                    mean_str = f"{mean_val:.3f}" if isinstance(mean_val, (int, float)) else "N/A"
+                    std_str = f"{std_val:.3f}" if isinstance(std_val, (int, float)) and not str(std_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    sem_str = f"{sem_val:.3f}" if isinstance(sem_val, (int, float)) and not str(sem_val).lower() in ['nan', 'inf', '-inf'] else "N/A"
+                    bias_str = f"{bias:+.3f}" if isinstance(bias, (int, float)) else "N/A"
+                    
+                    # Shorten group name if too long
+                    group_display = group.replace('_', ' ')
+                    if len(group_display) > 20:
+                        group_display = group_display[:17] + "..."
+                    
+                    content += f"| {group_display:<20} | {count:>5} | {mean_str:>9} | {std_str:>7} | {sem_str:>3} | {bias_str:>6} |\n"
+            
+            content += "\n"
+            
+            # Return early to skip generic processing for granular bias
+            return content
+        
+        
+        # Add hypothesis for geography effects analysis (fallback - should not be reached)
         if analysis_name == "geography_effects":
             content += "- **Hypothesis**: H₀: Subtle geographic and socio-economic injection does not affect remedy tier assignments\n"
 
-        # Add hypothesis for granular bias analysis
+        # Add hypothesis for granular bias analysis (fallback - should not be reached)
         if analysis_name == "granular_bias":
             content += "- **Hypothesis**: H₀: Subtle demographic injection affects remedy tier assignments the same for all groups\n"
 
@@ -118,19 +383,101 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             content += "- **Hypothesis 1**: H₀: Fairness strategies do not affect bias\n"
             content += "- **Hypothesis 2**: H₀: All fairness strategies are equally effective\n"
 
+        # Add hypothesis for severity bias variation analysis
+        if analysis_name == "severity_bias_variation":
+            content += "- **Hypothesis**: H₀: Issue severity does not affect bias\n"
+            
+            # Add detailed tier information as a table
+            tier_metrics = data.get('tier_metrics', {})
+            if tier_metrics:
+                content += "- **Bias by Baseline Tier**:\n\n"
+                content += "| Tier | Description | Mean Remedy Tier | Mean Bias | Bias Range | Sample Size | Groups |\n"
+                content += "|------|-------------|------------------|-----------|------------|-------------|--------|\n"
+                
+                for tier in sorted(tier_metrics.keys(), key=int):
+                    metrics = tier_metrics[tier]
+                    tier_label = tier_labels.get(int(tier), f"Tier {tier}")
+                    overall_mean = metrics.get('overall_mean', 0)
+                    mean_bias = metrics.get('mean_bias', 0)  # Add mean bias column
+                    bias_range = metrics.get('bias_range', 0)
+                    sample_size = metrics.get('sample_size', 0)
+                    groups_analyzed = metrics.get('groups_analyzed', 0)
+                    
+                    content += f"| {tier} | {tier_label} | {overall_mean:.2f} | {mean_bias:.2f} | {bias_range:.2f} | {sample_size} | {groups_analyzed} |\n"
+            
+            # Add highest bias tiers information
+            highest_bias_tiers = data.get('highest_bias_tiers', [])
+            if highest_bias_tiers:
+                content += "- **Highest Bias Tiers**:\n"
+                for tier_info in highest_bias_tiers[:3]:  # Show top 3
+                    tier = tier_info.get('tier', 'unknown')
+                    bias_range = tier_info.get('bias_range', 0)
+                    sample_size = tier_info.get('sample_size', 0)
+                    tier_label = tier_labels.get(int(tier), f"Tier {tier}")
+                    content += f"  - **Tier {tier}** ({tier_label}): Bias range = {bias_range:.2f} (n={sample_size})\n"
+            
+            # Add statistical test information
+            test_used = data.get('test_used', '')
+            if test_used:
+                content += f"- **Statistical Test**: {test_used}\n"
+            
+            # Add additional test results if available
+            levene_p = data.get('levene_p_value')
+            anova_p = data.get('anova_p_value')
+            if levene_p is not None and anova_p is not None:
+                content += f"- **Test Results**: Levene's test p={levene_p:.3f} (variance differences), ANOVA p={anova_p:.3f} (mean differences)\n"
+
+        # Add hypothesis for severity context analysis
+        if analysis_name == "severity_context":
+            content += "- **Hypothesis**: H₀: All demographic groups are treated equally across different types of complaints.\n"
+        
+        # Add hypotheses for demographic injection analysis
+        if analysis_name == "demographic_injection":
+            content += "- **Hypothesis 1**: H₀: Subdemographic injection does not affect any recommendations\n"
+            content += "- **Hypothesis 2**: H₀: Subtle demographic injection does not affect mean remedy tier assignments\n"
+            content += "- **Hypothesis 3**: H₀: The tier recommendation distribution does not change after injection\n"
+            
+            # Format issue means as a table
+            issue_means = data.get('issue_means', {})
+            if issue_means:
+                content += "- **Issue Means by Persona**:\n\n"
+                content += "| Issue | "
+                
+                # Get all unique personas across all issues
+                all_personas = set()
+                for issue_data in issue_means.values():
+                    if isinstance(issue_data, dict):
+                        all_personas.update(issue_data.keys())
+                
+                # Sort personas for consistent ordering
+                sorted_personas = sorted(all_personas)
+                
+                # Add persona headers
+                for persona in sorted_personas:
+                    content += f"{persona} | "
+                content += "\n| --- | "
+                for persona in sorted_personas:
+                    content += "--- | "
+                content += "\n"
+                
+                # Add data rows
+                for issue, persona_data in issue_means.items():
+                    if isinstance(persona_data, dict):
+                        content += f"| {issue} | "
+                        for persona in sorted_personas:
+                            value = persona_data.get(persona, "")
+                            if value != "":
+                                content += f"{value:.2f} | "
+                            else:
+                                content += " | "
+                        content += "\n"
+                content += "\n"
+
         # Add hypotheses for process fairness analysis
         if analysis_name == "process_fairness":
             content += "- **Hypothesis (Group ANOVA)**: H₀: There are no differences in process fairness between demographic groups.\n"
             content += "- **Hypothesis (Baseline vs Personas)**: H₀: There are no differences in process when demographic data is added (Baseline vs all personas combined).\n"
         
-        # Define remedy tier labels
-        tier_labels = {
-            0: "No action taken",
-            1: "Process improvement", 
-            2: "Small monetary remedy",
-            3: "Moderate monetary remedy",
-            4: "High monetary remedy"
-        }
         
         # Special handling for Process Fairness findings to avoid ambiguity
         if analysis_name == "process_fairness":
@@ -189,12 +536,223 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                 content += f"- **P-Value 2**: {p_value_h2:.3f}\n"
             content += f"- **Interpretation 2**: {interpretation_h2}\n"
 
+        # Initialize skip_fields for demographic injection
+        skip_fields = []
+        
+        # Special handling for demographic injection analysis
+        if analysis_name == "demographic_injection":
+            # Skip the individual fields that we've already formatted
+            skip_fields = ['finding_1', 'finding_2', 'finding_3', 'p_value_1', 'p_value_2', 'p_value_3',
+                          'test_statistic_1', 'test_statistic_2', 'test_statistic_3',
+                          'interpretation_1', 'interpretation_2', 'interpretation_3',
+                          'hypothesis_1', 'hypothesis_2', 'hypothesis_3', 'different_count', 
+                          'total_comparisons', 'percentage_different', 'paired_baseline_mean', 'paired_persona_mean',
+                          'paired_baseline_std', 'paired_persona_std', 'paired_baseline_count', 'paired_persona_count',
+                          'paired_baseline_sem', 'paired_persona_sem',
+                          'paired_difference_mean', 'paired_difference_std', 'contingency_table', 'collapsed_table',
+                          'tiers_collapsed', 'degrees_of_freedom', 'full_baseline_marginals', 'full_persona_marginals',
+                          'full_baseline_count', 'full_persona_count']
+            
+            # Group all Hypothesis 1 results together
+            finding_1 = data.get('finding_1', 'N/A')
+            p_value_1 = data.get('p_value_1', 'N/A')
+            test_statistic_1 = data.get('test_statistic_1', 'N/A')
+            interpretation_1 = data.get('interpretation_1', 'N/A')
+            
+            different_count = data.get('different_count', 'N/A')
+            total_comparisons = data.get('total_comparisons', 'N/A')
+            percentage_different = data.get('percentage_different', 'N/A')
+            
+            content += "\n#### Hypothesis 1\n"
+            content += "- **Hypothesis**: H₀: Subdemographic injection does not affect any recommendations\n"
+            content += "- **Test Name**: Count test for paired differences\n"
+            content += f"- **Test Statistic**: {test_statistic_1} different pairs out of {total_comparisons} ({percentage_different:.1f}%)\n" if isinstance(percentage_different, (int, float)) else f"- **Test Statistic**: {test_statistic_1} different pairs\n"
+            content += "- **P-Value**: N/A (deterministic test: reject if count > 0)\n"
+            content += f"- **Result**: {finding_1}\n"
+            content += f"- **Implications**: {interpretation_1}\n"
+            
+            # Add contingency table details
+            contingency_table = data.get('contingency_table')
+            if contingency_table and isinstance(contingency_table, list):
+                content += "- **Details**: 5x5 Grid of Baseline (rows) vs Persona-Injected (columns) Tier Counts:\n\n"
+                content += "```\n"
+                content += "         Persona Tier\n"
+                content += "         0     1     2     3     4\n"
+                content += "    +-----+-----+-----+-----+-----+\n"
+                for i in range(5):
+                    content += f"  {i} |"
+                    for j in range(5):
+                        count = int(contingency_table[i][j]) if i < len(contingency_table) and j < len(contingency_table[i]) else 0
+                        content += f" {count:4d}|"
+                    content += f"  Baseline Tier {i}\n"
+                    if i < 4:
+                        content += "    +-----+-----+-----+-----+-----+\n"
+                    else:
+                        content += "    +-----+-----+-----+-----+-----+\n"
+                content += "```\n"
+                
+                # Add interpretation of diagonal vs off-diagonal
+                diagonal_count = sum(int(contingency_table[i][i]) for i in range(min(5, len(contingency_table))))
+                off_diagonal_count = sum(sum(int(contingency_table[i][j]) for j in range(min(5, len(contingency_table[i]))) if i != j) 
+                                       for i in range(min(5, len(contingency_table))))
+                content += f"  - Diagonal (no change): {diagonal_count} pairs\n"
+                content += f"  - Off-diagonal (changed): {off_diagonal_count} pairs\n"
+            
+            # Group all Hypothesis 2 results together
+            finding_2 = data.get('finding_2', 'N/A')
+            p_value_2 = data.get('p_value_2', 'N/A')
+            test_statistic_2 = data.get('test_statistic_2', 'N/A')
+            interpretation_2 = data.get('interpretation_2', 'N/A')
+            
+            content += "\n#### Hypothesis 2\n"
+            content += "- **Hypothesis**: H₀: Subtle demographic injection does not affect mean remedy tier assignments\n"
+            content += "- **Test Name**: Paired t-test\n"
+            content += f"- **Test Statistic**: {test_statistic_2:.3f}\n" if isinstance(test_statistic_2, (int, float)) else f"- **Test Statistic**: {test_statistic_2}\n"
+            content += f"- **P-Value**: {p_value_2:.4f}\n" if isinstance(p_value_2, (int, float)) else f"- **P-Value**: {p_value_2}\n"
+            content += f"- **Result**: {finding_2}\n"
+            content += f"- **Implications**: {interpretation_2}\n"
+            
+            # Add details table for Hypothesis 2
+            paired_baseline_mean = data.get('paired_baseline_mean', float('nan'))
+            paired_persona_mean = data.get('paired_persona_mean', float('nan'))
+            paired_baseline_std = data.get('paired_baseline_std', float('nan'))
+            paired_persona_std = data.get('paired_persona_std', float('nan'))
+            paired_baseline_sem = data.get('paired_baseline_sem', float('nan'))
+            paired_persona_sem = data.get('paired_persona_sem', float('nan'))
+            paired_difference_std = data.get('paired_difference_std', float('nan'))
+            paired_baseline_count = data.get('paired_baseline_count', 'N/A')
+            paired_persona_count = data.get('paired_persona_count', 'N/A')
+            
+            content += "- **Details**: Summary Statistics\n\n"
+            content += "| Condition        | Count | Mean Tier | Std Dev | SEM |\n"
+            content += "|------------------|-------|-----------|---------|-----|\n"
+            
+            # For baseline
+            if isinstance(paired_baseline_mean, (int, float)) and not str(paired_baseline_mean).lower() in ['nan', 'inf', '-inf']:
+                baseline_mean_str = f"{paired_baseline_mean:.3f}"
+            else:
+                baseline_mean_str = "N/A"
+                
+            if isinstance(paired_baseline_std, (int, float)) and not str(paired_baseline_std).lower() in ['nan', 'inf', '-inf']:
+                baseline_std_str = f"{paired_baseline_std:.3f}"
+            else:
+                baseline_std_str = "N/A"
+            
+            if isinstance(paired_baseline_sem, (int, float)) and not str(paired_baseline_sem).lower() in ['nan', 'inf', '-inf']:
+                baseline_sem_str = f"{paired_baseline_sem:.3f}"
+            else:
+                baseline_sem_str = "N/A"
+                
+            # For persona
+            if isinstance(paired_persona_mean, (int, float)) and not str(paired_persona_mean).lower() in ['nan', 'inf', '-inf']:
+                persona_mean_str = f"{paired_persona_mean:.3f}"
+            else:
+                persona_mean_str = "N/A"
+                
+            if isinstance(paired_persona_std, (int, float)) and not str(paired_persona_std).lower() in ['nan', 'inf', '-inf']:
+                persona_std_str = f"{paired_persona_std:.3f}"
+            else:
+                persona_std_str = "N/A"
+            
+            if isinstance(paired_persona_sem, (int, float)) and not str(paired_persona_sem).lower() in ['nan', 'inf', '-inf']:
+                persona_sem_str = f"{paired_persona_sem:.3f}"
+            else:
+                persona_sem_str = "N/A"
+            
+            # Format the paired difference std and its SEM
+            diff_std_str = f"{paired_difference_std:.3f}" if isinstance(paired_difference_std, (int, float)) and not str(paired_difference_std).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            
+            # Calculate SEM for the difference (based on paired t-test)
+            diff_sem = paired_difference_std / math.sqrt(paired_baseline_count) if isinstance(paired_difference_std, (int, float)) and isinstance(paired_baseline_count, int) and paired_baseline_count > 0 else float('nan')
+            diff_sem_str = f"{diff_sem:.3f}" if not str(diff_sem).lower() in ['nan', 'inf', '-inf'] else "N/A"
+            
+            content += f"| Baseline         | {paired_baseline_count:>5} | {baseline_mean_str:>9} | {baseline_std_str:>7} | {baseline_sem_str:>3} |\n"
+            content += f"| Persona-Injected | {paired_persona_count:>5} | {persona_mean_str:>9} | {persona_std_str:>7} | {persona_sem_str:>3} |\n"
+            
+            # Add difference row
+            if isinstance(paired_baseline_mean, (int, float)) and isinstance(paired_persona_mean, (int, float)):
+                diff = paired_persona_mean - paired_baseline_mean
+                content += f"| **Difference**   |   -   | **{diff:+.3f}** | {diff_std_str:>7} | {diff_sem_str:>3} |\n"
+            
+            content += "\n"
+            
+            # Add Hypothesis 3
+            finding_3 = data.get('finding_3', 'N/A')
+            p_value_3 = data.get('p_value_3', 'N/A')
+            test_statistic_3 = data.get('test_statistic_3', 'N/A')
+            interpretation_3 = data.get('interpretation_3', 'N/A')
+            df = data.get('degrees_of_freedom', 4)
+            
+            content += "\n#### Hypothesis 3\n"
+            content += "- **Hypothesis**: H₀: The tier recommendation distribution does not change after injection\n"
+            content += "- **Test Name**: Stuart-Maxwell test for marginal homogeneity\n"
+            content += f"- **Test Statistic**: χ² = {test_statistic_3:.3f} (df = {df})\n" if isinstance(test_statistic_3, (int, float)) else f"- **Test Statistic**: {test_statistic_3}\n"
+            content += f"- **P-Value**: {p_value_3:.4f}\n" if isinstance(p_value_3, (int, float)) else f"- **P-Value**: {p_value_3}\n"
+            content += f"- **Result**: {finding_3}\n"
+            content += f"- **Implications**: {interpretation_3}\n"
+            if data.get('tiers_collapsed', False):
+                content += "- **Note**: Tiers were collapsed to {0,1}, {2}, {3,4} due to sparse cells\n"
+            
+            # Add marginal distribution details for Hypothesis 3
+            full_baseline_marginals = data.get('full_baseline_marginals')
+            full_persona_marginals = data.get('full_persona_marginals')
+            full_baseline_count = data.get('full_baseline_count', 0)
+            full_persona_count = data.get('full_persona_count', 0)
+            
+            if full_baseline_marginals and full_persona_marginals:
+                content += "- **Details**: Marginal Distributions\n\n"
+                content += "| Condition        | Tier 0 | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Total |\n"
+                content += "|------------------|--------|--------|--------|--------|--------|-------|\n"
+                
+                # Calculate proportions
+                baseline_props = [count / full_baseline_count for count in full_baseline_marginals] if full_baseline_count > 0 else [0] * 5
+                persona_props = [count / full_persona_count for count in full_persona_marginals] if full_persona_count > 0 else [0] * 5
+                
+                # Format baseline row (counts)
+                content += f"| Baseline         |"
+                for count in full_baseline_marginals:
+                    content += f" {count:6d} |"
+                content += f" {full_baseline_count:5d} |\n"
+                
+                # Format baseline proportions row
+                content += f"| Baseline (%)     |"
+                for prop in baseline_props:
+                    content += f" {prop*100:5.1f}% |"
+                content += "   -   |\n"
+                
+                # Format persona row (counts)
+                content += f"| Persona-Injected |"
+                for count in full_persona_marginals:
+                    content += f" {count:6d} |"
+                content += f" {full_persona_count:5d} |\n"
+                
+                # Format persona proportions row
+                content += f"| Persona-Inj. (%) |"
+                for prop in persona_props:
+                    content += f" {prop*100:5.1f}% |"
+                content += "   -   |\n"
+                
+                # Add change row (percentage point difference)
+                content += f"| **Δ (pp)**       |"
+                for i in range(5):
+                    change_pp = (persona_props[i] - baseline_props[i]) * 100
+                    content += f" {change_pp:+5.1f} |" if abs(change_pp) >= 0.05 else f" {change_pp:5.1f} |"
+                content += "   -   |\n"
+                
+                content += "\n"
+            
+            # Skip ALL other fields for demographic injection - we've already formatted everything we need
+            skip_fields = list(data.keys())
+
         for key, value in data.items():
             # Skip generic finding for process_fairness (we already printed two findings above)
             if analysis_name == "process_fairness" and key.lower() == 'finding':
                 continue
             # Skip individual hypothesis findings for fairness_strategies (we already printed them above)
             if analysis_name == "fairness_strategies" and key in ['finding_h1', 'finding_h2', 't_statistic_h1', 'p_value_h1', 'interpretation_h1', 'f_statistic_h2', 'p_value_h2', 'interpretation_h2']:
+                continue
+            # Skip fields we already formatted for demographic injection
+            if analysis_name == "demographic_injection" and key in skip_fields:
                 continue
             if isinstance(value, (int, float)):
                 # Format floating point numbers to 3 decimal places
@@ -347,8 +905,8 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                                 if all_analyses and isinstance(all_analyses.get('gender_effects'), dict):
                                     gp_pval = all_analyses['gender_effects'].get('p_value')
                                 content += "- **Grouped by Gender**:\n\n"
-                                header = "| Gender | " + " | ".join(col.replace('_', ' ').title() for col in ordered_cols) + " | p-value |\n"
-                                separator = "|" + " --- |" * (len(ordered_cols) + 2) + "\n"
+                                header = "| Gender | " + " | ".join(col.replace('_', ' ').title() for col in ordered_cols) + " |\n"
+                                separator = "|" + " --- |" * (len(ordered_cols) + 1) + "\n"
                                 content += header + separator
                                 for cat in ['female', 'male']:
                                     if cat in gender_agg:
@@ -356,7 +914,6 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                                         row = [cat]
                                         for col in ordered_cols:
                                             row.append(f"{metrics.get(col, 0.0):.3f}")
-                                        row.append(f"{gp_pval:.3f}" if isinstance(gp_pval, (int, float)) else (str(gp_pval) if gp_pval is not None else ""))
                                         content += "| " + " | ".join(row) + " |\n"
                                 content += "\n"
                         except Exception:
@@ -380,14 +937,13 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                             if all_analyses and isinstance(all_analyses.get('ethnicity_effects'), dict):
                                 epv = all_analyses['ethnicity_effects'].get('p_value')
                             content += "- **Grouped by Ethnicity**:\n\n"
-                            header = "| Ethnicity | " + " | ".join(col.replace('_', ' ').title() for col in ordered_cols) + " | p-value |\n"
-                            separator = "|" + " --- |" * (len(ordered_cols) + 2) + "\n"
+                            header = "| Ethnicity | " + " | ".join(col.replace('_', ' ').title() for col in ordered_cols) + " |\n"
+                            separator = "|" + " --- |" * (len(ordered_cols) + 1) + "\n"
                             content += header + separator
                             for cat, metrics in eth_agg.items():
                                 row = [cat]
                                 for col in ordered_cols:
                                     row.append(f"{metrics.get(col, 0.0):.3f}")
-                                row.append(f"{epv:.3f}" if isinstance(epv, (int, float)) else (str(epv) if epv is not None else ""))
                                 content += "| " + " | ".join(row) + " |\n"
                             content += "\n"
 
@@ -409,8 +965,8 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                             if all_analyses and isinstance(all_analyses.get('geography_effects'), dict):
                                 gpv = all_analyses['geography_effects'].get('p_value')
                             content += "- **Grouped by Geography**:\n\n"
-                            header = "| Geography | " + " | ".join(col.replace('_', ' ').title() for col in ordered_cols) + " | p-value |\n"
-                            separator = "|" + " --- |" * (len(ordered_cols) + 2) + "\n"
+                            header = "| Geography | " + " | ".join(col.replace('_', ' ').title() for col in ordered_cols) + " |\n"
+                            separator = "|" + " --- |" * (len(ordered_cols) + 1) + "\n"
                             content += header + separator
                             # Keep a stable row order
                             for cat in ['urban_affluent', 'urban_poor', 'rural']:
@@ -419,7 +975,6 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                                     row = [cat]
                                     for col in ordered_cols:
                                         row.append(f"{metrics.get(col, 0.0):.3f}")
-                                    row.append(f"{gpv:.3f}" if isinstance(gpv, (int, float)) else (str(gpv) if gpv is not None else ""))
                                     content += "| " + " | ".join(row) + " |\n"
                             content += "\n"
                     # Special handling for granular bias group means
@@ -442,6 +997,9 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                         content += f"- **{key.replace('_', ' ').title()}**:\n"
                         for strategy, description in value.items():
                             content += f"  - {strategy}: {description}\n"
+                    # Skip issue_means for severity_context as it's handled above
+                    elif analysis_name == "severity_context" and key == "issue_means":
+                        continue  # Skip this as it's already formatted as a table above
                     else:
                         content += f"- **{key.replace('_', ' ').title()}**:\n"
                         for sub_key, sub_value in value.items():
