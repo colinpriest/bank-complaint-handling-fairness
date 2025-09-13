@@ -89,19 +89,19 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Gender Effects
 
-- **Hypothesis**: H₀: Gender injection does not cause statistically different outcomes across baseline, male, and female groups
-- **Test Name**: One-way ANOVA
-- **Test Statistic**: F = 1.235
-- **P-Value**: 0.2910
+- **Hypothesis**: H₀: Male and female persona injection result in the same remedy tier assignments
+- **Test Name**: Two-sample t-test
+- **Test Statistic**: t = 0.936
+- **P-Value**: 0.3492
 - **Result**: H₀ NOT REJECTED
-- **Implications**: Gender does not significantly affect remedy tier assignments (p=0.291)
+- **Implications**: Gender does not significantly affect remedy tier assignments (p=0.349)
 - **Details**: Summary Statistics
 
-| Condition | Count | Mean Tier | Std Dev | SEM |
-|-----------|-------|-----------|---------|-----|
-| Baseline  |  1000 |     1.345 |   1.159 | 0.037 |
-| Female    |  4995 |     1.383 |   1.198 | 0.017 |
-| Male      |  5005 |     1.406 |   1.175 | 0.017 |
+| Condition | Count | Mean Tier | Std Dev | SEM | Mean Bias |
+|-----------|-------|-----------|---------|-----|----------|
+| Baseline  |  1000 |     1.345 |   1.159 | 0.037 |    0.000 |
+| Female    |  4995 |     1.383 |   1.198 | 0.017 |   +0.038 |
+| Male      |  5005 |     1.406 |   1.175 | 0.017 |   +0.061 |
 
 ### Ethnicity Effects
 
@@ -167,142 +167,138 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ### Bias Directional Consistency
 
-- **Hypothesis**: H₀: Mean bias outcomes are equally positive or negative
-- **Finding**: NOT TESTED...
-- **Error**: No baseline data available...
+- **Hypothesis**: H₀: Mean bias outcomes are equally positive or negative across demographic groups
+- **Test Name**: One-sample t-test against zero bias
+- **Test Statistic**: t = 1.527
+- **P-Value**: 0.1403
+- **Result**: H₀ NOT REJECTED
+- **Implications**: Bias distribution is not significantly uneven (p=0.140), indicating biases are relatively balanced between positive and negative.
+- **Details**: Bias Direction Distribution
+
+| Metric | Negative | Neutral | Positive | Total |
+|--------|----------|---------|----------|-------|
+| Persona Count |        8 |       2 |       14 |    24 |
+| Example Count |     3359 |     824 |     5817 | 10000 |
+| Persona % |    33.3% |    8.3% |    58.3% |   -   |
+| Example % |    33.6% |    8.2% |    58.2% |   -   |
+
+**Note**: Bias thresholds: Negative < -0.05, Neutral [-0.05, +0.05], Positive > +0.05
 
 ### Fairness Strategies
 
-- **Hypothesis 1**: H₀: Fairness strategies do not affect bias
-- **Hypothesis 2**: H₀: All fairness strategies are equally effective
-- **Finding 1**: H₀ NOT REJECTED
-- **T-Statistic 1**: -0.462
-- **P-Value 1**: 0.661
-- **Interpretation 1**: Fairness strategies do not significantly affect bias compared to baseline (p=0.661)
-- **Finding 2**: H₀ REJECTED
-- **F-Statistic 2**: 83.477
-- **P-Value 2**: 0.000
-- **Interpretation 2**: Fairness strategies significantly differ in effectiveness (p=0.000)
-- **Strategy Vs Baseline**: 7 items
-- **Strategy Means**:
-  - persona_fairness: 1.237 (Process improvement)
-  - consequentialist: 1.602 (Small monetary remedy)
-  - chain_of_thought: 1.318 (Process improvement)
-  - perspective: 1.341 (Process improvement)
-  - minimal: 1.387 (Process improvement)
-  - roleplay: 0.734 (Process improvement)
-  - structured_extraction: 1.461 (Process improvement)
-- **Sample Sizes**:
-  - persona_fairness: 1416
-  - consequentialist: 1432
-  - chain_of_thought: 1492
-  - perspective: 1420
-  - minimal: 1386
-  - roleplay: 1412
-  - structured_extraction: 1442
-- **Strategy Descriptions**: 7 items
-- **Baseline Mean**: 1.345 (Tier 1: Process improvement)
+
+**Bias Mitigation Strategies:**
+- **Persona Fairness**: Demographic injection with explicit fairness instruction to ignore demographics and make unbiased decisions
+- **Perspective**: Perspective-taking approach asking the model to consider the complainant's viewpoint
+- **Chain Of Thought**: Step-by-step reasoning process to improve decision quality and transparency
+- **Consequentialist**: Consequence-focused decision making emphasizing outcomes and impacts
+- **Roleplay**: Role-playing approach where the model assumes the perspective of a fair bank representative
+- **Structured Extraction**: Structured information extraction method with predefined decision criteria
+- **Minimal**: Minimal intervention approach with basic instruction to be fair and unbiased
+
+#### Hypothesis 1: Strategies vs Persona-Injected
+- **Hypothesis**: H₀: Fairness strategies do not affect remedy tier assignments compared to persona-injected examples
+- **Test Name**: Paired t-test
+- **Test Statistic**: t = -2.367
+- **P-Value**: 0.0181
+- **Result**: H₀ REJECTED
+- **Implications**: Fairness strategies significantly affect remedy tier assignments compared to persona-injected examples (paired t-test, p=0.018)
+- **Details**: Mitigation vs Persona-Injected Comparison
+
+| Condition | Example Count | Mean Tier | Std Dev | SEM | Mean Bias* |
+|-----------|---------------|-----------|---------|-----|----------|
+| Baseline      |          1000 |     1.345 |   1.159 | 0.037 |    0.000 |
+| **Persona-Injected** |   10000 |     1.395 |   1.186 | 0.012 |   +0.050 |
+| **Mitigation**   |       10000 |     1.298 |   1.158 | 0.012 |   -0.047 |
+
+*Mean Bias calculated as condition mean - baseline mean. Baseline = 0.000 (reference).
+
+
+#### Hypothesis 2: Strategy Effectiveness Comparison
+- **Hypothesis**: H₀: All fairness strategies are equally effective
+- **Test Name**: One-way ANOVA across strategies
+- **Test Statistic**: F = 83.477
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Fairness strategies significantly differ in effectiveness (p=0.000)
+- **Details**: Strategy Effectiveness (Ordered by Residual Bias %)
+
+| Strategy | Count | Mean Tier Baseline | Mean Tier Before | Mean Tier After | Std Dev | SEM | Mean Bias Before | Mean Bias After | Residual Bias % |
+|----------|-------|-------------------|------------------|-----------------|---------|-----|------------------|-----------------|----------------|
+| **Baseline** |  1000 |              1.345 |            1.345 |           1.345 |   1.159 | 0.037 |         0.000 |        0.000 |      0.0%     |
+| **Persona-Injected** | 10000 |              1.345 |            1.395 |           1.395 |   1.186 | 0.012 |           +0.050 |          +0.050 |    100.0%     |
+| Chain Of Thought     |  1492 |              1.326 |            1.389 |           1.318 |   1.145 | 0.030 |           +0.063 |          -0.008 |          13.5% |
+| Minimal              |  1386 |              1.380 |            1.412 |           1.387 |   1.161 | 0.031 |           +0.032 |          +0.007 |          22.4% |
+| Perspective          |  1420 |              1.354 |            1.406 |           1.341 |   1.186 | 0.031 |           +0.052 |          -0.013 |          24.8% |
+| Persona Fairness     |  1416 |              1.337 |            1.398 |           1.237 |   1.055 | 0.028 |           +0.061 |          -0.099 |         162.2% |
+| Structured Extraction |  1442 |              1.336 |            1.384 |           1.461 |   1.164 | 0.031 |           +0.048 |          +0.125 |         261.7% |
+| Consequentialist     |  1432 |              1.343 |            1.390 |           1.602 |   1.290 | 0.034 |           +0.047 |          +0.259 |         550.5% |
+| Roleplay             |  1412 |              1.350 |            1.389 |           0.734 |   0.858 | 0.023 |           +0.039 |          -0.616 |        1565.8% |
 
 ### Process Fairness
 
-- **Hypothesis (Group ANOVA)**: H₀: There are no differences in process fairness between demographic groups.
-- **Hypothesis (Baseline vs Personas)**: H₀: There are no differences in process when demographic data is added (Baseline vs all personas combined).
-- **Finding (Group ANOVA)**: H₀ REJECTED — Differences detected between demographic groups (2/6 indicators significant).
-- **Finding (Baseline vs Personas)**: H₀ NOT REJECTED — No significant change in process indicators when demographic data is added (0/6 indicators significant).
-- **Significant Indicators**: 2
-- **Total Indicators**: 6
-- **Group Means**:
+#### Hypothesis 1: Persona Injection Effects
+- **Hypothesis**: H₀: There are no process fairness issues after persona injection
+- **Test Name**: Paired t-test (persona-injected vs matched baseline)
+- **Test Statistic**: t = 2.088
+- **P-Value**: 0.0368
+- **Result**: H₀ REJECTED
+- **Implications**: Process fairness differs significantly after persona injection (2/6 indicators significant)
+- **Details**: Paired Comparison (Baseline vs Persona-Injected)
 
-| Group | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
-| --- | --- | --- | --- | --- | --- | --- |
-| black_male_rural | 0.128 | 0.112 | 0.000 | 0.000 | 0.000 | 0.000 |
-| latino_female_urban_poor | 0.183 | 0.149 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white_male_urban_affluent | 0.238 | 0.212 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian_male_urban_affluent | 0.198 | 0.172 | 0.000 | 0.000 | 0.000 | 0.000 |
-| black_female_rural | 0.126 | 0.090 | 0.000 | 0.000 | 0.000 | 0.000 |
-| black_female_urban_affluent | 0.170 | 0.156 | 0.000 | 0.000 | 0.000 | 0.000 |
-| latino_male_urban_poor | 0.166 | 0.148 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white_male_urban_poor | 0.122 | 0.096 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian_female_urban_affluent | 0.177 | 0.169 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white_female_rural | 0.100 | 0.067 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white_male_rural | 0.137 | 0.112 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian_female_rural | 0.138 | 0.100 | 0.000 | 0.000 | 0.000 | 0.000 |
-| latino_male_rural | 0.141 | 0.109 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian_male_urban_poor | 0.194 | 0.168 | 0.000 | 0.000 | 0.000 | 0.000 |
-| black_female_urban_poor | 0.230 | 0.197 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white_female_urban_poor | 0.203 | 0.180 | 0.000 | 0.000 | 0.000 | 0.000 |
-| latino_male_urban_affluent | 0.177 | 0.157 | 0.000 | 0.000 | 0.000 | 0.000 |
-| black_male_urban_poor | 0.191 | 0.167 | 0.000 | 0.000 | 0.000 | 0.000 |
-| latino_female_rural | 0.112 | 0.093 | 0.000 | 0.000 | 0.000 | 0.000 |
-| black_male_urban_affluent | 0.204 | 0.179 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white_female_urban_affluent | 0.205 | 0.171 | 0.000 | 0.000 | 0.000 | 0.000 |
-| latino_female_urban_affluent | 0.197 | 0.171 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian_female_urban_poor | 0.200 | 0.175 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian_male_rural | 0.128 | 0.104 | 0.000 | 0.000 | 0.000 | 0.000 |
+| Indicator | Paired Count | Baseline Mean | Persona Mean | Difference |
+|-----------|-------------|---------------|--------------|------------|
+| Monetary |       10000 |         0.172 |        0.178 |     +0.006 |
+| Escalation |       10000 |         0.137 |        0.154 |     +0.017 |
+|-----------|-------------|---------------|--------------|------------|
+| **Total** |       10000 |         0.172 |        0.178 |     +0.006 |
 
-- **Indicator Tests**:
+#### Hypothesis 2: Demographic Group Differences
+- **Hypothesis**: H₀: There are no differences in process fairness between demographic groups
+- **Test Name**: One-way ANOVA across demographic groups
+- **Test Statistic**: F = 5.403
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Process fairness varies significantly across demographic groups (2/6 indicators significant)
+- **Details**: Process Fairness Indicators by Demographic Group
 
-| Indicator | F-Statistic | p-value | Significant |
-| --- | --- | --- | --- |
-| monetary | 8.906 | 0.000 | Yes |
-| escalation | 10.629 | 0.000 | Yes |
-| asked_question | nan | nan | No |
-| evidence_ok | nan | nan | No |
-| format_ok | nan | nan | No |
-| refusal | nan | nan | No |
-
-- **Baseline vs Personas (summary)**: 0 of 6 indicators significant.
-- **Interpretation (Baseline vs Personas)**: Process indicators do not differ between Baseline and combined demographic groups (0/6 indicators significant)
-
-- **Baseline vs Personas Tests**:
-
-| Indicator | t-Statistic | p-value | Significant |
-| --- | --- | --- | --- |
-| monetary | 0.208 | 0.835 | No |
-| escalation | -0.618 | 0.536 | No |
-| asked_question | nan | nan | No |
-| evidence_ok | nan | nan | No |
-| format_ok | nan | nan | No |
-| refusal | nan | nan | No |
-
-- **Significant Indicators**: 2 of 6. Significant: monetary, escalation
-- **Non-significant Indicators**: asked_question, evidence_ok, format_ok, refusal
-
-- **Grouped by Gender**:
-
-| Gender | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
-| --- | --- | --- | --- | --- | --- | --- |
-| female | 0.170 | 0.143 | 0.000 | 0.000 | 0.000 | 0.000 |
-| male | 0.169 | 0.145 | 0.000 | 0.000 | 0.000 | 0.000 |
-
-- **Grouped by Ethnicity**:
-
-| Ethnicity | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
-| --- | --- | --- | --- | --- | --- | --- |
-| black | 0.175 | 0.150 | 0.000 | 0.000 | 0.000 | 0.000 |
-| hispanic | 0.163 | 0.138 | 0.000 | 0.000 | 0.000 | 0.000 |
-| white | 0.168 | 0.140 | 0.000 | 0.000 | 0.000 | 0.000 |
-| asian | 0.172 | 0.148 | 0.000 | 0.000 | 0.000 | 0.000 |
-
-- **Grouped by Geography**:
-
-| Geography | Monetary | Escalation | Asked Question | Evidence Ok | Format Ok | Refusal |
-| --- | --- | --- | --- | --- | --- | --- |
-| urban_affluent | 0.196 | 0.173 | 0.000 | 0.000 | 0.000 | 0.000 |
-| urban_poor | 0.186 | 0.160 | 0.000 | 0.000 | 0.000 | 0.000 |
-| rural | 0.126 | 0.098 | 0.000 | 0.000 | 0.000 | 0.000 |
-
-- **Indicator Tests**: 6 items
-- **Interpretation**: Process fairness varies significantly across demographic groups (2/6 indicators significant)...
-- **Baseline Vs Personas Tests**: 6 items
-- **Baseline Vs Personas Significant Indicators**: 0
-- **Baseline Vs Personas Total Indicators**: 6
-- **Baseline Vs Personas Interpretation**: Process indicators do not differ between Baseline and combined demographic groups (0/6 indicators si...
+| Group | Count | Monetary | Escalation | Total | 
+|-------|-------|--------|--------|--------|
+| Asian Female Rural |   414 | 0.143 (±0.017) | 0.109 (±0.015) | 0.251 | 
+| Asian Female Urban Affluent |   417 | 0.194 (±0.019) | 0.187 (±0.019) | 0.381 | 
+| Asian Female Urban Poor |   418 | 0.211 (±0.020) | 0.184 (±0.019) | 0.395 | 
+| Asian Male Rural |   418 | 0.132 (±0.017) | 0.110 (±0.015) | 0.242 | 
+| Asian Male Urban Affluent |   429 | 0.205 (±0.020) | 0.179 (±0.019) | 0.385 | 
+| Asian Male Urban Poor |   408 | 0.208 (±0.020) | 0.186 (±0.019) | 0.395 | 
+| Black Female Rural |   431 | 0.123 (±0.016) | 0.093 (±0.014) | 0.216 | 
+| Black Female Urban Affluent |   411 | 0.180 (±0.019) | 0.163 (±0.018) | 0.343 | 
+| Black Female Urban Poor |   396 | 0.245 (±0.022) | 0.212 (±0.021) | 0.457 | 
+| Black Male Rural |   421 | 0.133 (±0.017) | 0.116 (±0.016) | 0.249 | 
+| Black Male Urban Affluent |   397 | 0.214 (±0.021) | 0.191 (±0.020) | 0.406 | 
+| Black Male Urban Poor |   423 | 0.201 (±0.020) | 0.177 (±0.019) | 0.378 | 
+| Latino Female Rural |   424 | 0.118 (±0.016) | 0.101 (±0.015) | 0.219 | 
+| Latino Female Urban Affluent |   421 | 0.216 (±0.020) | 0.190 (±0.019) | 0.406 | 
+| Latino Female Urban Poor |   398 | 0.198 (±0.020) | 0.168 (±0.019) | 0.367 | 
+| Latino Male Rural |   394 | 0.145 (±0.018) | 0.114 (±0.016) | 0.259 | 
+| Latino Male Urban Affluent |   415 | 0.181 (±0.019) | 0.161 (±0.018) | 0.342 | 
+| Latino Male Urban Poor |   430 | 0.170 (±0.018) | 0.151 (±0.017) | 0.321 | 
+| White Female Rural |   413 | 0.102 (±0.015) | 0.068 (±0.012) | 0.169 | 
+| White Female Urban Affluent |   413 | 0.225 (±0.021) | 0.191 (±0.019) | 0.416 | 
+| White Female Urban Poor |   439 | 0.207 (±0.019) | 0.189 (±0.019) | 0.396 | 
+| White Male Rural |   437 | 0.142 (±0.017) | 0.121 (±0.016) | 0.263 | 
+| White Male Urban Affluent |   432 | 0.257 (±0.021) | 0.231 (±0.020) | 0.488 | 
+| White Male Urban Poor |   401 | 0.130 (±0.017) | 0.102 (±0.015) | 0.232 | 
 
 ### Severity Bias Variation
 
+#### Hypothesis 1: Severity Tier Bias Variation
 - **Hypothesis**: H₀: Issue severity does not affect bias
-- **Bias by Baseline Tier**:
+- **Test Name**: One-way ANOVA across severity tiers
+- **Test Statistic**: F = N/A
+- **P-Value**: 0.9984
+- **Result**: H₀ NOT REJECTED
+- **Implications**: Bias patterns are consistent across predicted severity tiers (p=0.998). Analyzed 5 severity tiers with an average bias range of 1.19.
+- **Details**: Bias by Baseline Tier
 
 | Tier | Description | Mean Remedy Tier | Mean Bias | Bias Range | Sample Size | Groups |
 |------|-------------|------------------|-----------|------------|-------------|--------|
@@ -315,34 +311,54 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
   - **Tier 3** (Moderate monetary remedy): Bias range = 2.25 (n=230)
   - **Tier 2** (Small monetary remedy): Bias range = 1.50 (n=120)
   - **Tier 4** (High monetary remedy): Bias range = 1.32 (n=1370)
-- **Finding**: H₀ NOT REJECTED...
-- **Interpretation**: Bias patterns are consistent across predicted severity tiers (p=0.998). Analyzed 5 severity tiers wi...
-- **Tiers Analyzed**: 5
-- **Bias Variation Significant**: False...
-- **P Value**: 0.998
-- **Average Bias Range**: 1.194
-- **Tier Metrics**: 5 items
-- **Highest Bias Tiers**: 3 entries
-- **Average Group Biases**: 24 items
 
+#### Hypothesis 2: Monetary vs Non-Monetary Bias
+- **Hypothesis**: H₀: Monetary tiers have the same average bias as non-monetary tiers
+- **Test Name**: Two-sample t-test (Welch's)
+- **Test Statistic**: t = -0.000
+- **P-Value**: 1.0000
+- **Result**: H₀ NOT REJECTED
+- **Implications**: Non-monetary tiers (0,1) have mean bias 0.000, monetary tiers (2,3,4) have mean bias 0.000
+- **Details**: Tier Group Comparison
+
+| Group | Count | Mean Bias | Std Dev |
+|-------|-------|-----------|----------|
+| Non-Monetary (Tiers 0,1) |  8280 |     0.000 |    0.741 |
+| Monetary (Tiers 2,3,4) |    1720 |     0.000 |    1.592 |
+
+#### Hypothesis 3: Bias Variability Comparison
+- **Hypothesis**: H₀: Monetary tiers have the same bias variability as non-monetary tiers
+- **Test Name**: Levene's test for equal variances
+- **Test Statistic**: W = 1472.676
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Non-monetary bias std = 0.741, monetary bias std = 1.592
 ### Severity Context
 
-- **Hypothesis**: H₀: All demographic groups are treated equally across different types of complaints.
-- **Finding**: H₀ REJECTED...
-- **Significant Issues**: 15
-- **Total Issues**: 73
-- **Interaction Tests**: 73 items
-- **Interpretation**: Severity-context interactions are significant (15/73 issue types show significant group differences)...
+- **Hypothesis**: H₀: All demographic groups are treated equally across different complaint categories
+- **Test Name**: One-way ANOVA per complaint category
+- **Test Statistic**: F = 3.954
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Severity-context interactions are significant (2/10 complaint categories show significant demographic group differences)
+- **Details**: Complaint Category Analysis
 
+| Category | Groups Tested | Sample Size | F-Statistic | P-Value | Significant |
+|----------|---------------|-------------|-------------|---------|-------------|
+| Other Issues       |            24 |        6550 |       7.352 |  0.0000 |         Yes |
+| Credit Services    |            24 |         980 |       1.546 |  0.0486 |         Yes |
+| Account Management |            24 |        1100 |       1.030 |  0.4232 |          No |
+| Deposit Services   |            14 |          32 |       0.795 |  0.6583 |          No |
+| Debt Collection    |            24 |         630 |       0.854 |  0.6618 |          No |
+| Mortgage & Loans   |            24 |         190 |       0.765 |  0.7700 |          No |
+| Fees & Billing     |            21 |          77 |       0.660 |  0.8470 |          No |
+| Customer Service   |            24 |         280 |       0.682 |  0.8620 |          No |
+| Marketing & Sales  |            13 |          31 |       0.532 |  0.8662 |          No |
+| Fraud & Security   |            22 |         109 |       0.394 |  0.9910 |          No |
 ### Model Scaling
 
 - **Finding**: NO DATA...
 - **Interpretation**: No experimental data available for scaling analysis...
-
-### Corrective Justice
-
-- **Finding**: NOT TESTED...
-- **Interpretation**: Corrective justice analysis not yet implemented...
 
 
 ## Methodology

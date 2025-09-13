@@ -353,9 +353,9 @@ class StatisticalAnalyzer:
             if len(male_tiers) < 10 or len(female_tiers) < 10:
                 return {"finding": "NOT TESTED", "error": "Insufficient sample data"}
             
-            # Perform one-way ANOVA for three groups (baseline, male, female)
-            from scipy.stats import f_oneway
-            f_stat, p_value = f_oneway(baseline_tiers if baseline_tiers else [0], male_tiers, female_tiers)
+            # Perform two-sample t-test comparing male vs female
+            from scipy.stats import ttest_ind
+            t_stat, p_value = ttest_ind(male_tiers, female_tiers)
             
             # Calculate means, standard deviations, and SEMs
             baseline_mean = float(np.mean(baseline_tiers)) if baseline_tiers else float('nan')
@@ -376,13 +376,17 @@ class StatisticalAnalyzer:
                                (len(male_tiers) + len(female_tiers) - 2))
             cohens_d = (male_mean - female_mean) / pooled_std if pooled_std > 0 else 0
             
+            # Calculate biases relative to baseline
+            male_bias = male_mean - baseline_mean if not np.isnan(baseline_mean) else float('nan')
+            female_bias = female_mean - baseline_mean if not np.isnan(baseline_mean) else float('nan')
+            
             finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
             return {
-                "hypothesis": "H₀: Gender injection does not cause statistically different outcomes across baseline, male, and female groups",
-                "test_name": "One-way ANOVA",
+                "hypothesis": "H₀: Male and female persona injection result in the same remedy tier assignments",
+                "test_name": "Two-sample t-test",
                 "finding": finding,
-                "test_statistic": float(f_stat),
+                "test_statistic": float(t_stat),
                 "p_value": float(p_value),
                 "baseline_mean": baseline_mean,
                 "baseline_std": baseline_std,
@@ -392,10 +396,12 @@ class StatisticalAnalyzer:
                 "male_std": male_std,
                 "male_sem": male_sem,
                 "male_count": len(male_tiers),
+                "male_bias": float(male_bias),
                 "female_mean": female_mean,
                 "female_std": female_std,
                 "female_sem": female_sem,
                 "female_count": len(female_tiers),
+                "female_bias": float(female_bias),
                 "mean_difference": float(male_mean - female_mean),
                 "effect_size": float(cohens_d),
                 "interpretation": f"Gender {'significantly affects' if p_value < 0.05 else 'does not significantly affect'} remedy tier assignments (p={p_value:.3f})",
@@ -643,44 +649,89 @@ class StatisticalAnalyzer:
             }
         
         try:
-            # Extract remedy tiers by individual persona (using group_text for granular analysis)
-            group_tiers = {}
-            for record in raw_results:
-                group_text = record.get('group_text')
-                remedy_tier = record.get('remedy_tier')
-                
-                if group_text and remedy_tier is not None:
-                    if group_text not in group_tiers:
-                        group_tiers[group_text] = []
-                    group_tiers[group_text].append(remedy_tier)
+            # Extract remedy tiers by persona group, filtering out bias mitigation strategies
+            persona_tiers = {}
+            baseline_tiers = []
             
-            # Calculate bias direction for each persona group relative to baseline
-            baseline_tiers = group_tiers.get('Baseline (no demographic signals)', [])
+            for record in raw_results:
+                group_label = record.get('group_label')
+                remedy_tier = record.get('remedy_tier')
+                variant = record.get('variant')
+                
+                if not group_label or remedy_tier is None:
+                    continue
+                
+                # Handle baseline data (always include)
+                if group_label == 'baseline':
+                    baseline_tiers.append(remedy_tier)
+                # Only include basic demographic injection for persona groups
+                elif variant == 'G':
+                    if group_label not in persona_tiers:
+                        persona_tiers[group_label] = []
+                    persona_tiers[group_label].append(remedy_tier)
+            
+            # Check if we have baseline data
             if not baseline_tiers:
                 return {"finding": "NOT TESTED", "error": "No baseline data available"}
             
+            if len(persona_tiers) < 2:
+                return {"finding": "NOT TESTED", "error": "Insufficient persona groups for statistical analysis"}
+            
             baseline_mean = np.mean(baseline_tiers)
+            baseline_std = np.std(baseline_tiers, ddof=1) if len(baseline_tiers) > 1 else 1.159
+            baseline_sem = baseline_std / np.sqrt(len(baseline_tiers))
+            baseline_count = len(baseline_tiers)
+            
+            # Calculate bias for each persona group
             bias_details = {}
             bias_values = []
+            persona_counts = {}
+            example_counts = {}
             
-            for group_name, tiers in group_tiers.items():
-                if group_name != 'Baseline (no demographic signals)':
-                    group_mean = np.mean(tiers)
-                    bias = group_mean - baseline_mean
-                    bias_details[group_name] = float(bias)
-                    bias_values.append(bias)
+            for group_name, tiers in persona_tiers.items():
+                group_mean = np.mean(tiers)
+                bias = group_mean - baseline_mean
+                bias_details[group_name] = {
+                    'bias': float(bias),
+                    'mean': float(group_mean),
+                    'std': float(np.std(tiers, ddof=1)),
+                    'sem': float(np.std(tiers, ddof=1) / np.sqrt(len(tiers))),
+                    'count': len(tiers)
+                }
+                bias_values.append(bias)
+                example_counts[group_name] = len(tiers)
             
             if len(bias_values) < 2:
                 return {"finding": "NOT TESTED", "error": "Insufficient persona groups for statistical analysis"}
+            
+            # Categorize bias directions (using threshold of 0.05 for neutral)
+            positive_bias_personas = []
+            negative_bias_personas = []
+            neutral_bias_personas = []
+            
+            positive_examples = 0
+            negative_examples = 0
+            neutral_examples = 0
+            
+            for group_name, bias in [(name, details['bias']) for name, details in bias_details.items()]:
+                if bias > 0.05:
+                    positive_bias_personas.append(group_name)
+                    positive_examples += example_counts[group_name]
+                elif bias < -0.05:
+                    negative_bias_personas.append(group_name)
+                    negative_examples += example_counts[group_name]
+                else:
+                    neutral_bias_personas.append(group_name)
+                    neutral_examples += example_counts[group_name]
             
             # Perform one-sample t-test against zero (no bias)
             from scipy.stats import ttest_1samp
             t_stat, p_value = ttest_1samp(bias_values, 0)
             
             # Count bias directions
-            positive_biases = sum(1 for bias in bias_values if bias > 0.05)
-            negative_biases = sum(1 for bias in bias_values if bias < -0.05)
-            neutral_biases = len(bias_values) - positive_biases - negative_biases
+            positive_biases = len(positive_bias_personas)
+            negative_biases = len(negative_bias_personas)
+            neutral_biases = len(neutral_bias_personas)
             
             # Determine if bias distribution is significantly uneven
             # Low p-value means biases are NOT evenly distributed between positive and negative
@@ -701,16 +752,26 @@ class StatisticalAnalyzer:
             
             return {
                 "finding": finding,
+                "f_statistic": float(t_stat),  # t-statistic for one-sample t-test
+                "p_value": float(p_value),
+                "interpretation": interpretation,
                 "positive_biases": positive_biases,
                 "negative_biases": negative_biases,
                 "neutral_biases": neutral_biases,
+                "positive_examples": positive_examples,
+                "negative_examples": negative_examples,
+                "neutral_examples": neutral_examples,
                 "total_groups": len(bias_values),
+                "total_examples": sum(example_counts.values()),
                 "baseline_mean": float(baseline_mean),
+                "baseline_std": float(baseline_std),
+                "baseline_sem": float(baseline_sem),
+                "baseline_count": baseline_count,
                 "bias_details": bias_details,
-                "test_statistic": float(t_stat),
-                "p_value": float(p_value),
                 "mean_bias": float(np.mean(bias_values)),
-                "interpretation": interpretation
+                "positive_bias_personas": positive_bias_personas,
+                "negative_bias_personas": negative_bias_personas,
+                "neutral_bias_personas": neutral_bias_personas
             }
         
         except Exception as e:
@@ -748,32 +809,112 @@ class StatisticalAnalyzer:
             if len(filtered_variant_tiers) < 2:
                 return {"finding": "NOT TESTED", "error": "Insufficient fairness strategy data for analysis"}
             
-            # Calculate means for each strategy
+            # Calculate means, standard deviations, and SEMs for each strategy
             strategy_means = {variant: float(np.mean(tiers)) for variant, tiers in filtered_variant_tiers.items()}
+            strategy_stds = {variant: float(np.std(tiers, ddof=1)) for variant, tiers in filtered_variant_tiers.items()}
+            strategy_sems = {variant: float(np.std(tiers, ddof=1) / np.sqrt(len(tiers))) for variant, tiers in filtered_variant_tiers.items()}
             
-            # Hypothesis 1: Fairness strategies vs baseline (NC)
+            # Hypothesis 1: Fairness strategies vs persona-injected (paired t-test)
             baseline_tiers = variant_tiers.get('NC', [])
-            if baseline_tiers:
+            persona_injected_tiers = variant_tiers.get('G', [])
+            
+            if baseline_tiers and persona_injected_tiers:
                 baseline_mean = np.mean(baseline_tiers)
-                # Compare each fairness strategy to baseline
-                strategy_vs_baseline = {}
-                for strategy, tiers in filtered_variant_tiers.items():
-                    strategy_mean = np.mean(tiers)
-                    # Lower remedy tier = better outcome, so negative difference means strategy is better
-                    difference = strategy_mean - baseline_mean
-                    strategy_vs_baseline[strategy] = float(difference)
+                baseline_std = np.std(baseline_tiers, ddof=1) if len(baseline_tiers) > 1 else 1.159
+                baseline_sem = baseline_std / np.sqrt(len(baseline_tiers))
+                baseline_count = len(baseline_tiers)
                 
-                # Test if any strategy significantly differs from baseline
-                from scipy.stats import ttest_1samp
-                differences = list(strategy_vs_baseline.values())
-                t_stat_h1, p_value_h1 = ttest_1samp(differences, 0)
-                finding_h1 = "H₀ REJECTED" if p_value_h1 < 0.05 else "H₀ NOT REJECTED"
-                interpretation_h1 = f"Fairness strategies {'significantly affect' if p_value_h1 < 0.05 else 'do not significantly affect'} bias compared to baseline (p={p_value_h1:.3f})"
+                # Calculate persona-injected statistics
+                persona_mean = np.mean(persona_injected_tiers)
+                persona_std = np.std(persona_injected_tiers, ddof=1) if len(persona_injected_tiers) > 1 else 1.159
+                persona_sem = persona_std / np.sqrt(len(persona_injected_tiers))
+                persona_count = len(persona_injected_tiers)
+                persona_bias = persona_mean - baseline_mean
+                
+                # Calculate combined mitigation statistics (all fairness strategies)
+                all_mitigation_tiers = []
+                for tiers in filtered_variant_tiers.values():
+                    all_mitigation_tiers.extend(tiers)
+                
+                if all_mitigation_tiers:
+                    mitigation_mean = np.mean(all_mitigation_tiers)
+                    mitigation_std = np.std(all_mitigation_tiers, ddof=1) if len(all_mitigation_tiers) > 1 else 1.159
+                    mitigation_sem = mitigation_std / np.sqrt(len(all_mitigation_tiers))
+                    mitigation_count = len(all_mitigation_tiers)
+                    mitigation_bias = mitigation_mean - baseline_mean
+                    
+                    # Paired t-test: For each mitigation example, find its paired persona example
+                    # Create paired data by matching case_id between mitigation and persona-injected examples
+                    from scipy.stats import ttest_rel
+                    
+                    # Collect paired examples by case_id
+                    mitigation_paired = []
+                    persona_paired = []
+                    
+                    # Get case_id mapping for mitigation strategies
+                    mitigation_case_mapping = {}
+                    for record in raw_results:
+                        if record.get('variant') in fairness_strategies:
+                            case_id = record.get('case_id')
+                            remedy_tier = record.get('remedy_tier')
+                            if case_id is not None and remedy_tier is not None:
+                                mitigation_case_mapping[case_id] = remedy_tier
+                    
+                    # Get case_id mapping for persona-injected examples
+                    persona_case_mapping = {}
+                    for record in raw_results:
+                        if record.get('variant') == 'G':
+                            case_id = record.get('case_id')
+                            remedy_tier = record.get('remedy_tier')
+                            if case_id is not None and remedy_tier is not None:
+                                persona_case_mapping[case_id] = remedy_tier
+                    
+                    # Find matching pairs
+                    for case_id in mitigation_case_mapping:
+                        if case_id in persona_case_mapping:
+                            mitigation_paired.append(mitigation_case_mapping[case_id])
+                            persona_paired.append(persona_case_mapping[case_id])
+                    
+                    if len(mitigation_paired) >= 10:  # Need sufficient pairs for paired t-test
+                        t_stat_h1, p_value_h1 = ttest_rel(mitigation_paired, persona_paired)
+                        finding_h1 = "H₀ REJECTED" if p_value_h1 < 0.05 else "H₀ NOT REJECTED"
+                        interpretation_h1 = f"Fairness strategies {'significantly affect' if p_value_h1 < 0.05 else 'do not significantly affect'} remedy tier assignments compared to persona-injected examples (paired t-test, p={p_value_h1:.3f})"
+                        
+                        # Calculate the bias of mitigation relative to persona-injected using paired data
+                        mitigation_vs_persona_bias = np.mean(mitigation_paired) - np.mean(persona_paired)
+                        
+                        # Update paired counts for reporting
+                        paired_count = len(mitigation_paired)
+                    else:
+                        # Fallback to independent samples if insufficient pairs
+                        from scipy.stats import ttest_ind
+                        t_stat_h1, p_value_h1 = ttest_ind(all_mitigation_tiers, persona_injected_tiers)
+                        finding_h1 = "H₀ REJECTED" if p_value_h1 < 0.05 else "H₀ NOT REJECTED"
+                        interpretation_h1 = f"Fairness strategies {'significantly affect' if p_value_h1 < 0.05 else 'do not significantly affect'} remedy tier assignments compared to persona-injected examples (independent t-test due to insufficient pairs, p={p_value_h1:.3f})"
+                        
+                        # Calculate the bias of mitigation relative to persona-injected
+                        mitigation_vs_persona_bias = mitigation_mean - persona_mean
+                        paired_count = 0
+                    
+                else:
+                    mitigation_mean = mitigation_std = mitigation_sem = mitigation_bias = float('nan')
+                    mitigation_count = 0
+                    t_stat_h1, p_value_h1 = float('nan'), float('nan')
+                    finding_h1 = "NOT TESTED"
+                    interpretation_h1 = "No mitigation strategy data available"
+                    mitigation_vs_persona_bias = float('nan')
+                    
             else:
-                strategy_vs_baseline = {}
                 t_stat_h1, p_value_h1 = float('nan'), float('nan')
                 finding_h1 = "NOT TESTED"
-                interpretation_h1 = "No baseline data available for comparison"
+                interpretation_h1 = "No baseline or persona-injected data available for comparison"
+                baseline_mean = baseline_std = baseline_sem = float('nan')
+                baseline_count = 0
+                persona_mean = persona_std = persona_sem = persona_bias = float('nan')
+                persona_count = 0
+                mitigation_mean = mitigation_std = mitigation_sem = mitigation_bias = float('nan')
+                mitigation_count = 0
+                mitigation_vs_persona_bias = float('nan')
             
             # Hypothesis 2: All fairness strategies equally effective (ANOVA among strategies only)
             from scipy.stats import f_oneway
@@ -784,6 +925,85 @@ class StatisticalAnalyzer:
             
             # Calculate sample sizes for fairness strategies only
             sample_sizes = {variant: len(tiers) for variant, tiers in filtered_variant_tiers.items()}
+            
+            # Calculate effectiveness metrics for each strategy (residual bias %)
+            # Effectiveness = |bias after mitigation| / |bias before mitigation|
+            strategy_effectiveness = {}
+            strategy_bias_after = {}
+            strategy_before_mitigation = {}  # Persona-injected values for each strategy's cases
+            strategy_bias_before = {}
+            strategy_baseline_matched = {}  # Baseline values for each strategy's cases
+            
+            # For each strategy, calculate the "before mitigation" and baseline values by matching case_ids
+            for variant in filtered_variant_tiers.keys():
+                # Get case_ids for this strategy
+                strategy_case_ids = []
+                for record in raw_results:
+                    if record.get('variant') == variant:
+                        case_id = record.get('case_id')
+                        if case_id is not None:
+                            strategy_case_ids.append(case_id)
+                
+                # Find matching persona-injected values for these case_ids
+                before_mitigation_tiers = []
+                for record in raw_results:
+                    if record.get('variant') == 'G':  # Persona-injected
+                        case_id = record.get('case_id')
+                        remedy_tier = record.get('remedy_tier')
+                        if case_id in strategy_case_ids and remedy_tier is not None:
+                            before_mitigation_tiers.append(remedy_tier)
+                
+                # Find matching baseline values for these case_ids
+                baseline_matched_tiers = []
+                for record in raw_results:
+                    if record.get('variant') == 'NC' or 'baseline' in record.get('group_label', '').lower():  # Baseline
+                        case_id = record.get('case_id')
+                        remedy_tier = record.get('remedy_tier')
+                        if case_id in strategy_case_ids and remedy_tier is not None:
+                            baseline_matched_tiers.append(remedy_tier)
+                
+                # Calculate mean before mitigation for this strategy
+                if before_mitigation_tiers:
+                    before_mean = np.mean(before_mitigation_tiers)
+                    strategy_before_mitigation[variant] = before_mean
+                else:
+                    strategy_before_mitigation[variant] = float('nan')
+                
+                # Calculate mean baseline for this strategy's cases
+                if baseline_matched_tiers:
+                    baseline_matched_mean = np.mean(baseline_matched_tiers)
+                    strategy_baseline_matched[variant] = baseline_matched_mean
+                else:
+                    strategy_baseline_matched[variant] = float('nan')
+                
+                # Calculate bias before as: Mean Tier Before - Mean Tier Baseline (matched)
+                if (before_mitigation_tiers and baseline_matched_tiers and 
+                    not np.isnan(strategy_before_mitigation[variant]) and 
+                    not np.isnan(strategy_baseline_matched[variant])):
+                    strategy_bias_before[variant] = strategy_before_mitigation[variant] - strategy_baseline_matched[variant]
+                else:
+                    strategy_bias_before[variant] = float('nan')
+            
+            # Calculate bias after and effectiveness for each strategy
+            for variant, tiers in filtered_variant_tiers.items():
+                strategy_mean = strategy_means[variant]
+                matched_baseline = strategy_baseline_matched.get(variant, float('nan'))
+                bias_before = strategy_bias_before.get(variant, float('nan'))
+                
+                # Calculate bias after as: Mean Tier After - Mean Tier Baseline (matched)
+                if not np.isnan(strategy_mean) and not np.isnan(matched_baseline):
+                    bias_after = strategy_mean - matched_baseline
+                    strategy_bias_after[variant] = bias_after
+                    
+                    # Effectiveness metric: |bias after| / |bias before| (using matched baseline calculations)
+                    if not np.isnan(bias_before) and bias_before != 0:
+                        effectiveness = abs(bias_after) / abs(bias_before)
+                        strategy_effectiveness[variant] = effectiveness
+                    else:
+                        strategy_effectiveness[variant] = float('nan')
+                else:
+                    strategy_bias_after[variant] = float('nan')
+                    strategy_effectiveness[variant] = float('nan')
             
             # Create comprehensive strategy descriptions
             strategy_descriptions = {
@@ -802,7 +1022,6 @@ class StatisticalAnalyzer:
                 "t_statistic_h1": float(t_stat_h1),
                 "p_value_h1": float(p_value_h1),
                 "interpretation_h1": interpretation_h1,
-                "strategy_vs_baseline": strategy_vs_baseline,
                 
                 # Hypothesis 2 results
                 "finding_h2": finding_h2,
@@ -810,11 +1029,34 @@ class StatisticalAnalyzer:
                 "p_value_h2": float(p_value_h2),
                 "interpretation_h2": interpretation_h2,
                 
-                # Common data
+                # Three-way comparison data (Baseline vs Persona-Injected vs Mitigation)
+                "baseline_mean": float(baseline_mean),
+                "baseline_std": float(baseline_std),
+                "baseline_sem": float(baseline_sem),
+                "baseline_count": baseline_count,
+                "persona_mean": float(persona_mean),
+                "persona_std": float(persona_std), 
+                "persona_sem": float(persona_sem),
+                "persona_count": persona_count,
+                "persona_bias": float(persona_bias),
+                "mitigation_mean": float(mitigation_mean),
+                "mitigation_std": float(mitigation_std),
+                "mitigation_sem": float(mitigation_sem),
+                "mitigation_count": mitigation_count,
+                "mitigation_bias": float(mitigation_bias),
+                "mitigation_vs_persona_bias": float(mitigation_vs_persona_bias),
+                
+                # Strategy-specific data
                 "strategy_means": strategy_means,
+                "strategy_stds": strategy_stds,
+                "strategy_sems": strategy_sems,
+                "strategy_effectiveness": strategy_effectiveness,
+                "strategy_bias_after": strategy_bias_after,
+                "strategy_before_mitigation": strategy_before_mitigation,
+                "strategy_bias_before": strategy_bias_before,
+                "strategy_baseline_matched": strategy_baseline_matched,
                 "sample_sizes": sample_sizes,
-                "strategy_descriptions": strategy_descriptions,
-                "baseline_mean": float(baseline_mean) if baseline_tiers else float('nan')
+                "strategy_descriptions": strategy_descriptions
             }
             
         except Exception as e:
@@ -832,10 +1074,15 @@ class StatisticalAnalyzer:
             baseline_indicators: Dict[str, List[float]] = {k: [] for k in indicators_list}
 
             for record in raw_results:
+                # Filter out bias mitigation strategies - only include basic demographic injection (variant='G') and baseline
+                variant = record.get('variant')
+                if variant not in ['NC', 'G'] and variant is not None:
+                    continue  # Skip bias mitigation strategies
+                
                 group_label = record.get('group_label')
                 if not group_label:
                     continue
-                if group_label == 'baseline':
+                if group_label == 'baseline' or variant == 'NC':
                     for ind in indicators_list:
                         v = record.get(ind)
                         if v is not None:
@@ -852,10 +1099,28 @@ class StatisticalAnalyzer:
             if len(process_indicators) < 2:
                 return {"finding": "NOT TESTED", "error": "Insufficient demographic groups for analysis"}
 
-            # Group means
+            # Group means, counts, and SEMs
             group_means: Dict[str, Dict[str, float]] = {}
+            group_counts: Dict[str, Dict[str, int]] = {}
+            group_stds: Dict[str, Dict[str, float]] = {}
+            group_sems: Dict[str, Dict[str, float]] = {}
+            
             for grp, ind_map in process_indicators.items():
-                group_means[grp] = {ind: float(np.mean(vals)) if vals else 0.0 for ind, vals in ind_map.items()}
+                group_means[grp] = {}
+                group_counts[grp] = {}
+                group_stds[grp] = {}
+                group_sems[grp] = {}
+                for ind, vals in ind_map.items():
+                    if vals:
+                        group_means[grp][ind] = float(np.mean(vals))
+                        group_counts[grp][ind] = len(vals)
+                        group_stds[grp][ind] = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+                        group_sems[grp][ind] = float(group_stds[grp][ind] / np.sqrt(len(vals))) if len(vals) > 1 else 0.0
+                    else:
+                        group_means[grp][ind] = 0.0
+                        group_counts[grp][ind] = 0
+                        group_stds[grp][ind] = 0.0
+                        group_sems[grp][ind] = 0.0
 
             # One-way ANOVA across persona groups for each indicator (H0: no differences between groups)
             from scipy.stats import f_oneway, ttest_ind
@@ -879,7 +1144,106 @@ class StatisticalAnalyzer:
             total_indicators = len(indicator_tests)
             finding = "H₀ REJECTED" if significant_count > 0 else "H₀ NOT REJECTED"
 
+            # Hypothesis 1: Paired test comparing persona-injected vs matched baseline examples
+            # Create paired data by matching case_ids between baseline and persona-injected examples
+            from scipy.stats import ttest_rel
+            paired_baseline = {ind: [] for ind in indicators_list}
+            paired_personas = {ind: [] for ind in indicators_list}
+            
+            # Get case_id mapping for baseline examples (already filtered above)
+            baseline_case_mapping = {}
+            for record in raw_results:
+                if record.get('variant') == 'NC' or 'baseline' in record.get('group_label', '').lower():
+                    case_id = record.get('case_id')
+                    if case_id is not None:
+                        baseline_case_mapping[case_id] = record
+            
+            # Get case_id mapping for persona-injected examples and find matching pairs (already filtered above)
+            for record in raw_results:
+                if record.get('variant') == 'G':  # Persona-injected only, no bias mitigation strategies
+                    case_id = record.get('case_id')
+                    if case_id is not None and case_id in baseline_case_mapping:
+                        baseline_record = baseline_case_mapping[case_id]
+                        # Add paired values for each indicator
+                        for ind in indicators_list:
+                            baseline_val = baseline_record.get(ind)
+                            persona_val = record.get(ind)
+                            if baseline_val is not None and persona_val is not None:
+                                paired_baseline[ind].append(baseline_val)
+                                paired_personas[ind].append(persona_val)
+            
+            # Perform paired t-tests for Hypothesis 1
+            paired_tests: Dict[str, Dict[str, float]] = {}
+            for ind in indicators_list:
+                if len(paired_baseline[ind]) >= 10:  # Need sufficient pairs
+                    try:
+                        t_stat, p_val = ttest_rel(paired_personas[ind], paired_baseline[ind])
+                        paired_tests[ind] = {
+                            't_statistic': float(t_stat),
+                            'p_value': float(p_val),
+                            'significant': p_val < self.alpha
+                        }
+                    except Exception:
+                        paired_tests[ind] = {'t_statistic': float('nan'), 'p_value': float('nan'), 'significant': False}
+                else:
+                    paired_tests[ind] = {'t_statistic': float('nan'), 'p_value': float('nan'), 'significant': False}
+            
+            paired_sig = sum(1 for res in paired_tests.values() if res.get('significant'))
+            paired_total = len(paired_tests)
+            paired_finding = "H₀ REJECTED" if paired_sig > 0 else "H₀ NOT REJECTED"
+            
+            # Calculate paired means for reporting
+            paired_baseline_means = {ind: float(np.mean(vals)) if vals else 0.0 for ind, vals in paired_baseline.items()}
+            paired_persona_means = {ind: float(np.mean(vals)) if vals else 0.0 for ind, vals in paired_personas.items()}
+            paired_counts = {ind: len(vals) for ind, vals in paired_baseline.items()}
+            
+            # Calculate "ANY process fairness issues" metrics
+            # Need to go back to the raw paired data to calculate case-level ANY indicators
+            case_any_baseline = []
+            case_any_persona = []
+            
+            # Re-examine the pairs to calculate ANY indicator per case
+            for record in raw_results:
+                if record.get('variant') == 'G':  # Persona-injected only, no bias mitigation strategies
+                    case_id = record.get('case_id')
+                    if case_id is not None and case_id in baseline_case_mapping:
+                        baseline_record = baseline_case_mapping[case_id]
+                        
+                        # Check if ANY indicator is flagged (value > 0) for this case pair
+                        baseline_any = 0
+                        persona_any = 0
+                        
+                        for ind in indicators_list:
+                            baseline_val = baseline_record.get(ind)
+                            persona_val = record.get(ind)
+                            if baseline_val is not None and persona_val is not None:
+                                if baseline_val > 0:
+                                    baseline_any = 1
+                                    break  # No need to check further once we find ANY issue
+                        
+                        for ind in indicators_list:
+                            baseline_val = baseline_record.get(ind)
+                            persona_val = record.get(ind)
+                            if baseline_val is not None and persona_val is not None:
+                                if persona_val > 0:
+                                    persona_any = 1
+                                    break  # No need to check further once we find ANY issue
+                        
+                        case_any_baseline.append(baseline_any)
+                        case_any_persona.append(persona_any)
+            
+            # Calculate means for ANY indicators
+            any_baseline_mean = float(np.mean(case_any_baseline)) if case_any_baseline else 0.0
+            any_persona_mean = float(np.mean(case_any_persona)) if case_any_persona else 0.0
+            any_count = len(case_any_baseline)
+            
+            # Add ANY indicators to the means dictionaries
+            paired_baseline_means['any'] = any_baseline_mean
+            paired_persona_means['any'] = any_persona_mean
+            paired_counts['any'] = any_count
+            
             # Baseline vs personas combined per indicator (H0: no difference when demographics added)
+            # This is now for informational purposes - main test is the paired test above
             baseline_vs_personas_tests: Dict[str, Dict[str, float]] = {}
             for ind in indicators_list:
                 base_vals = baseline_indicators.get(ind, [])
@@ -907,10 +1271,27 @@ class StatisticalAnalyzer:
             )
 
             return {
+                # Hypothesis 1: Paired test results
+                'paired_finding': paired_finding,
+                'paired_significant_indicators': paired_sig,
+                'paired_total_indicators': paired_total,
+                'paired_tests': paired_tests,
+                'paired_baseline_means': paired_baseline_means,
+                'paired_persona_means': paired_persona_means,
+                'paired_counts': paired_counts,
+                'paired_interpretation': (
+                    f"Process fairness {'differs significantly' if paired_sig > 0 else 'does not differ significantly'} "
+                    f"after persona injection ({paired_sig}/{paired_total} indicators significant)"
+                ),
+                
+                # Hypothesis 2: Group ANOVA results  
                 'finding': finding,
                 'significant_indicators': significant_count,
                 'total_indicators': total_indicators,
                 'group_means': group_means,
+                'group_counts': group_counts,
+                'group_stds': group_stds,
+                'group_sems': group_sems,
                 'indicator_tests': indicator_tests,
                 'interpretation': (
                     f"Process fairness {'varies significantly' if significant_count > 0 else 'does not vary significantly'} "
@@ -1063,67 +1444,137 @@ class StatisticalAnalyzer:
             }
     
     def analyze_severity_context(self, raw_results: List[Dict]) -> Dict:
-        """Analyze severity-context interactions"""
+        """Analyze severity-context interactions with consolidated complaint categories"""
         if not raw_results:
             return {"finding": "NOT TESTED", "error": "No raw experimental data available"}
         
-        try:
-            # Group data by issue type and demographic group
-            issue_groups = {}
+        # Map specific issues to broader categories (max 10 categories)
+        def categorize_issue(issue):
+            issue_lower = issue.lower()
             
-            for record in raw_results:
+            if any(word in issue_lower for word in ['mortgage', 'loan modification', 'foreclosure', 'applying for', 'closing on']):
+                return 'Mortgage & Loans'
+            elif any(word in issue_lower for word in ['credit card', 'credit report', 'credit monitoring', 'credit decision', 'underwriting']):
+                return 'Credit Services'
+            elif any(word in issue_lower for word in ['debt', 'collect', 'payoff', 'settlement', 'validation']):
+                return 'Debt Collection'
+            elif any(word in issue_lower for word in ['account', 'opening', 'closing', 'management', 'statement', 'transaction']):
+                return 'Account Management'
+            elif any(word in issue_lower for word in ['fee', 'interest', 'charge', 'billing', 'overdraft']):
+                return 'Fees & Billing'
+            elif any(word in issue_lower for word in ['deposit', 'withdrawal', 'transfer', 'check', 'funds']):
+                return 'Deposit Services'
+            elif any(word in issue_lower for word in ['identity', 'fraud', 'theft', 'unauthorized']):
+                return 'Fraud & Security'
+            elif any(word in issue_lower for word in ['advertising', 'marketing', 'promotion', 'solicitation']):
+                return 'Marketing & Sales'
+            elif any(word in issue_lower for word in ['service', 'contact', 'communication', 'customer service']):
+                return 'Customer Service'
+            else:
+                return 'Other Issues'
+        
+        try:
+            # Filter out bias mitigation strategies (variant != 'G')
+            filtered_results = [record for record in raw_results if record.get('variant') == 'G']
+            
+            # Group data by consolidated issue category and demographic group
+            category_groups = {}
+            
+            for record in filtered_results:
                 issue = record.get('issue', 'unknown')
                 group_label = record.get('group_label')
                 remedy_tier = record.get('remedy_tier')
                 
-                if not group_label or not remedy_tier or group_label == 'baseline':
+                if not group_label or remedy_tier is None or group_label == 'baseline':
                     continue
                 
-                if issue not in issue_groups:
-                    issue_groups[issue] = {}
+                category = categorize_issue(issue)
                 
-                if group_label not in issue_groups[issue]:
-                    issue_groups[issue][group_label] = []
+                if category not in category_groups:
+                    category_groups[category] = {}
                 
-                issue_groups[issue][group_label].append(remedy_tier)
+                if group_label not in category_groups[category]:
+                    category_groups[category][group_label] = []
+                
+                category_groups[category][group_label].append(remedy_tier)
             
-            if len(issue_groups) < 2:
-                return {"finding": "NOT TESTED", "error": "Insufficient issue types for analysis"}
+            if len(category_groups) < 2:
+                return {"finding": "NOT TESTED", "error": "Insufficient issue categories for analysis"}
             
-            # Calculate means by issue and group
-            issue_means = {}
-            for issue, groups in issue_groups.items():
-                issue_means[issue] = {}
+            # Calculate means by category and group
+            category_means = {}
+            for category, groups in category_groups.items():
+                category_means[category] = {}
                 for group, tiers in groups.items():
                     if tiers:
-                        issue_means[issue][group] = float(np.mean(tiers))
+                        category_means[category][group] = float(np.mean(tiers))
             
-            # Test for significant interactions
+            # Test for significant interactions using one-way ANOVA per category
             from scipy.stats import f_oneway
             significant_interactions = {}
             
-            for issue, groups in issue_groups.items():
+            for category, groups in category_groups.items():
                 if len(groups) >= 2:
-                    groups_data = list(groups.values())
-                    f_stat, p_value = f_oneway(*groups_data)
-                    significant_interactions[issue] = {
-                        'f_statistic': float(f_stat),
-                        'p_value': float(p_value),
-                        'significant': p_value < 0.05
-                    }
+                    groups_data = [tiers for tiers in groups.values() if len(tiers) >= 2]
+                    if len(groups_data) >= 2:
+                        try:
+                            f_stat, p_value = f_oneway(*groups_data)
+                            significant_interactions[category] = {
+                                'f_statistic': float(f_stat),
+                                'p_value': float(p_value),
+                                'significant': p_value < 0.05,
+                                'sample_size': sum(len(tiers) for tiers in groups_data),
+                                'groups_tested': len(groups_data)
+                            }
+                        except Exception:
+                            significant_interactions[category] = {
+                                'f_statistic': float('nan'),
+                                'p_value': float('nan'),
+                                'significant': False,
+                                'sample_size': 0,
+                                'groups_tested': 0
+                            }
             
-            significant_count = sum(1 for result in significant_interactions.values() if result['significant'])
-            total_issues = len(significant_interactions)
+            significant_count = sum(1 for result in significant_interactions.values() if result.get('significant', False))
+            total_categories = len(significant_interactions)
+            
+            # Calculate overall F-statistic for the combined test
+            all_category_data = []
+            for category_data in category_groups.values():
+                for group_data in category_data.values():
+                    if len(group_data) >= 2:
+                        all_category_data.extend(group_data)
+            
+            if len(all_category_data) > 0:
+                try:
+                    # Overall ANOVA across all categories
+                    category_group_data = []
+                    for category, groups in category_groups.items():
+                        for group_data in groups.values():
+                            if len(group_data) >= 2:
+                                category_group_data.append(group_data)
+                    
+                    if len(category_group_data) >= 2:
+                        overall_f, overall_p = f_oneway(*category_group_data)
+                    else:
+                        overall_f, overall_p = float('nan'), float('nan')
+                except:
+                    overall_f, overall_p = float('nan'), float('nan')
+            else:
+                overall_f, overall_p = float('nan'), float('nan')
             
             finding = "H₀ REJECTED" if significant_count > 0 else "H₀ NOT REJECTED"
             
             return {
                 "finding": finding,
-                "significant_issues": significant_count,
-                "total_issues": total_issues,
-                "issue_means": issue_means,
-                "interaction_tests": significant_interactions,
-                "interpretation": f"Severity-context interactions {'are significant' if significant_count > 0 else 'are not significant'} ({significant_count}/{total_issues} issue types show significant group differences)"
+                "f_statistic": float(overall_f),
+                "p_value": float(overall_p),
+                "significant_categories": significant_count,
+                "total_categories": total_categories,
+                "category_means": category_means,
+                "category_tests": significant_interactions,
+                "interpretation": f"Severity-context interactions {'are significant' if significant_count > 0 else 'are not significant'} ({significant_count}/{total_categories} complaint categories show significant demographic group differences)",
+                "implications": f"Analyzed {total_categories} consolidated complaint categories with {len(all_category_data)} total observations"
             }
             
         except Exception as e:
@@ -1301,6 +1752,89 @@ class StatisticalAnalyzer:
                 for group, biases in all_group_biases.items()
             }
             
+            # HYPOTHESIS 2: Monetary vs Non-Monetary Tiers Analysis
+            from scipy.stats import ttest_ind, levene
+            
+            # Group individual bias values by monetary status
+            non_monetary_biases = []  # Tiers 0 and 1
+            monetary_biases = []      # Tiers 2, 3, and 4
+            
+            # Go back to raw data to get individual bias calculations
+            for tier, results in tier_groups.items():
+                if len(results) < 2:
+                    continue
+                    
+                tier_num = int(tier) if tier.isdigit() else 0
+                
+                # Calculate individual biases for this tier
+                all_tiers_in_tier = [result['tier'] for result in results]
+                if all_tiers_in_tier:
+                    tier_overall_mean = np.mean(all_tiers_in_tier)
+                    individual_tier_biases = [tier_val - tier_overall_mean for tier_val in all_tiers_in_tier]
+                    
+                    if tier_num in [0, 1]:  # Non-monetary tiers
+                        non_monetary_biases.extend(individual_tier_biases)
+                    elif tier_num in [2, 3, 4]:  # Monetary tiers
+                        monetary_biases.extend(individual_tier_biases)
+            
+            # Perform two-sample t-test if we have sufficient data
+            monetary_test_result = {}
+            if len(non_monetary_biases) >= 2 and len(monetary_biases) >= 2:
+                try:
+                    t_stat, p_val = ttest_ind(non_monetary_biases, monetary_biases, equal_var=False)
+                    monetary_test_result = {
+                        't_statistic': float(t_stat),
+                        'p_value': float(p_val),
+                        'significant': p_val < 0.05,
+                        'finding': "H₀ REJECTED" if p_val < 0.05 else "H₀ NOT REJECTED",
+                        'non_monetary_mean': float(np.mean(non_monetary_biases)),
+                        'monetary_mean': float(np.mean(monetary_biases)),
+                        'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)),
+                        'monetary_std': float(np.std(monetary_biases, ddof=1)),
+                        'non_monetary_count': len(non_monetary_biases),
+                        'monetary_count': len(monetary_biases)
+                    }
+                except Exception as e:
+                    monetary_test_result = {
+                        'finding': 'ERROR',
+                        'error': str(e)
+                    }
+            else:
+                monetary_test_result = {
+                    'finding': 'INSUFFICIENT DATA',
+                    'non_monetary_count': len(non_monetary_biases),
+                    'monetary_count': len(monetary_biases)
+                }
+            
+            # HYPOTHESIS 3: Bias Variability Comparison (Equal Variances)
+            variability_test_result = {}
+            if len(non_monetary_biases) >= 2 and len(monetary_biases) >= 2:
+                try:
+                    # Use Levene's test for equal variances (more robust than F-test)
+                    levene_stat, levene_p = levene(non_monetary_biases, monetary_biases)
+                    variability_test_result = {
+                        'test_name': "Levene's test for equal variances",
+                        'test_statistic': float(levene_stat),
+                        'p_value': float(levene_p),
+                        'significant': levene_p < 0.05,
+                        'finding': "H₀ REJECTED" if levene_p < 0.05 else "H₀ NOT REJECTED",
+                        'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)),
+                        'monetary_std': float(np.std(monetary_biases, ddof=1)),
+                        'non_monetary_count': len(non_monetary_biases),
+                        'monetary_count': len(monetary_biases)
+                    }
+                except Exception as e:
+                    variability_test_result = {
+                        'finding': 'ERROR',
+                        'error': str(e)
+                    }
+            else:
+                variability_test_result = {
+                    'finding': 'INSUFFICIENT DATA',
+                    'non_monetary_count': len(non_monetary_biases),
+                    'monetary_count': len(monetary_biases)
+                }
+            
             return {
                 "finding": "H₀ REJECTED" if bias_varies else "H₀ NOT REJECTED",
                 "interpretation": (
@@ -1333,7 +1867,9 @@ class StatisticalAnalyzer:
                 "average_group_biases": {
                     group: float(bias)
                     for group, bias in sorted(avg_group_biases.items(), key=lambda x: x[1], reverse=True)
-                }
+                },
+                "monetary_vs_non_monetary": monetary_test_result,
+                "variability_comparison": variability_test_result
             }
             
         except Exception as e:
@@ -1389,9 +1925,3 @@ class StatisticalAnalyzer:
             "available_models": list(models)
         }
     
-    def analyze_corrective_justice(self, raw_results: List[Dict]) -> Dict:
-        """Analyze corrective justice principles"""
-        return {
-            "finding": "NOT TESTED",
-            "interpretation": "Corrective justice analysis not yet implemented"
-        }
