@@ -22,7 +22,7 @@ class StatisticalAnalyzer:
     def analyze_demographic_injection_effect(self, raw_results: List[Dict]) -> Dict:
         """
         Test three hypotheses about demographic injection effects:
-        Hypothesis 1: H₀: Subdemographic injection does not affect any recommendations
+        Hypothesis 1: H₀: Subtle demographic injection does not affect any recommendations
                      Test: Count examples where baseline != persona tier (excluding bias mitigation strategies)
                      Reject if count > 0
         Hypothesis 2: H₀: Subtle demographic injection does not affect mean remedy tier assignments
@@ -32,7 +32,7 @@ class StatisticalAnalyzer:
         """
         if not raw_results:
             return {
-                "hypothesis_1": "H₀: Subdemographic injection does not affect any recommendations",
+                "hypothesis_1": "H₀: Subtle demographic injection does not affect any recommendations",
                 "hypothesis_2": "H₀: Subtle demographic injection does not affect mean remedy tier assignments",
                 "hypothesis_3": "H₀: The tier recommendation distribution does not change after injection",
                 "finding_1": "NOT TESTED - No raw experimental data available",
@@ -79,7 +79,7 @@ class StatisticalAnalyzer:
             
             if len(valid_cases) < 1:
                 return {
-                    "hypothesis_1": "H₀: Subdemographic injection does not affect any recommendations",
+                    "hypothesis_1": "H₀: Subtle demographic injection does not affect any recommendations",
                     "hypothesis_2": "H₀: Subtle demographic injection does not affect mean remedy tier assignments",
                     "hypothesis_3": "H₀: The tier recommendation distribution does not change after injection",
                     "finding_1": "NOT TESTED - Insufficient sample data",
@@ -259,8 +259,44 @@ class StatisticalAnalyzer:
             
             interpretation_2 = f"Significant difference in mean remedy tiers between baseline and persona conditions (p={p_value_2:.3f})" if p_value_2 < self.alpha else f"No significant difference in mean remedy tiers between baseline and persona conditions (p={p_value_2:.3f})"
             
+            # HYPOTHESIS 4: Gender bias difference between Monetary and Non-Monetary severities
+            gender_monetary_bias_test = {}
+            for gender in ['male', 'female']:
+                nm = gender_non_monetary.get(gender, [])
+                m = gender_monetary.get(gender, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g, p_val_g = ttest_ind(nm, m, equal_var=False)
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g),
+                            'p_value': float(p_val_g),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as e:
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(e),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    gender_monetary_bias_test[gender] = {
+                        'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
             return {
-                "hypothesis_1": "H₀: Subdemographic injection does not affect any recommendations",
+                "hypothesis_1": "H₀: Subtle demographic injection does not affect any recommendations",
                 "hypothesis_2": "H₀: Subtle demographic injection does not affect mean remedy tier assignments",
                 "hypothesis_3": "H₀: The tier recommendation distribution does not change after injection",
                 "finding_1": finding_1,
@@ -382,6 +418,78 @@ class StatisticalAnalyzer:
             
             finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
+            # HYPOTHESIS 4: Gender bias difference between Monetary and Non-Monetary severities
+            gender_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for gender in ['male', 'female']:
+                nm = gender_non_monetary.get(gender, [])
+                m = gender_monetary.get(gender, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g, p_val_g = ttest_ind(nm, m, equal_var=False)
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g),
+                            'p_value': float(p_val_g),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    gender_monetary_bias_test[gender] = {
+                        'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 5: Ethnicity bias difference between Monetary and Non-Monetary severities
+            ethnicity_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for eth_key in ['asian', 'black', 'latino', 'white']:
+                nm = locals().get('ethnicity_non_monetary', {}).get(eth_key, [])
+                m = locals().get('ethnicity_monetary', {}).get(eth_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_e, p_val_e = ttest_ind(nm, m, equal_var=False)
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_e < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_e),
+                            'p_value': float(p_val_e),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    ethnicity_monetary_bias_test[eth_key] = {
+                        'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
             return {
                 "hypothesis": "H₀: Male and female persona injection result in the same remedy tier assignments",
                 "test_name": "Two-sample t-test",
@@ -468,6 +576,114 @@ class StatisticalAnalyzer:
             
             finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
+            # HYPOTHESIS 4: Gender bias difference between Monetary and Non-Monetary severities
+            gender_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for gender in ['male', 'female']:
+                nm = gender_non_monetary.get(gender, [])
+                m = gender_monetary.get(gender, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g, p_val_g = ttest_ind(nm, m, equal_var=False)
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g),
+                            'p_value': float(p_val_g),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    gender_monetary_bias_test[gender] = {
+                        'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 5: Ethnicity bias difference between Monetary and Non-Monetary severities
+            ethnicity_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for eth_key in ['asian', 'black', 'latino', 'white']:
+                nm = ethnicity_non_monetary.get(eth_key, [])
+                m = ethnicity_monetary.get(eth_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_e, p_val_e = ttest_ind(nm, m, equal_var=False)
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_e < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_e),
+                            'p_value': float(p_val_e),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    ethnicity_monetary_bias_test[eth_key] = {
+                        'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 6: Geography bias difference between Monetary and Non-Monetary severities
+            geography_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for geo_key in ['urban_affluent', 'urban_poor', 'rural']:
+                nm = geography_non_monetary.get(geo_key, [])
+                m = geography_monetary.get(geo_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g2, p_val_g2 = ttest_ind(nm, m, equal_var=False)
+                        geography_monetary_bias_test[geo_key] = {
+                            'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g2 < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g2),
+                            'p_value': float(p_val_g2),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        geography_monetary_bias_test[geo_key] = {
+                            'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    geography_monetary_bias_test[geo_key] = {
+                        'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
             return {
                 "finding": finding,
                 "f_statistic": float(f_stat),
@@ -543,6 +759,114 @@ class StatisticalAnalyzer:
             
             finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
             
+            # HYPOTHESIS 4: Gender bias difference between Monetary and Non-Monetary severities
+            gender_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for gender in ['male', 'female']:
+                nm = gender_non_monetary.get(gender, [])
+                m = gender_monetary.get(gender, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g, p_val_g = ttest_ind(nm, m, equal_var=False)
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g),
+                            'p_value': float(p_val_g),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    gender_monetary_bias_test[gender] = {
+                        'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 5: Ethnicity bias difference between Monetary and Non-Monetary severities
+            ethnicity_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for eth_key in ['asian', 'black', 'latino', 'white']:
+                nm = ethnicity_non_monetary.get(eth_key, [])
+                m = ethnicity_monetary.get(eth_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_e, p_val_e = ttest_ind(nm, m, equal_var=False)
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_e < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_e),
+                            'p_value': float(p_val_e),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    ethnicity_monetary_bias_test[eth_key] = {
+                        'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 6: Geography bias difference between Monetary and Non-Monetary severities
+            geography_monetary_bias_test: Dict[str, Dict[str, Any]] = {}
+            for geo_key in ['urban_affluent', 'urban_poor', 'rural']:
+                nm = geography_non_monetary.get(geo_key, [])
+                m = geography_monetary.get(geo_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g2, p_val_g2 = ttest_ind(nm, m, equal_var=False)
+                        geography_monetary_bias_test[geo_key] = {
+                            'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g2 < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g2),
+                            'p_value': float(p_val_g2),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as ex:
+                        geography_monetary_bias_test[geo_key] = {
+                            'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(ex),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    geography_monetary_bias_test[geo_key] = {
+                        'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
             return {
                 "finding": finding,
                 "f_statistic": float(f_stat),
@@ -1340,9 +1664,10 @@ class StatisticalAnalyzer:
                 # Check if this is a baseline result
                 if variant == 'NC' or 'baseline' in group_label.lower() or group_label == 'baseline':
                     complaint_data[case_id]['baseline'] = result
-                else:
-                    # This is a persona result
+                elif variant == 'G':
+                    # This is a standard persona result (excluding bias mitigation strategies)
                     complaint_data[case_id]['personas'].append(result)
+                # Else: skip bias mitigation strategies (roleplay, consequentialist, etc.)
             
             # Group by baseline remediation tier
             tier_groups = {}
@@ -1379,68 +1704,715 @@ class StatisticalAnalyzer:
                     "interpretation": "No baseline predictions found to analyze severity tiers"
                 }
             
-            # Calculate bias for each tier (persona tier - baseline tier)
-            tier_biases = {}
-            all_biases = []
+            # Calculate tier statistics (not bias, but actual tier values)
+            tier_stats = {}
+            all_persona_tiers = []
             
             for tier, results in tier_groups.items():
-                if len(results) < 2:  # Need minimum samples per tier (reduced from 5 to 2)
+                if len(results) < 2:  # Need minimum samples per tier
                     continue
                 
-                # Calculate bias for each result in this tier
-                biases = []
+                # Extract persona tier values for this baseline tier
+                persona_tiers = []
                 for result in results:
-                    bias = result['persona_tier'] - result['baseline_tier']
-                    biases.append(bias)
+                    persona_tiers.append(result['persona_tier'])
                 
-                if biases:
-                    tier_biases[tier] = {
+                # Calculate statistics for persona tiers within this baseline tier
+                if persona_tiers:
+                    mean_remedy_tier = float(np.mean(persona_tiers))
+                    std_remedy_tier = float(np.std(persona_tiers, ddof=1) if len(persona_tiers) > 1 else 0)
+                    sem_remedy_tier = float(std_remedy_tier / np.sqrt(len(persona_tiers)) if len(persona_tiers) > 1 else 0)
+                    
+                    # Calculate bias statistics (persona_tier - baseline_tier)
+                    baseline_tier_num = int(tier)
+                    biases = [p_tier - baseline_tier_num for p_tier in persona_tiers]
+                    mean_bias = float(np.mean(biases))
+                    std_bias = float(np.std(biases, ddof=1) if len(biases) > 1 else 0)
+                    sem_bias = float(std_bias / np.sqrt(len(biases)) if len(biases) > 1 else 0)
+                    
+                    tier_stats[tier] = {
+                        'baseline_tier': int(tier),
+                        'persona_tiers': persona_tiers,
+                        'mean_remedy_tier': mean_remedy_tier,
+                        'std_remedy_tier': std_remedy_tier,
+                        'sem_remedy_tier': sem_remedy_tier,
                         'biases': biases,
-                        'mean_bias': float(np.mean(biases)),
-                        'sample_size': len(biases)
+                        'mean_bias': mean_bias,
+                        'std_bias': std_bias,
+                        'sem_bias': sem_bias,
+                        'sample_size': len(persona_tiers)
                     }
-                    all_biases.extend(biases)
+                    all_persona_tiers.extend(persona_tiers)
             
-            if len(tier_biases) < 1:
+            if len(tier_stats) < 1:
                 return {
-                    "hypothesis": "H₀: Issue severity does not affect bias",
+                    "hypothesis": "H₀: Issue severity does not affect remedy tier recommendations",
                     "finding": "INSUFFICIENT DATA",
-                    "interpretation": "Not enough severity tiers with sufficient data to analyze bias variation"
+                    "interpretation": "Not enough severity tiers with sufficient data to analyze variation"
                 }
             
-            # Perform ANOVA to test if bias varies by severity tier
+            # Perform ANOVA to test if persona remedy tiers vary by baseline severity tier
             from scipy.stats import f_oneway
-            bias_groups = [data['biases'] for data in tier_biases.values()]
+            persona_groups = [data['persona_tiers'] for data in tier_stats.values()]
             
             try:
-                f_stat, p_value = f_oneway(*bias_groups)
+                f_stat, p_value = f_oneway(*persona_groups)
                 finding = "H₀ REJECTED" if p_value < 0.05 else "H₀ NOT REJECTED"
-                interpretation = f"Issue severity {'significantly affects' if p_value < 0.05 else 'does not significantly affect'} bias (p={p_value:.3f})"
-            except:
+                interpretation = f"Baseline severity tier {'significantly affects' if p_value < 0.05 else 'does not significantly affect'} persona remedy recommendations (F={f_stat:.3f}, p={p_value:.3f})"
+            except Exception as e:
                 f_stat, p_value = float('nan'), float('nan')
                 finding = "ERROR"
-                interpretation = "Statistical test failed due to data issues"
+                interpretation = f"Statistical test failed: {str(e)}"
             
-            # Calculate tier means for display
-            tier_means = {tier: data['mean_bias'] for tier, data in tier_biases.items()}
+            # NEW HYPOTHESIS 1a: Test if mean bias is the same across all severity tiers
+            bias_groups = [data['biases'] for data in tier_stats.values()]
+            try:
+                f_stat_bias_means, p_value_bias_means = f_oneway(*bias_groups)
+                finding_bias_means = "H₀ REJECTED" if p_value_bias_means < 0.05 else "H₀ NOT REJECTED"
+                interpretation_bias_means = f"Mean bias {'significantly differs' if p_value_bias_means < 0.05 else 'does not significantly differ'} across severity tiers (F={f_stat_bias_means:.3f}, p={p_value_bias_means:.3f})"
+            except Exception as e:
+                f_stat_bias_means, p_value_bias_means = float('nan'), float('nan')
+                finding_bias_means = "ERROR"
+                interpretation_bias_means = f"Statistical test failed: {str(e)}"
+            
+            # NEW HYPOTHESIS 1b: Test if standard deviation of bias is the same across all severity tiers
+            from scipy.stats import levene
+            try:
+                levene_stat, levene_p = levene(*bias_groups)
+                finding_bias_vars = "H₀ REJECTED" if levene_p < 0.05 else "H₀ NOT REJECTED"
+                interpretation_bias_vars = f"Bias variability {'significantly differs' if levene_p < 0.05 else 'does not significantly differ'} across severity tiers (W={levene_stat:.3f}, p={levene_p:.3f})"
+            except Exception as e:
+                levene_stat, levene_p = float('nan'), float('nan')
+                finding_bias_vars = "ERROR"
+                interpretation_bias_vars = f"Statistical test failed: {str(e)}"
+            
+            # HYPOTHESIS 2: Monetary vs Non-Monetary Bias Means
+            from scipy.stats import ttest_ind
+            
+            # Group bias values by monetary status
+            non_monetary_biases = []  # Tiers 0 and 1
+            monetary_biases = []      # Tiers 2, 3, and 4
+            # For Hypothesis 4: gender-specific splits
+            gender_non_monetary = { 'male': [], 'female': [] }
+            gender_monetary = { 'male': [], 'female': [] }
+            # For Hypothesis 5: ethnicity-specific splits
+            ethnicity_keys = ['asian', 'black', 'latino', 'white']
+            ethnicity_non_monetary = { k: [] for k in ethnicity_keys }
+            ethnicity_monetary = { k: [] for k in ethnicity_keys }
+            # For Hypothesis 6: geography-specific splits
+            geography_keys = ['urban_affluent', 'urban_poor', 'rural']
+            geography_non_monetary = { k: [] for k in geography_keys }
+            geography_monetary = { k: [] for k in geography_keys }
+            # Initialize outputs for H4/H5/H6 to avoid NameError on partial paths
+            gender_monetary_bias_test = {}
+            ethnicity_monetary_bias_test = {}
+            geography_monetary_bias_test = {}
+            
+            for tier, stats in tier_stats.items():
+                tier_num = int(tier)
+                tier_biases = stats.get('biases', [])
+                
+                if tier_num in [0, 1]:  # Non-monetary tiers
+                    non_monetary_biases.extend(tier_biases)
+                elif tier_num in [2, 3, 4]:  # Monetary tiers
+                    monetary_biases.extend(tier_biases)
+
+            # Build gender-, ethnicity-, and geography-specific bias lists from original results
+            for tier, results in tier_groups.items():
+                try:
+                    tier_num = int(tier)
+                except Exception:
+                    continue
+                is_non_monetary = tier_num in [0, 1]
+                is_monetary = tier_num in [2, 3, 4]
+                if not (is_non_monetary or is_monetary):
+                    continue
+                for result in results:
+                    gl = (result.get('group') or '').lower()
+
+                    # Parse demographics from structured group labels
+                    # Format: ethnicity_gender_geography (e.g., "asian_male_rural")
+                    parts = gl.split('_')
+
+                    # Parse gender - check for 'female' first to avoid 'male' substring match
+                    gender = None
+                    if 'female' in parts:
+                        gender = 'female'
+                    elif 'male' in parts:
+                        gender = 'male'
+
+                    # Parse ethnicity
+                    ethnicity = None
+                    for eth in ethnicity_keys:
+                        if eth in parts:
+                            ethnicity = eth
+                            break
+
+                    # Parse geography - check for compound terms first
+                    geography = None
+                    if 'affluent' in gl:  # handles 'urban_affluent'
+                        geography = 'urban_affluent'
+                    elif 'poor' in gl:  # handles 'urban_poor'
+                        geography = 'urban_poor'
+                    elif 'rural' in parts:
+                        geography = 'rural'
+                    bias = result.get('persona_tier', 0) - result.get('baseline_tier', 0)
+                    if is_non_monetary:
+                        if gender is not None:
+                            gender_non_monetary[gender].append(bias)
+                        if ethnicity is not None:
+                            ethnicity_non_monetary[ethnicity].append(bias)
+                        if geography is not None:
+                            geography_non_monetary[geography].append(bias)
+                    else:
+                        if gender is not None:
+                            gender_monetary[gender].append(bias)
+                        if ethnicity is not None:
+                            ethnicity_monetary[ethnicity].append(bias)
+                        if geography is not None:
+                            geography_monetary[geography].append(bias)
+
+            # HYPOTHESIS 4: Gender bias difference between Monetary and Non-Monetary severities
+            for gender in ['male', 'female']:
+                nm = gender_non_monetary.get(gender, [])
+                m = gender_monetary.get(gender, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g, p_val_g = ttest_ind(nm, m, equal_var=False)
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g),
+                            'p_value': float(p_val_g),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as e:
+                        gender_monetary_bias_test[gender] = {
+                            'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(e),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    gender_monetary_bias_test[gender] = {
+                        'hypothesis': 'H0: Gender bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 5: Ethnicity bias difference between Monetary and Non-Monetary severities
+            for eth_key in ethnicity_keys:
+                nm = ethnicity_non_monetary.get(eth_key, [])
+                m = ethnicity_monetary.get(eth_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_e, p_val_e = ttest_ind(nm, m, equal_var=False)
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_e < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_e),
+                            'p_value': float(p_val_e),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as e:
+                        ethnicity_monetary_bias_test[eth_key] = {
+                            'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(e),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    ethnicity_monetary_bias_test[eth_key] = {
+                        'hypothesis': 'H0: Ethnicity bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # HYPOTHESIS 6: Geography bias difference between Monetary and Non-Monetary severities
+            for geo_key in geography_keys:
+                nm = geography_non_monetary.get(geo_key, [])
+                m = geography_monetary.get(geo_key, [])
+                if len(nm) >= 2 and len(m) >= 2:
+                    try:
+                        t_stat_g2, p_val_g2 = ttest_ind(nm, m, equal_var=False)
+                        geography_monetary_bias_test[geo_key] = {
+                            'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                            'finding': "H0 REJECTED" if p_val_g2 < 0.05 else "H0 NOT REJECTED",
+                            't_statistic': float(t_stat_g2),
+                            'p_value': float(p_val_g2),
+                            'non_monetary_mean': float(np.mean(nm)),
+                            'monetary_mean': float(np.mean(m)),
+                            'non_monetary_std': float(np.std(nm, ddof=1)) if len(nm) > 1 else float('nan'),
+                            'monetary_std': float(np.std(m, ddof=1)) if len(m) > 1 else float('nan'),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                    except Exception as e:
+                        geography_monetary_bias_test[geo_key] = {
+                            'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                            'finding': 'ERROR',
+                            'error': str(e),
+                            'non_monetary_count': len(nm),
+                            'monetary_count': len(m)
+                        }
+                else:
+                    geography_monetary_bias_test[geo_key] = {
+                        'hypothesis': 'H0: Geography bias is the same for Monetary and Non-Monetary severities',
+                        'finding': 'INSUFFICIENT DATA',
+                        'non_monetary_count': len(nm),
+                        'monetary_count': len(m)
+                    }
+
+            # Perform two-sample t-test if we have sufficient data
+            monetary_test_result = {}
+            if len(non_monetary_biases) >= 2 and len(monetary_biases) >= 2:
+                try:
+                    t_stat, p_val = ttest_ind(non_monetary_biases, monetary_biases, equal_var=False)
+                    monetary_test_result = {
+                        'hypothesis': 'H₀: Monetary tiers have the same average bias as non-monetary tiers',
+                        'finding': "H₀ REJECTED" if p_val < 0.05 else "H₀ NOT REJECTED",
+                        't_statistic': float(t_stat),
+                        'p_value': float(p_val),
+                        'interpretation': f"Monetary and non-monetary tiers {'have significantly different' if p_val < 0.05 else 'do not have significantly different'} mean bias (t={t_stat:.3f}, p={p_val:.3f})",
+                        'non_monetary_mean': float(np.mean(non_monetary_biases)),
+                        'monetary_mean': float(np.mean(monetary_biases)),
+                        'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)),
+                        'monetary_std': float(np.std(monetary_biases, ddof=1)),
+                        'non_monetary_count': len(non_monetary_biases),
+                        'monetary_count': len(monetary_biases)
+                    }
+                except Exception as e:
+                    monetary_test_result = {
+                        'hypothesis': 'H₀: Monetary tiers have the same average bias as non-monetary tiers',
+                        'finding': 'ERROR',
+                        'interpretation': f'Statistical test failed: {str(e)}',
+                        'non_monetary_count': len(non_monetary_biases),
+                        'monetary_count': len(monetary_biases)
+                    }
+            else:
+                monetary_test_result = {
+                    'hypothesis': 'H₀: Monetary tiers have the same average bias as non-monetary tiers',
+                    'finding': 'INSUFFICIENT DATA',
+                    'interpretation': 'Insufficient data for monetary vs non-monetary comparison',
+                    'non_monetary_count': len(non_monetary_biases),
+                    'monetary_count': len(monetary_biases),
+                    'non_monetary_mean': float(np.mean(non_monetary_biases)) if non_monetary_biases else 0.0,
+                    'monetary_mean': float(np.mean(monetary_biases)) if monetary_biases else 0.0,
+                    'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)) if len(non_monetary_biases) > 1 else 0.0,
+                    'monetary_std': float(np.std(monetary_biases, ddof=1)) if len(monetary_biases) > 1 else 0.0
+                }
+            
+            # HYPOTHESIS 3: Monetary vs Non-Monetary Bias Variance
+            variance_test_result = {}
+            if len(non_monetary_biases) >= 2 and len(monetary_biases) >= 2:
+                try:
+                    # Use Levene's test for equal variances
+                    levene_stat_groups, levene_p_groups = levene(non_monetary_biases, monetary_biases)
+                    variance_test_result = {
+                        'hypothesis': 'H₀: Monetary tiers have the same bias variability as non-monetary tiers',
+                        'finding': "H₀ REJECTED" if levene_p_groups < 0.05 else "H₀ NOT REJECTED",
+                        'test_statistic': float(levene_stat_groups),
+                        'p_value': float(levene_p_groups),
+                        'interpretation': f"Monetary and non-monetary tiers {'have significantly different' if levene_p_groups < 0.05 else 'do not have significantly different'} bias variability (W={levene_stat_groups:.3f}, p={levene_p_groups:.3f})",
+                        'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)),
+                        'monetary_std': float(np.std(monetary_biases, ddof=1)),
+                        'non_monetary_count': len(non_monetary_biases),
+                        'monetary_count': len(monetary_biases)
+                    }
+                except Exception as e:
+                    variance_test_result = {
+                        'hypothesis': 'H₀: Monetary tiers have the same bias variability as non-monetary tiers',
+                        'finding': 'ERROR',
+                        'interpretation': f'Statistical test failed: {str(e)}',
+                        'non_monetary_count': len(non_monetary_biases),
+                        'monetary_count': len(monetary_biases)
+                    }
+            else:
+                variance_test_result = {
+                    'hypothesis': 'H₀: Monetary tiers have the same bias variability as non-monetary tiers',
+                    'finding': 'INSUFFICIENT DATA',
+                    'interpretation': 'Insufficient data for variance comparison',
+                    'non_monetary_count': len(non_monetary_biases),
+                    'monetary_count': len(monetary_biases),
+                    'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)) if len(non_monetary_biases) > 1 else 0.0,
+                    'monetary_std': float(np.std(monetary_biases, ddof=1)) if len(monetary_biases) > 1 else 0.0
+                }
             
             return {
-                "hypothesis": "H₀: Issue severity does not affect bias",
+                "hypothesis": "H₀: Issue severity does not affect remedy tier recommendations",
                 "finding": finding,
                 "f_statistic": float(f_stat),
                 "p_value": float(p_value),
                 "interpretation": interpretation,
-                "tiers_analyzed": len(tier_biases),
-                "tier_means": tier_means,
-                "tier_sample_sizes": {tier: data['sample_size'] for tier, data in tier_biases.items()},
-                "overall_mean_bias": float(np.mean(all_biases)) if all_biases else float('nan')
+                "tiers_analyzed": len(tier_stats),
+                "tier_stats": tier_stats,
+                "overall_mean_persona_tier": float(np.mean(all_persona_tiers)) if all_persona_tiers else float('nan'),
+                # New hypotheses results
+                "bias_means_test": {
+                    "hypothesis": "H₀: The mean bias is the same for all severity tiers",
+                    "finding": finding_bias_means,
+                    "f_statistic": float(f_stat_bias_means),
+                    "p_value": float(p_value_bias_means),
+                    "interpretation": interpretation_bias_means
+                },
+                "bias_variance_test": {
+                    "hypothesis": "H₀: The standard deviation of the bias is the same for all severity tiers",
+                    "finding": finding_bias_vars,
+                    "test_statistic": float(levene_stat),
+                    "p_value": float(levene_p),
+                    "interpretation": interpretation_bias_vars
+                },
+                "monetary_vs_non_monetary": monetary_test_result,
+                "monetary_variance_test": variance_test_result,
+                "gender_monetary_bias_test": gender_monetary_bias_test,
+                "ethnicity_monetary_bias_test": ethnicity_monetary_bias_test,
+                "geography_monetary_bias_test": geography_monetary_bias_test
             }
             
         except Exception as e:
             return {
-                "hypothesis": "H₀: Issue severity does not affect bias",
+                "hypothesis": "H₀: Issue severity does not affect remedy tier recommendations",
                 "finding": "ERROR",
                 "interpretation": f"Analysis failed: {str(e)}"
+            }
+    
+    def analyze_ground_truth(self, raw_results: List[Dict]) -> Dict:
+        """
+        Analyze how well zero-shot baseline LLM recommendations match ground truth from CFPB data
+        
+        Args:
+            raw_results: List of result dictionaries from experiments (but we'll load all baseline data)
+            
+        Returns:
+            Dict containing ground truth comparison results
+        """
+        # Use provided raw_results - they should contain enough baseline cases for ground truth analysis
+        if not raw_results:
+            return {
+                "finding": "NO DATA",
+                "interpretation": "No experimental data available for ground truth analysis"
+            }
+        
+        all_raw_results = raw_results
+        
+        try:
+            # Load CFPB ground truth data
+            import pandas as pd
+            import os
+            
+            cfpb_file = "cfpb_downloads/complaints.csv"
+            if not os.path.exists(cfpb_file):
+                return {
+                    "finding": "NO DATA",
+                    "interpretation": "CFPB ground truth data file not found",
+                    "searched_files": [cfpb_file]
+                }
+            
+            # Load CFPB data with ground truth outcomes
+            print(f"Loading CFPB ground truth data from {cfpb_file}...")
+            cfpb_df = pd.read_csv(cfpb_file)
+            
+            # Create ground truth tier mapping based on CFPB company responses
+            # Map CFPB's 3 meaningful outcome categories to a clean 3-tier system
+            outcome_to_tier = {
+                "Closed with explanation": 0,            # Tier 0: No remedy - just explanation  
+                "Closed with non-monetary relief": 1,    # Tier 1: Non-monetary remedy (process fix/apology)
+                "Closed with monetary relief": 2,        # Tier 2: Monetary remedy
+                "Closed": 0,                             # Generic closure = no action
+                "In progress": None,                      # Exclude incomplete cases
+                "Untimely response": None,               # Exclude problematic cases
+            }
+            
+            # Map CFPB outcomes to ground truth tiers
+            cfpb_df["ground_truth_tier"] = cfpb_df["Company response to consumer"].map(outcome_to_tier)
+            cfpb_complete = cfpb_df.dropna(subset=["ground_truth_tier"])
+            
+            print(f"CFPB data loaded: {len(cfpb_complete)} cases with ground truth tiers")
+            
+            # Create mapping from complaint ID to ground truth tier
+            ground_truth_data = dict(zip(cfpb_complete["Complaint ID"].astype(str), cfpb_complete["ground_truth_tier"]))
+            
+            if not ground_truth_data:
+                return {
+                    "finding": "NO DATA", 
+                    "interpretation": "No valid ground truth mappings found in CFPB data",
+                    "cfpb_total_cases": len(cfpb_df),
+                    "cfpb_complete_cases": len(cfpb_complete)
+                }
+            
+            # LLM tier collapsing function to match 3-tier ground truth
+            def collapse_llm_tier(llm_tier):
+                """Collapse LLM's 5-tier system (0-4) to 3-tier ground truth system (0,1,2)"""
+                if llm_tier == 0:  # No action -> No Action
+                    return 0
+                elif llm_tier == 1:  # Process improvement -> Non-Monetary
+                    return 1
+                elif llm_tier in [2, 3, 4]:  # Small/Moderate/High monetary -> Monetary
+                    return 2
+                else:
+                    return llm_tier  # Fallback for unexpected values
+            
+            # Extract baseline predictions and match with ground truth using case IDs
+            print(f"Matching LLM predictions with CFPB ground truth...")
+            baseline_tiers = []  # Collapsed LLM tiers (0,1,2)
+            ground_truth_tiers = []
+            matched_case_ids = []
+            
+            # Also track cases with missing ground truth for confusion matrix
+            baseline_missing_gt = []  # Collapsed LLM predictions when GT is missing
+            
+            # Since experimental data already contains company_response (ground truth), 
+            # we can use that directly without needing to match case IDs
+            for result in all_raw_results:
+                # Only use baseline (no persona injection) results
+                group = (result.get('group_label') or '').lower()
+                variant = result.get('variant', '')
+                
+                if variant == 'NC' or 'baseline' in group or result.get('group_label') == 'baseline':
+                    original_baseline_tier = result.get('remedy_tier')
+                    company_response = result.get('company_response')
+                    
+                    if original_baseline_tier is not None:
+                        # Collapse LLM tier to match ground truth system
+                        collapsed_baseline_tier = collapse_llm_tier(original_baseline_tier)
+                        
+                        if company_response:
+                            # Map company response to ground truth tier
+                            ground_truth_tier = outcome_to_tier.get(company_response)
+                            if ground_truth_tier is not None:
+                                baseline_tiers.append(collapsed_baseline_tier)
+                                ground_truth_tiers.append(ground_truth_tier)
+                                matched_case_ids.append(result.get('case_id', 'unknown'))
+                            else:
+                                # Company response exists but not in our mapping (e.g., "In progress")
+                                baseline_missing_gt.append(collapsed_baseline_tier)
+                        else:
+                            # No company response at all
+                            baseline_missing_gt.append(collapsed_baseline_tier)
+            
+            if len(baseline_tiers) < 2:
+                return {
+                    "finding": "INSUFFICIENT DATA",
+                    "interpretation": f"Only {len(baseline_tiers)} baseline cases with valid ground truth (company_response) found. Need at least 2 for statistical analysis.",
+                    "sample_size": len(baseline_tiers),
+                    "cfpb_total_cases": len(cfpb_df),
+                    "cfpb_complete_cases": len(cfpb_complete)
+                }
+            
+            # Convert to numpy arrays for calculations
+            baseline_array = np.array(baseline_tiers)
+            ground_truth_array = np.array(ground_truth_tiers)
+            
+            # HYPOTHESIS 1: Test if baseline predictions closely match ground truth (correlation)
+            from scipy.stats import pearsonr, spearmanr
+            
+            try:
+                # Use Pearson correlation for linear relationship
+                pearson_corr, pearson_p = pearsonr(baseline_tiers, ground_truth_tiers)
+                
+                # Also use Spearman for rank-order relationship (more robust)
+                spearman_corr, spearman_p = spearmanr(baseline_tiers, ground_truth_tiers)
+                
+                # Create confusion matrix with proper tier labels
+                from collections import defaultdict, Counter
+                confusion_matrix = defaultdict(lambda: defaultdict(int))
+                
+                # Define tier labels for 3-tier system
+                tier_labels = {0: "No Action", 1: "Non-Monetary", 2: "Monetary"}
+                
+                all_tiers = [0, 1, 2]  # Only use 3-tier system now
+                
+                # Add known ground truth cases
+                for gt_tier, baseline_tier in zip(ground_truth_tiers, baseline_tiers):
+                    confusion_matrix[gt_tier][baseline_tier] += 1
+                
+                # Add missing ground truth cases as a special row
+                missing_baseline_counts = Counter(baseline_missing_gt)
+                
+                # Convert to regular dict for JSON serialization with proper labels
+                confusion_dict = {}
+                
+                # Add rows for known ground truth tiers (0,1,2)
+                for gt_tier in all_tiers:
+                    gt_label = tier_labels.get(gt_tier, str(gt_tier))
+                    confusion_dict[gt_label] = {}
+                    for baseline_tier in all_tiers:
+                        bl_label = tier_labels.get(baseline_tier, str(baseline_tier))
+                        confusion_dict[gt_label][bl_label] = confusion_matrix[gt_tier][baseline_tier]
+                
+                # Add row for missing/unknown ground truth
+                if baseline_missing_gt:
+                    confusion_dict["Missing"] = {}
+                    for baseline_tier in all_tiers:
+                        bl_label = tier_labels.get(baseline_tier, str(baseline_tier))
+                        confusion_dict["Missing"][bl_label] = missing_baseline_counts.get(baseline_tier, 0)
+                
+                # Calculate accuracy (perfect matches on diagonal)
+                correct_predictions = sum(1 for gt, bl in zip(ground_truth_tiers, baseline_tiers) if gt == bl)
+                accuracy = correct_predictions / len(ground_truth_tiers) if ground_truth_tiers else 0.0
+                
+                # Consider "close match" as correlation > 0.7
+                close_match_threshold = 0.7
+                
+                hypothesis1_result = {
+                    'hypothesis': 'H₀: Zero-shot baseline LLM recommendations do not closely match the ground truth',
+                    'finding': "H₀ REJECTED" if abs(pearson_corr) > close_match_threshold else "H₀ NOT REJECTED",
+                    'pearson_correlation': float(pearson_corr),
+                    'pearson_p_value': float(pearson_p),
+                    'spearman_correlation': float(spearman_corr), 
+                    'spearman_p_value': float(spearman_p),
+                    'confusion_matrix': confusion_dict,
+                    'accuracy': float(accuracy),
+                    'correct_predictions': correct_predictions,
+                    'total_predictions': len(ground_truth_tiers),
+                    'all_tiers': all_tiers,
+                    'interpretation': f"Baseline predictions {'closely match' if abs(pearson_corr) > close_match_threshold else 'do not closely match'} ground truth (r={pearson_corr:.3f}, p={pearson_p:.3f}, accuracy={accuracy:.1%})"
+                }
+            except Exception as e:
+                hypothesis1_result = {
+                    'hypothesis': 'H₀: Zero-shot baseline LLM recommendations do not closely match the ground truth',
+                    'finding': 'ERROR',
+                    'interpretation': f'Correlation test failed: {str(e)}'
+                }
+            
+            # HYPOTHESIS 2: Test if baseline and ground truth have same mean (paired t-test)
+            from scipy.stats import ttest_rel
+            
+            try:
+                t_stat, t_p = ttest_rel(baseline_tiers, ground_truth_tiers)
+                
+                baseline_mean = float(np.mean(baseline_tiers))
+                ground_truth_mean = float(np.mean(ground_truth_tiers))
+                mean_difference = baseline_mean - ground_truth_mean
+                
+                # Calculate detailed statistics for the comparison table
+                baseline_std = float(np.std(baseline_tiers, ddof=1)) if len(baseline_tiers) > 1 else 0.0
+                ground_truth_std = float(np.std(ground_truth_tiers, ddof=1)) if len(ground_truth_tiers) > 1 else 0.0
+                baseline_sem = baseline_std / np.sqrt(len(baseline_tiers)) if len(baseline_tiers) > 0 else 0.0
+                ground_truth_sem = ground_truth_std / np.sqrt(len(ground_truth_tiers)) if len(ground_truth_tiers) > 0 else 0.0
+                
+                hypothesis2_result = {
+                    'hypothesis': 'H₀: Zero-shot baseline LLM recommendations have the same average tier as the ground truth',
+                    'finding': "H₀ REJECTED" if t_p < 0.05 else "H₀ NOT REJECTED",
+                    't_statistic': float(t_stat),
+                    'p_value': float(t_p),
+                    'baseline_mean': baseline_mean,
+                    'ground_truth_mean': ground_truth_mean,
+                    'mean_difference': float(mean_difference),
+                    'baseline_std': baseline_std,
+                    'ground_truth_std': ground_truth_std,
+                    'baseline_sem': baseline_sem,
+                    'ground_truth_sem': ground_truth_sem,
+                    'baseline_count': len(baseline_tiers),
+                    'ground_truth_count': len(ground_truth_tiers),
+                    'interpretation': f"Baseline mean ({baseline_mean:.3f}) {'significantly differs from' if t_p < 0.05 else 'does not significantly differ from'} ground truth mean ({ground_truth_mean:.3f}) (t={t_stat:.3f}, p={t_p:.3f})"
+                }
+            except Exception as e:
+                hypothesis2_result = {
+                    'hypothesis': 'H₀: Zero-shot baseline LLM recommendations have the same average tier as the ground truth',
+                    'finding': 'ERROR',
+                    'interpretation': f'Paired t-test failed: {str(e)}'
+                }
+            
+            # HYPOTHESIS 3: Test if baseline and ground truth have same distribution (chi-square test)
+            from scipy.stats import chisquare
+            from collections import Counter
+            
+            try:
+                # Count frequencies for each tier (0,1,2 - 3-tier system)
+                all_possible_tiers = [0, 1, 2]
+                baseline_counts = Counter(baseline_tiers)
+                ground_truth_counts = Counter(ground_truth_tiers)
+                
+                # Create frequency arrays for all tiers (with 0 counts for missing tiers)
+                baseline_freq = [baseline_counts.get(tier, 0) for tier in all_possible_tiers]
+                ground_truth_freq = [ground_truth_counts.get(tier, 0) for tier in all_possible_tiers]
+                
+                # Only include tiers that have non-zero counts in EITHER baseline or ground truth
+                valid_indices = [i for i, (bf, gf) in enumerate(zip(baseline_freq, ground_truth_freq)) if bf > 0 or gf > 0]
+                
+                if len(valid_indices) < 2:
+                    hypothesis3_result = {
+                        'hypothesis': 'H₀: Zero-shot baseline LLM recommendations have the same distribution as the ground truth',
+                        'finding': 'INSUFFICIENT DATA',
+                        'interpretation': 'Not enough tier variety for distribution comparison'
+                    }
+                else:
+                    # Use only valid tiers
+                    observed_freq = [baseline_freq[i] for i in valid_indices]
+                    
+                    # For expected frequencies, use ground truth proportions scaled to baseline sample size
+                    total_ground_truth = sum(ground_truth_freq)
+                    total_baseline = sum(baseline_freq)
+                    
+                    if total_ground_truth > 0 and total_baseline > 0:
+                        expected_freq = [(ground_truth_freq[i] / total_ground_truth) * total_baseline for i in valid_indices]
+                        
+                        # Ensure no expected frequencies are 0 (chi-square requirement)
+                        if all(ef > 0 for ef in expected_freq):
+                            chi2_stat, chi2_p = chisquare(observed_freq, expected_freq)
+                        else:
+                            # Use goodness-of-fit test with minimum expected frequency of 1
+                            expected_freq = [max(1.0, ef) for ef in expected_freq]
+                            chi2_stat, chi2_p = chisquare(observed_freq, expected_freq)
+                    else:
+                        raise ValueError("No valid data for chi-square test")
+                    
+                    # Create distribution comparison table with tier labels
+                    distribution_comparison = {}
+                    for tier in all_possible_tiers:
+                        tier_label = tier_labels.get(tier, str(tier))
+                        if baseline_counts.get(tier, 0) > 0 or ground_truth_counts.get(tier, 0) > 0:
+                            distribution_comparison[tier_label] = {
+                                'baseline_count': baseline_counts.get(tier, 0),
+                                'ground_truth_count': ground_truth_counts.get(tier, 0),
+                                'baseline_pct': 100.0 * baseline_counts.get(tier, 0) / len(baseline_tiers) if baseline_tiers else 0.0,
+                                'ground_truth_pct': 100.0 * ground_truth_counts.get(tier, 0) / len(ground_truth_tiers) if ground_truth_tiers else 0.0
+                            }
+                    
+                    hypothesis3_result = {
+                        'hypothesis': 'H₀: Zero-shot baseline LLM recommendations have the same distribution as the ground truth',
+                        'finding': "H₀ REJECTED" if chi2_p < 0.05 else "H₀ NOT REJECTED",
+                        'chi2_statistic': float(chi2_stat),
+                        'p_value': float(chi2_p),
+                        'distribution_comparison': distribution_comparison,
+                        'interpretation': f"Baseline distribution {'significantly differs from' if chi2_p < 0.05 else 'does not significantly differ from'} ground truth distribution (χ²={chi2_stat:.3f}, p={chi2_p:.3f})"
+                    }
+            except Exception as e:
+                hypothesis3_result = {
+                    'hypothesis': 'H₀: Zero-shot baseline LLM recommendations have the same distribution as the ground truth',
+                    'finding': 'ERROR',
+                    'interpretation': f'Chi-square test failed: {str(e)}'
+                }
+            
+            return {
+                "finding": "ANALYSIS COMPLETE",
+                "sample_size": len(baseline_tiers),
+                "baseline_mean": float(np.mean(baseline_tiers)),
+                "ground_truth_mean": float(np.mean(ground_truth_tiers)),
+                "hypothesis1_correlation": hypothesis1_result,
+                "hypothesis2_means": hypothesis2_result,
+                "hypothesis3_distribution": hypothesis3_result
+            }
+            
+        except Exception as e:
+            return {
+                "finding": "ERROR",
+                "interpretation": f"Ground truth analysis failed: {str(e)}"
             }
     
     def analyze_severity_context(self, raw_results: List[Dict]) -> Dict:
@@ -1580,304 +2552,6 @@ class StatisticalAnalyzer:
         except Exception as e:
             return {"finding": "ERROR", "error": f"Analysis failed: {str(e)}"}
     
-    def analyze_severity_bias_variation(self, raw_results: List[Dict]) -> Dict:
-        """
-        Analyze how bias metrics vary with complaint severity based on LLM predicted tiers
-        
-        This analysis groups complaints by their predicted severity tier in the Baseline case
-        and examines whether bias patterns are consistent across different severity levels.
-        
-        Args:
-            raw_results: List of result dictionaries from experiments
-            
-        Returns:
-            Dict containing:
-            - finding: Status of the analysis
-            - interpretation: Human-readable explanation of results
-            - severity_levels: Number of severity tiers analyzed
-            - bias_variation: Whether bias varies significantly by severity tier
-            - tier_metrics: Metrics by predicted severity tier
-        """
-        if not raw_results:
-            return {
-                "finding": "NO DATA",
-                "interpretation": "No experimental data available for severity analysis"
-            }
-            
-        try:
-            # First, organize results by case ID to find baseline predictions
-            complaint_data = {}
-            for result in raw_results:
-                case_id = result.get('case_id')
-                if not case_id:
-                    continue
-                    
-                if case_id not in complaint_data:
-                    complaint_data[case_id] = {'baseline': None, 'personas': {}}
-                
-                # Use 'group_label' to identify baseline cases
-                group = result.get('group_label', '').lower()
-                if 'baseline' in group:
-                    complaint_data[case_id]['baseline'] = result
-                else:
-                    # Store persona results by group
-                    complaint_data[case_id]['personas'][group] = result
-            
-            # Now group by predicted tier from baseline
-            tier_groups = {}
-            for case_id, data in complaint_data.items():
-                baseline = data.get('baseline')
-                if not baseline:
-                    continue
-                    
-                predicted_tier = baseline.get('remedy_tier')
-                if predicted_tier is None:
-                    continue
-                    
-                # Convert to string to handle both string and integer tiers
-                tier_key = str(predicted_tier)
-                if tier_key not in tier_groups:
-                    tier_groups[tier_key] = []
-                
-                # Add all persona results for this complaint
-                for persona_result in data['personas'].values():
-                    tier_groups[tier_key].append({
-                        'group': persona_result.get('group_label'),
-                        'tier': persona_result.get('remedy_tier'),
-                        'baseline_tier': predicted_tier
-                    })
-            
-            if not tier_groups:
-                return {
-                    "finding": "INSUFFICIENT DATA",
-                    "interpretation": "No baseline predictions found to analyze severity tiers"
-                }
-            
-            # Calculate bias metrics for each predicted tier
-            tier_metrics = {}
-            all_tier_biases = []
-            
-            for tier, results in tier_groups.items():
-                if len(results) < 2:  # Skip tiers with too few samples (reduced from 5 to 2)
-                    continue
-                
-                # Group by demographic group
-                group_tiers = {}
-                for result in results:
-                    group = result['group']
-                    if group not in group_tiers:
-                        group_tiers[group] = []
-                    group_tiers[group].append(result['tier'])
-                
-                # Calculate bias metrics for this tier
-                if group_tiers:
-                    all_tiers = [t for tiers in group_tiers.values() for t in tiers]
-                    if all_tiers:
-                        overall_mean = np.mean(all_tiers)
-                        group_biases = {
-                            group: np.mean(tiers) - overall_mean
-                            for group, tiers in group_tiers.items()
-                            if len(tiers) >= 1  # Require minimum samples per group (reduced from 3 to 1)
-                        }
-                        
-                        if group_biases:
-                            bias_range = (max(group_biases.values()) - min(group_biases.values()))
-                            bias_range = float(bias_range) if group_biases else 0.0
-                            
-                            tier_metrics[tier] = {
-                                'sample_size': len(results),
-                                'overall_mean': float(overall_mean),
-                                'group_biases': group_biases,
-                                'bias_range': bias_range,
-                                'groups_analyzed': len(group_biases)
-                            }
-                            all_tier_biases.append(bias_range)
-            
-            if not tier_metrics:
-                return {
-                    "finding": "INSUFFICIENT DATA",
-                    "interpretation": "Not enough data points per predicted tier to analyze severity variation"
-                }
-            
-            # Check if bias varies significantly by predicted tier
-            tiers = sorted(tier_metrics.keys())
-            
-            # Prepare data for ANOVA test (if we have enough tiers)
-            if len(tiers) >= 2:
-                from scipy.stats import f_oneway
-                
-                # Group bias ranges by tier
-                tier_bias_groups = []
-                for tier in tiers:
-                    metrics = tier_metrics[tier]
-                    if metrics['groups_analyzed'] >= 2:  # Need at least 2 groups
-                        tier_bias_groups.append(list(metrics['group_biases'].values()))
-                
-                # Perform ANOVA if we have at least 2 valid tiers
-                if len(tier_bias_groups) >= 2:
-                    try:
-                        f_stat, p_value = f_oneway(*tier_bias_groups)
-                        bias_varies = p_value < 0.05
-                    except:
-                        bias_varies = False
-                        p_value = float('nan')
-                else:
-                    bias_varies = False
-                    p_value = float('nan')
-            else:
-                bias_varies = False
-                p_value = float('nan')
-            
-            # Calculate average bias range across all tiers
-            avg_bias_range = np.mean([m['bias_range'] for m in tier_metrics.values()]) if tier_metrics else 0.0
-            
-            # Sort tiers by bias range (highest first)
-            sorted_tiers = sorted(
-                tier_metrics.items(),
-                key=lambda x: x[1]['bias_range'],
-                reverse=True
-            )
-            
-            # Prepare group bias summary across all tiers
-            all_group_biases = {}
-            for tier_data in tier_metrics.values():
-                for group, bias in tier_data['group_biases'].items():
-                    if group not in all_group_biases:
-                        all_group_biases[group] = []
-                    all_group_biases[group].append(bias)
-            
-            # Calculate average bias per group across all tiers
-            avg_group_biases = {
-                group: np.mean(biases)
-                for group, biases in all_group_biases.items()
-            }
-            
-            # HYPOTHESIS 2: Monetary vs Non-Monetary Tiers Analysis
-            from scipy.stats import ttest_ind, levene
-            
-            # Group individual bias values by monetary status
-            non_monetary_biases = []  # Tiers 0 and 1
-            monetary_biases = []      # Tiers 2, 3, and 4
-            
-            # Go back to raw data to get individual bias calculations
-            for tier, results in tier_groups.items():
-                if len(results) < 2:
-                    continue
-                    
-                tier_num = int(tier) if tier.isdigit() else 0
-                
-                # Calculate individual biases for this tier
-                all_tiers_in_tier = [result['tier'] for result in results]
-                if all_tiers_in_tier:
-                    tier_overall_mean = np.mean(all_tiers_in_tier)
-                    individual_tier_biases = [tier_val - tier_overall_mean for tier_val in all_tiers_in_tier]
-                    
-                    if tier_num in [0, 1]:  # Non-monetary tiers
-                        non_monetary_biases.extend(individual_tier_biases)
-                    elif tier_num in [2, 3, 4]:  # Monetary tiers
-                        monetary_biases.extend(individual_tier_biases)
-            
-            # Perform two-sample t-test if we have sufficient data
-            monetary_test_result = {}
-            if len(non_monetary_biases) >= 2 and len(monetary_biases) >= 2:
-                try:
-                    t_stat, p_val = ttest_ind(non_monetary_biases, monetary_biases, equal_var=False)
-                    monetary_test_result = {
-                        't_statistic': float(t_stat),
-                        'p_value': float(p_val),
-                        'significant': p_val < 0.05,
-                        'finding': "H₀ REJECTED" if p_val < 0.05 else "H₀ NOT REJECTED",
-                        'non_monetary_mean': float(np.mean(non_monetary_biases)),
-                        'monetary_mean': float(np.mean(monetary_biases)),
-                        'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)),
-                        'monetary_std': float(np.std(monetary_biases, ddof=1)),
-                        'non_monetary_count': len(non_monetary_biases),
-                        'monetary_count': len(monetary_biases)
-                    }
-                except Exception as e:
-                    monetary_test_result = {
-                        'finding': 'ERROR',
-                        'error': str(e)
-                    }
-            else:
-                monetary_test_result = {
-                    'finding': 'INSUFFICIENT DATA',
-                    'non_monetary_count': len(non_monetary_biases),
-                    'monetary_count': len(monetary_biases)
-                }
-            
-            # HYPOTHESIS 3: Bias Variability Comparison (Equal Variances)
-            variability_test_result = {}
-            if len(non_monetary_biases) >= 2 and len(monetary_biases) >= 2:
-                try:
-                    # Use Levene's test for equal variances (more robust than F-test)
-                    levene_stat, levene_p = levene(non_monetary_biases, monetary_biases)
-                    variability_test_result = {
-                        'test_name': "Levene's test for equal variances",
-                        'test_statistic': float(levene_stat),
-                        'p_value': float(levene_p),
-                        'significant': levene_p < 0.05,
-                        'finding': "H₀ REJECTED" if levene_p < 0.05 else "H₀ NOT REJECTED",
-                        'non_monetary_std': float(np.std(non_monetary_biases, ddof=1)),
-                        'monetary_std': float(np.std(monetary_biases, ddof=1)),
-                        'non_monetary_count': len(non_monetary_biases),
-                        'monetary_count': len(monetary_biases)
-                    }
-                except Exception as e:
-                    variability_test_result = {
-                        'finding': 'ERROR',
-                        'error': str(e)
-                    }
-            else:
-                variability_test_result = {
-                    'finding': 'INSUFFICIENT DATA',
-                    'non_monetary_count': len(non_monetary_biases),
-                    'monetary_count': len(monetary_biases)
-                }
-            
-            return {
-                "finding": "H₀ REJECTED" if bias_varies else "H₀ NOT REJECTED",
-                "interpretation": (
-                    f"Bias patterns {'vary' if bias_varies else 'are consistent'} "
-                    f"across predicted severity tiers (p={p_value:.3f}). "
-                    f"Analyzed {len(tiers)} severity tiers with an average bias range of {avg_bias_range:.2f}."
-                ),
-                "tiers_analyzed": len(tiers),
-                "bias_variation_significant": bias_varies,
-                "p_value": float(p_value),
-                "average_bias_range": float(avg_bias_range),
-                "tier_metrics": {
-                    tier: {
-                        "sample_size": metrics['sample_size'],
-                        "overall_mean": metrics['overall_mean'],
-                        "bias_range": metrics['bias_range'],
-                        "groups_analyzed": metrics['groups_analyzed']
-                    }
-                    for tier, metrics in sorted_tiers
-                },
-                "highest_bias_tiers": [
-                    {
-                        "tier": tier,
-                        "bias_range": float(metrics['bias_range']),
-                        "sample_size": metrics['sample_size'],
-                        "groups_analyzed": metrics['groups_analyzed']
-                    }
-                    for tier, metrics in sorted_tiers[:3]  # Top 3 tiers with highest bias
-                ],
-                "average_group_biases": {
-                    group: float(bias)
-                    for group, bias in sorted(avg_group_biases.items(), key=lambda x: x[1], reverse=True)
-                },
-                "monetary_vs_non_monetary": monetary_test_result,
-                "variability_comparison": variability_test_result
-            }
-            
-        except Exception as e:
-            return {
-                "finding": "ERROR",
-                "interpretation": f"Error analyzing severity bias variation: {str(e)}",
-                "error": str(e)
-            }
     
     def analyze_scaling_laws(self, raw_results: List[Dict]) -> Dict:
         """

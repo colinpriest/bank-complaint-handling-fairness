@@ -20,129 +20,142 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 ## Analysis Results
 
+### Ground Truth
+
+#### Hypothesis 1: Correlation Test
+- **Hypothesis**: H₀: Zero-shot baseline LLM recommendations do not closely match the ground truth
+- **Test Name**: Pearson correlation coefficient
+- **Test Statistic**: r = 0.020
+- **P-Value**: 0.1687
+- **Result**: H₀ NOT REJECTED
+- **Implications**: Baseline predictions do not closely match ground truth (r=0.020, p=0.169, accuracy=33.5%)
+
+- **Supplementary**: Spearman rank correlation = -0.028
+- **Accuracy**: 33.5% (1667/4980 correct predictions)
+- **Details**: Prediction Accuracy Grid (Rows = Ground Truth Tier, Columns = LLM Baseline Prediction)
+
+| GT \ LLM | No Action | Non-Monetary | Monetary | Total |
+|----------|----|----|----|-------|
+| **No Action** | 384 | 2243 | 676 | 3303 |
+| **Non-Monetary** | 222 | 1165 | 145 | 1532 |
+| **Monetary** | 5 | 22 | 118 | 145 |
+| **Missing** | 3 | 16 | 1 | 20 |
+| **Total** | 614 | 3446 | 940 | 5000 |
+
+
+#### Hypothesis 2: Mean Tier Comparison
+- **Hypothesis**: H₀: Zero-shot baseline LLM recommendations have the same average tier as the ground truth
+- **Test Name**: Paired t-test
+- **Test Statistic**: t = 64.551
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Baseline mean (1.066) significantly differs from ground truth mean (0.366) (t=64.551, p=0.000)
+- **Details**: Tier Statistics Comparison
+
+| Source | Mean Tier | Std Dev Tier | Count | SEM Tier |
+|--------|-----------|--------------|-------|----------|
+| Ground Truth | 0.366 | 0.539 | 4980 | 0.008 |
+| Baseline | 1.066 | 0.554 | 4980 | 0.008 |
+
+#### Hypothesis 3: Distribution Comparison
+- **Hypothesis**: H₀: Zero-shot baseline LLM recommendations have the same distribution as the ground truth
+- **Test Name**: Chi-square goodness of fit test
+- **Test Statistic**: χ² = 8893.298
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Baseline distribution significantly differs from ground truth distribution (χ²=8893.298, p=0.000)
+- **Details**: Tier Statistics Summary
+
+| Source | Mean Tier | Std Dev Tier | Count | SEM Tier |
+|--------|-----------|--------------|-------|----------|
+| Ground Truth | 0.366 | 0.539 | 4980 | 0.008 |
+| Baseline | 1.066 | 0.554 | 4980 | 0.008 |
+
+- **Distribution Breakdown**: Detailed Comparison by Tier
+
+| Tier | Description | Baseline Count | Ground Truth Count | Baseline % | Ground Truth % |
+|------|-------------|----------------|-------------------|------------|---------------|
+| No Action | No Action | 611 | 3303 | 12.3% | 66.3% |
+| Non-Monetary | Non-Monetary | 3430 | 1532 | 68.9% | 30.8% |
+| Monetary | Monetary | 939 | 145 | 18.9% | 2.9% |
+
 ### Demographic Injection
 
-- **Hypothesis 1**: H₀: Subdemographic injection does not affect any recommendations
+- **Hypothesis 1**: H₀: Subtle demographic injection does not affect any recommendations
 - **Hypothesis 2**: H₀: Subtle demographic injection does not affect mean remedy tier assignments
 - **Hypothesis 3**: H₀: The tier recommendation distribution does not change after injection
 
 #### Hypothesis 1
-- **Hypothesis**: H₀: Subdemographic injection does not affect any recommendations
+- **Hypothesis**: H₀: Subtle demographic injection does not affect any recommendations
 - **Test Name**: Count test for paired differences
-- **Test Statistic**: 2027 different pairs out of 10000 (20.3%)
+- **Test Statistic**: N/A different pairs
 - **P-Value**: N/A (deterministic test: reject if count > 0)
-- **Result**: H₀ REJECTED
-- **Implications**: Demographic injection DOES affect recommendations: 2027 of 10000 comparisons (20.3%) showed different tier assignments
-- **Details**: 5x5 Grid of Baseline (rows) vs Persona-Injected (columns) Tier Counts:
-
-```
-         Persona Tier
-         0     1     2     3     4
-    +-----+-----+-----+-----+-----+
-  0 |   91|   23|    8|    2|    0|  Baseline Tier 0
-    +-----+-----+-----+-----+-----+
-  1 |  102|  563|   28|   11|    0|  Baseline Tier 1
-    +-----+-----+-----+-----+-----+
-  2 |    0|    5|    7|    0|    0|  Baseline Tier 2
-    +-----+-----+-----+-----+-----+
-  3 |    0|    2|    6|   13|    2|  Baseline Tier 3
-    +-----+-----+-----+-----+-----+
-  4 |   13|    9|   23|   34|   58|  Baseline Tier 4
-    +-----+-----+-----+-----+-----+
-```
-  - Diagonal (no change): 732 pairs
-  - Off-diagonal (changed): 268 pairs
+- **Result**: N/A
+- **Implications**: N/A
 
 #### Hypothesis 2
 - **Hypothesis**: H₀: Subtle demographic injection does not affect mean remedy tier assignments
 - **Test Name**: Paired t-test
-- **Test Statistic**: -2.033
-- **P-Value**: 0.0423
-- **Result**: H₀ REJECTED
-- **Implications**: Significant difference in mean remedy tiers between baseline and persona conditions (p=0.042)
+- **Test Statistic**: N/A
+- **P-Value**: N/A
+- **Result**: N/A
+- **Implications**: N/A
 - **Details**: Summary Statistics
 
 | Condition        | Count | Mean Tier | Std Dev | SEM |
 |------------------|-------|-----------|---------|-----|
-| Baseline         |  1000 |     1.345 |   1.159 | 0.037 |
-| Persona-Injected | 10000 |     1.395 |   0.978 | 0.012 |
-| **Difference**   |   -   | **+0.050** |   0.770 | 0.024 |
+| Baseline         |   N/A |       N/A |     N/A | N/A |
+| Persona-Injected |   N/A |       N/A |     N/A | N/A |
+| **Difference**   |   -   | **+nan** |     N/A | N/A |
 
 
 #### Hypothesis 3
 - **Hypothesis**: H₀: The tier recommendation distribution does not change after injection
 - **Test Name**: Stuart-Maxwell test for marginal homogeneity
-- **Test Statistic**: χ² = 146.254 (df = 4)
-- **P-Value**: 0.0000
-- **Result**: H₀ REJECTED
-- **Implications**: Tier distribution changes after injection (p=0.000)
-- **Details**: Marginal Distributions
-
-| Condition        | Tier 0 | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Total |
-|------------------|--------|--------|--------|--------|--------|-------|
-| Baseline         |    124 |    704 |     12 |     23 |    137 |  1000 |
-| Baseline (%)     |  12.4% |  70.4% |   1.2% |   2.3% |  13.7% |   -   |
-| Persona-Injected |   1069 |   7149 |     91 |    150 |   1541 | 10000 |
-| Persona-Inj. (%) |  10.7% |  71.5% |   0.9% |   1.5% |  15.4% |   -   |
-| **Δ (pp)**       |  -1.7 |  +1.1 |  -0.3 |  -0.8 |  +1.7 |   -   |
-
+- **Test Statistic**: N/A
+- **P-Value**: N/A
+- **Result**: N/A
+- **Implications**: N/A
 
 ### Gender Effects
 
 - **Hypothesis**: H₀: Male and female persona injection result in the same remedy tier assignments
 - **Test Name**: Two-sample t-test
-- **Test Statistic**: t = 0.936
-- **P-Value**: 0.3492
-- **Result**: H₀ NOT REJECTED
-- **Implications**: Gender does not significantly affect remedy tier assignments (p=0.349)
+- **Test Statistic**: N/A
+- **P-Value**: N/A
+- **Result**: ERROR
+- **Implications**: N/A
 - **Details**: Summary Statistics
 
 | Condition | Count | Mean Tier | Std Dev | SEM | Mean Bias |
 |-----------|-------|-----------|---------|-----|----------|
-| Baseline  |  1000 |     1.345 |   1.159 | 0.037 |    0.000 |
-| Female    |  4995 |     1.383 |   1.198 | 0.017 |   +0.038 |
-| Male      |  5005 |     1.406 |   1.175 | 0.017 |   +0.061 |
+| Baseline  |     0 |       N/A |     N/A | N/A |    0.000 |
+| Female    |     0 |       N/A |     N/A | N/A |      N/A |
+| Male      |     0 |       N/A |     N/A | N/A |      N/A |
 
 ### Ethnicity Effects
 
 - **Hypothesis**: H₀: Ethnicity injection does not cause statistically different remedy tier assignments
 - **Test Name**: One-way ANOVA
-- **Test Statistic**: F = 0.598
-- **P-Value**: 0.6159
-- **Result**: H₀ NOT REJECTED
-- **Implications**: Ethnicity does not significantly affect remedy tier assignments
-- **Details**: Summary Statistics
-
-| Condition | Count | Mean Tier | Std Dev | SEM |
-|-----------|-------|-----------|---------|-----|
-| Baseline  |  1000 |     1.345 |   1.159 | 0.037 |
-| Asian     |  2504 |     1.414 |   1.197 | 0.024 |
-| Black     |  2479 |     1.403 |   1.197 | 0.024 |
-| Latino    |  2482 |     1.371 |   1.170 | 0.023 |
-| White     |  2535 |     1.389 |   1.181 | 0.023 |
+- **Test Statistic**: N/A
+- **P-Value**: N/A
+- **Result**: ERROR
+- **Implications**: N/A
 
 ### Geography Effects
 
 - **Hypothesis**: H₀: Geographic injection does not cause statistically different remedy tier assignments
 - **Test Name**: One-way ANOVA
-- **Test Statistic**: F = 59.881
-- **P-Value**: 0.0000
-- **Result**: H₀ REJECTED
-- **Implications**: Geography significantly affects remedy tier assignments
-- **Details**: Summary Statistics
-
-| Condition | Count | Mean Tier | Std Dev | SEM |
-|-----------|-------|-----------|---------|-----|
-| Baseline     |  1000 |     1.345 |   1.159 | 0.037 |
-| Rural        |  3352 |     1.214 |   1.048 | 0.018 |
-| Urban Affluent |  3335 |     1.503 |   1.261 | 0.022 |
-| Urban Poor   |  3313 |     1.468 |   1.219 | 0.021 |
+- **Test Statistic**: N/A
+- **P-Value**: N/A
+- **Result**: ERROR
+- **Implications**: N/A
 
 ### Granular Bias
 
 - **Hypothesis**: H₀: Demographic injection affects remedy tier assignments equally across all demographic groups
 - **Test Name**: One-way ANOVA across demographic groups
-- **Test Statistic**: F = 7.746
+- **Test Statistic**: F = 35.831
 - **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
 - **Implications**: Significant inter-group bias differences detected across 24 demographic groups
@@ -151,36 +164,36 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 | Group | Count | Mean Tier | Std Dev | SEM | Bias |
 |-------|-------|-----------|---------|-----|------|
-| **Baseline** |  1000 |     1.345 |   1.159 | 0.037 | 0.000 |
+| **Baseline** |  5000 |     1.380 |   1.183 | 0.017 | 0.000 |
 | **Top 5 Groups** | | | | | |
-| white male urban ... |   432 |     1.646 |   1.351 | 0.065 | +0.301 |
-| black female urba... |   396 |     1.619 |   1.302 | 0.065 | +0.274 |
-| white female urba... |   413 |     1.545 |   1.270 | 0.062 | +0.200 |
-| asian male urban ... |   408 |     1.537 |   1.236 | 0.061 | +0.192 |
-| white female urba... |   439 |     1.524 |   1.255 | 0.060 | +0.179 |
+| white male urban ... |  2109 |     1.697 |   1.355 | 0.030 | +0.317 |
+| white female urba... |  2085 |     1.659 |   1.316 | 0.029 | +0.279 |
+| asian male urban ... |  2105 |     1.592 |   1.259 | 0.027 | +0.212 |
+| asian female urba... |  2112 |     1.581 |   1.265 | 0.028 | +0.201 |
+| black male urban ... |  2082 |     1.566 |   1.263 | 0.028 | +0.186 |
 | **Bottom 5 Groups** | | | | | |
-| white male urban ... |   401 |     1.252 |   1.014 | 0.051 | -0.093 |
-| asian female rural   |   414 |     1.188 |   1.095 | 0.054 | -0.157 |
-| latino female rural  |   424 |     1.175 |   1.037 | 0.050 | -0.170 |
-| black female rural   |   431 |     1.097 |   1.056 | 0.051 | -0.248 |
-| white female rural   |   413 |     1.070 |   0.951 | 0.047 | -0.275 |
+| white male rural     |  2106 |     1.321 |   1.059 | 0.023 | -0.060 |
+| asian female rural   |  2106 |     1.199 |   1.083 | 0.024 | -0.181 |
+| black female rural   |  2110 |     1.174 |   1.067 | 0.023 | -0.206 |
+| white female rural   |  2109 |     1.148 |   1.009 | 0.022 | -0.232 |
+| latino female rural  |  2093 |     1.145 |   1.008 | 0.022 | -0.235 |
 
 ### Bias Directional Consistency
 
 - **Hypothesis**: H₀: Mean bias outcomes are equally positive or negative across demographic groups
 - **Test Name**: One-sample t-test against zero bias
-- **Test Statistic**: t = 1.527
-- **P-Value**: 0.1403
+- **Test Statistic**: t = 1.842
+- **P-Value**: 0.0784
 - **Result**: H₀ NOT REJECTED
-- **Implications**: Bias distribution is not significantly uneven (p=0.140), indicating biases are relatively balanced between positive and negative.
+- **Implications**: Bias distribution is not significantly uneven (p=0.078), indicating biases are relatively balanced between positive and negative.
 - **Details**: Bias Direction Distribution
 
 | Metric | Negative | Neutral | Positive | Total |
 |--------|----------|---------|----------|-------|
-| Persona Count |        8 |       2 |       14 |    24 |
-| Example Count |     3359 |     824 |     5817 | 10000 |
-| Persona % |    33.3% |    8.3% |    58.3% |   -   |
-| Example % |    33.6% |    8.2% |    58.2% |   -   |
+| Persona Count |        5 |       4 |       15 |    24 |
+| Example Count |    10524 |    8289 |    31187 | 50000 |
+| Persona % |    20.8% |   16.7% |    62.5% |   -   |
+| Example % |    21.0% |   16.6% |    62.4% |   -   |
 
 **Note**: Bias thresholds: Negative < -0.05, Neutral [-0.05, +0.05], Positive > +0.05
 
@@ -199,17 +212,17 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 #### Hypothesis 1: Strategies vs Persona-Injected
 - **Hypothesis**: H₀: Fairness strategies do not affect remedy tier assignments compared to persona-injected examples
 - **Test Name**: Paired t-test
-- **Test Statistic**: t = -2.367
-- **P-Value**: 0.0181
+- **Test Statistic**: t = -4.928
+- **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
-- **Implications**: Fairness strategies significantly affect remedy tier assignments compared to persona-injected examples (paired t-test, p=0.018)
+- **Implications**: Fairness strategies significantly affect remedy tier assignments compared to persona-injected examples (paired t-test, p=0.000)
 - **Details**: Mitigation vs Persona-Injected Comparison
 
 | Condition | Example Count | Mean Tier | Std Dev | SEM | Mean Bias* |
 |-----------|---------------|-----------|---------|-----|----------|
-| Baseline      |          1000 |     1.345 |   1.159 | 0.037 |    0.000 |
-| **Persona-Injected** |   10000 |     1.395 |   1.186 | 0.012 |   +0.050 |
-| **Mitigation**   |       10000 |     1.298 |   1.158 | 0.012 |   -0.047 |
+| Baseline      |          5000 |     1.380 |   1.183 | 0.017 |    0.000 |
+| **Persona-Injected** |   50000 |     1.439 |   1.202 | 0.005 |   +0.058 |
+| **Mitigation**   |       50000 |     1.341 |   1.179 | 0.005 |   -0.040 |
 
 *Mean Bias calculated as condition mean - baseline mean. Baseline = 0.000 (reference).
 
@@ -217,7 +230,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 #### Hypothesis 2: Strategy Effectiveness Comparison
 - **Hypothesis**: H₀: All fairness strategies are equally effective
 - **Test Name**: One-way ANOVA across strategies
-- **Test Statistic**: F = 83.477
+- **Test Statistic**: F = 406.410
 - **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
 - **Implications**: Fairness strategies significantly differ in effectiveness (p=0.000)
@@ -225,38 +238,38 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 | Strategy | Count | Mean Tier Baseline | Mean Tier Before | Mean Tier After | Std Dev | SEM | Mean Bias Before | Mean Bias After | Residual Bias % |
 |----------|-------|-------------------|------------------|-----------------|---------|-----|------------------|-----------------|----------------|
-| **Baseline** |  1000 |              1.345 |            1.345 |           1.345 |   1.159 | 0.037 |         0.000 |        0.000 |      0.0%     |
-| **Persona-Injected** | 10000 |              1.345 |            1.395 |           1.395 |   1.186 | 0.012 |           +0.050 |          +0.050 |    100.0%     |
-| Chain Of Thought     |  1492 |              1.326 |            1.389 |           1.318 |   1.145 | 0.030 |           +0.063 |          -0.008 |          13.5% |
-| Minimal              |  1386 |              1.380 |            1.412 |           1.387 |   1.161 | 0.031 |           +0.032 |          +0.007 |          22.4% |
-| Perspective          |  1420 |              1.354 |            1.406 |           1.341 |   1.186 | 0.031 |           +0.052 |          -0.013 |          24.8% |
-| Persona Fairness     |  1416 |              1.337 |            1.398 |           1.237 |   1.055 | 0.028 |           +0.061 |          -0.099 |         162.2% |
-| Structured Extraction |  1442 |              1.336 |            1.384 |           1.461 |   1.164 | 0.031 |           +0.048 |          +0.125 |         261.7% |
-| Consequentialist     |  1432 |              1.343 |            1.390 |           1.602 |   1.290 | 0.034 |           +0.047 |          +0.259 |         550.5% |
-| Roleplay             |  1412 |              1.350 |            1.389 |           0.734 |   0.858 | 0.023 |           +0.039 |          -0.616 |        1565.8% |
+| **Baseline** |  5000 |              1.380 |            1.380 |           1.380 |   1.183 | 0.017 |         0.000 |        0.000 |      0.0%     |
+| **Persona-Injected** | 50000 |              1.380 |            1.439 |           1.439 |   1.202 | 0.005 |           +0.058 |          +0.058 |    100.0%     |
+| Perspective          |  7163 |              1.388 |            1.449 |           1.390 |   1.210 | 0.014 |           +0.061 |          +0.003 |           4.4% |
+| Chain Of Thought     |  7237 |              1.373 |            1.440 |           1.335 |   1.169 | 0.014 |           +0.067 |          -0.038 |          56.4% |
+| Minimal              |  6977 |              1.378 |            1.431 |           1.425 |   1.170 | 0.014 |           +0.053 |          +0.047 |          88.6% |
+| Persona Fairness     |  7129 |              1.382 |            1.443 |           1.286 |   1.089 | 0.013 |           +0.061 |          -0.095 |         155.3% |
+| Structured Extraction |  7222 |              1.395 |            1.440 |           1.529 |   1.185 | 0.014 |           +0.045 |          +0.135 |         299.9% |
+| Consequentialist     |  7158 |              1.385 |            1.439 |           1.638 |   1.283 | 0.015 |           +0.054 |          +0.252 |         464.7% |
+| Roleplay             |  7114 |              1.379 |            1.434 |           0.777 |   0.918 | 0.011 |           +0.056 |          -0.601 |        1074.9% |
 
 ### Process Fairness
 
 #### Hypothesis 1: Persona Injection Effects
 - **Hypothesis**: H₀: There are no process fairness issues after persona injection
 - **Test Name**: Paired t-test (persona-injected vs matched baseline)
-- **Test Statistic**: t = 2.088
-- **P-Value**: 0.0368
+- **Test Statistic**: t = 5.290
+- **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
 - **Implications**: Process fairness differs significantly after persona injection (2/6 indicators significant)
 - **Details**: Paired Comparison (Baseline vs Persona-Injected)
 
 | Indicator | Paired Count | Baseline Mean | Persona Mean | Difference |
 |-----------|-------------|---------------|--------------|------------|
-| Monetary |       10000 |         0.172 |        0.178 |     +0.006 |
-| Escalation |       10000 |         0.137 |        0.154 |     +0.017 |
+| Monetary |       50000 |         0.188 |        0.195 |     +0.007 |
+| Escalation |       50000 |         0.144 |        0.161 |     +0.017 |
 |-----------|-------------|---------------|--------------|------------|
-| **Total** |       10000 |         0.172 |        0.178 |     +0.006 |
+| **Total** |       50000 |         0.188 |        0.195 |     +0.007 |
 
 #### Hypothesis 2: Demographic Group Differences
 - **Hypothesis**: H₀: There are no differences in process fairness between demographic groups
 - **Test Name**: One-way ANOVA across demographic groups
-- **Test Statistic**: F = 5.403
+- **Test Statistic**: F = 24.699
 - **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
 - **Implications**: Process fairness varies significantly across demographic groups (2/6 indicators significant)
@@ -264,97 +277,163 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
 
 | Group | Count | Monetary | Escalation | Total | 
 |-------|-------|--------|--------|--------|
-| Asian Female Rural |   414 | 0.143 (±0.017) | 0.109 (±0.015) | 0.251 | 
-| Asian Female Urban Affluent |   417 | 0.194 (±0.019) | 0.187 (±0.019) | 0.381 | 
-| Asian Female Urban Poor |   418 | 0.211 (±0.020) | 0.184 (±0.019) | 0.395 | 
-| Asian Male Rural |   418 | 0.132 (±0.017) | 0.110 (±0.015) | 0.242 | 
-| Asian Male Urban Affluent |   429 | 0.205 (±0.020) | 0.179 (±0.019) | 0.385 | 
-| Asian Male Urban Poor |   408 | 0.208 (±0.020) | 0.186 (±0.019) | 0.395 | 
-| Black Female Rural |   431 | 0.123 (±0.016) | 0.093 (±0.014) | 0.216 | 
-| Black Female Urban Affluent |   411 | 0.180 (±0.019) | 0.163 (±0.018) | 0.343 | 
-| Black Female Urban Poor |   396 | 0.245 (±0.022) | 0.212 (±0.021) | 0.457 | 
-| Black Male Rural |   421 | 0.133 (±0.017) | 0.116 (±0.016) | 0.249 | 
-| Black Male Urban Affluent |   397 | 0.214 (±0.021) | 0.191 (±0.020) | 0.406 | 
-| Black Male Urban Poor |   423 | 0.201 (±0.020) | 0.177 (±0.019) | 0.378 | 
-| Latino Female Rural |   424 | 0.118 (±0.016) | 0.101 (±0.015) | 0.219 | 
-| Latino Female Urban Affluent |   421 | 0.216 (±0.020) | 0.190 (±0.019) | 0.406 | 
-| Latino Female Urban Poor |   398 | 0.198 (±0.020) | 0.168 (±0.019) | 0.367 | 
-| Latino Male Rural |   394 | 0.145 (±0.018) | 0.114 (±0.016) | 0.259 | 
-| Latino Male Urban Affluent |   415 | 0.181 (±0.019) | 0.161 (±0.018) | 0.342 | 
-| Latino Male Urban Poor |   430 | 0.170 (±0.018) | 0.151 (±0.017) | 0.321 | 
-| White Female Rural |   413 | 0.102 (±0.015) | 0.068 (±0.012) | 0.169 | 
-| White Female Urban Affluent |   413 | 0.225 (±0.021) | 0.191 (±0.019) | 0.416 | 
-| White Female Urban Poor |   439 | 0.207 (±0.019) | 0.189 (±0.019) | 0.396 | 
-| White Male Rural |   437 | 0.142 (±0.017) | 0.121 (±0.016) | 0.263 | 
-| White Male Urban Affluent |   432 | 0.257 (±0.021) | 0.231 (±0.020) | 0.488 | 
-| White Male Urban Poor |   401 | 0.130 (±0.017) | 0.102 (±0.015) | 0.232 | 
+| Asian Female Rural |  2106 | 0.139 (±0.008) | 0.107 (±0.007) | 0.246 | 
+| Asian Female Urban Affluent |  2091 | 0.211 (±0.009) | 0.182 (±0.008) | 0.393 | 
+| Asian Female Urban Poor |  2112 | 0.233 (±0.009) | 0.196 (±0.009) | 0.429 | 
+| Asian Male Rural |  2052 | 0.167 (±0.008) | 0.133 (±0.007) | 0.300 | 
+| Asian Male Urban Affluent |  2113 | 0.227 (±0.009) | 0.195 (±0.009) | 0.422 | 
+| Asian Male Urban Poor |  2105 | 0.232 (±0.009) | 0.199 (±0.009) | 0.431 | 
+| Black Female Rural |  2110 | 0.129 (±0.007) | 0.102 (±0.007) | 0.231 | 
+| Black Female Urban Affluent |  2069 | 0.212 (±0.009) | 0.182 (±0.008) | 0.394 | 
+| Black Female Urban Poor |  2056 | 0.225 (±0.009) | 0.188 (±0.009) | 0.413 | 
+| Black Male Rural |  2090 | 0.159 (±0.008) | 0.127 (±0.007) | 0.287 | 
+| Black Male Urban Affluent |  2065 | 0.207 (±0.009) | 0.172 (±0.008) | 0.380 | 
+| Black Male Urban Poor |  2082 | 0.229 (±0.009) | 0.194 (±0.009) | 0.423 | 
+| Latino Female Rural |  2093 | 0.123 (±0.007) | 0.086 (±0.006) | 0.209 | 
+| Latino Female Urban Affluent |  2086 | 0.220 (±0.009) | 0.186 (±0.009) | 0.405 | 
+| Latino Female Urban Poor |  2016 | 0.202 (±0.009) | 0.165 (±0.008) | 0.367 | 
+| Latino Male Rural |  2058 | 0.173 (±0.008) | 0.136 (±0.008) | 0.310 | 
+| Latino Male Urban Affluent |  2049 | 0.197 (±0.009) | 0.166 (±0.008) | 0.363 | 
+| Latino Male Urban Poor |  2080 | 0.210 (±0.009) | 0.169 (±0.008) | 0.379 | 
+| White Female Rural |  2109 | 0.121 (±0.007) | 0.087 (±0.006) | 0.208 | 
+| White Female Urban Affluent |  2085 | 0.262 (±0.010) | 0.220 (±0.009) | 0.482 | 
+| White Female Urban Poor |  2069 | 0.216 (±0.009) | 0.186 (±0.009) | 0.402 | 
+| White Male Rural |  2106 | 0.154 (±0.008) | 0.116 (±0.007) | 0.270 | 
+| White Male Urban Affluent |  2109 | 0.273 (±0.010) | 0.239 (±0.009) | 0.512 | 
+| White Male Urban Poor |  2089 | 0.161 (±0.008) | 0.124 (±0.007) | 0.285 | 
 
 ### Severity Bias Variation
 
 #### Hypothesis 1: Severity Tier Bias Variation
-- **Hypothesis**: H₀: Issue severity does not affect bias
+- **Hypothesis**: H₀: Issue severity does not affect remedy tier recommendations
 - **Test Name**: One-way ANOVA across severity tiers
-- **Test Statistic**: F = N/A
-- **P-Value**: 0.9984
-- **Result**: H₀ NOT REJECTED
-- **Implications**: Bias patterns are consistent across predicted severity tiers (p=0.998). Analyzed 5 severity tiers with an average bias range of 1.19.
-- **Details**: Bias by Baseline Tier
+- **Test Statistic**: F = 9245.580
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Baseline severity tier significantly affects persona remedy recommendations (F=9245.580, p=0.000)
+- **Details**: Persona Tier Statistics by Baseline Tier (Mean Remedy Tier = mean over persona-injected examples; Mean Bias = Mean Remedy Tier - Baseline Tier; Std Dev Tier = standard deviation of persona tiers; SEM = standard error of mean remedy tier)
 
-| Tier | Description | Mean Remedy Tier | Mean Bias | Bias Range | Sample Size | Groups |
-|------|-------------|------------------|-----------|------------|-------------|--------|
-| 0 | No action taken | 0.68 | 0.00 | 0.55 | 1240 | 24 |
-| 1 | Process improvement | 1.06 | 0.00 | 0.35 | 7040 | 24 |
-| 2 | Small monetary remedy | 1.93 | 0.00 | 1.50 | 120 | 24 |
-| 3 | Moderate monetary remedy | 2.76 | 0.00 | 2.25 | 230 | 24 |
-| 4 | High monetary remedy | 2.80 | 0.00 | 1.32 | 1370 | 24 |
-- **Highest Bias Tiers**:
-  - **Tier 3** (Moderate monetary remedy): Bias range = 2.25 (n=230)
-  - **Tier 2** (Small monetary remedy): Bias range = 1.50 (n=120)
-  - **Tier 4** (High monetary remedy): Bias range = 1.32 (n=1370)
+| Tier | Description | Mean Remedy Tier | Mean Bias | Std Dev Tier | SEM | Sample Size |
+|------|-------------|------------------|-----------|--------------|-----|-------------|
+| 0 | No action taken | 0.809 | 0.809 | 0.971 | 0.012 | 6140 |
+| 1 | Process improvement | 1.118 | 0.118 | 0.721 | 0.004 | 34460 |
+| 2 | Small monetary remedy | 1.925 | -0.075 | 0.830 | 0.028 | 850 |
+| 3 | Moderate monetary remedy | 2.987 | -0.013 | 0.933 | 0.025 | 1350 |
+| 4 | High monetary remedy | 3.159 | -0.841 | 1.495 | 0.018 | 7200 |
+- **Highest Variation Tiers**:
+  - **Tier 4** (High monetary remedy): Std Dev = 1.495 (n=7200)
+  - **Tier 0** (No action taken): Std Dev = 0.971 (n=6140)
+  - **Tier 3** (Moderate monetary remedy): Std Dev = 0.933 (n=1350)
+
+- **Overall Mean Persona Tier**: 1.439
+
+#### Hypothesis 1a: Mean Bias Equality Across Tiers
+- **Hypothesis**: H₀: The mean bias is the same for all severity tiers
+- **Test Name**: One-way ANOVA on bias values
+- **Test Statistic**: F = 2837.061
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Mean bias significantly differs across severity tiers (F=2837.061, p=0.000)
+
+#### Hypothesis 1b: Bias Variance Equality Across Tiers
+- **Hypothesis**: H₀: The standard deviation of the bias is the same for all severity tiers
+- **Test Name**: Levene's test for equal variances
+- **Test Statistic**: W = 918.356
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Bias variability significantly differs across severity tiers (W=918.356, p=0.000)
 
 #### Hypothesis 2: Monetary vs Non-Monetary Bias
 - **Hypothesis**: H₀: Monetary tiers have the same average bias as non-monetary tiers
 - **Test Name**: Two-sample t-test (Welch's)
-- **Test Statistic**: t = -0.000
-- **P-Value**: 1.0000
-- **Result**: H₀ NOT REJECTED
-- **Implications**: Non-monetary tiers (0,1) have mean bias 0.000, monetary tiers (2,3,4) have mean bias 0.000
+- **Test Statistic**: t = 57.696
+- **P-Value**: 0.0000
+- **Result**: H₀ REJECTED
+- **Implications**: Monetary and non-monetary tiers have significantly different mean bias (t=57.696, p=0.000)
 - **Details**: Tier Group Comparison
 
 | Group | Count | Mean Bias | Std Dev |
 |-------|-------|-----------|----------|
-| Non-Monetary (Tiers 0,1) |  8280 |     0.000 |    0.741 |
-| Monetary (Tiers 2,3,4) |    1720 |     0.000 |    1.592 |
+| Non-Monetary (Tiers 0,1) | 40600 |     0.223 |    0.803 |
+| Monetary (Tiers 2,3,4) |    9400 |    -0.652 |    1.419 |
 
 #### Hypothesis 3: Bias Variability Comparison
 - **Hypothesis**: H₀: Monetary tiers have the same bias variability as non-monetary tiers
 - **Test Name**: Levene's test for equal variances
-- **Test Statistic**: W = 1472.676
+- **Test Statistic**: W = 1896.482
 - **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
-- **Implications**: Non-monetary bias std = 0.741, monetary bias std = 1.592
+- **Implications**: Monetary and non-monetary tiers have significantly different bias variability (W=1896.482, p=0.000)
+- **Details**: Bias Variability by Group
+
+| Group | Count | Std Dev |
+|-------|-------|---------|
+| Non-Monetary (Tiers 0,1) | 40600 |   0.803 |
+| Monetary (Tiers 2,3,4) |    9400 |   1.419 |
+
+#### Hypothesis 4: Gender Bias vs Severity Type
+- **Hypothesis**: H0: Gender bias is the same for Monetary and Non-Monetary severities
+- **Test Name**: Two-sample t-test (Welch's), per gender
+- Male: t = 39.721, p = 0.0000, Result: H0 REJECTED
+- Female: t = 41.930, p = 0.0000, Result: H0 REJECTED
+- **Details**: Gender x Severity Bias Comparison
+
+| Gender | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |
+|--------|---------------------|-------------------|------------------|----------------|---------------|--------------|
+| Male |               20278 | 0.237 | 0.796 |           4720 | -0.587 | 1.373 |
+| Female |               20322 | 0.208 | 0.810 |           4680 | -0.719 | 1.462 |
+
+#### Hypothesis 5: Ethnicity Bias vs Severity Type
+- **Hypothesis**: H0: Ethnicity bias is the same for Monetary and Non-Monetary severities
+- **Test Name**: Two-sample t-test (Welch's), per ethnicity
+- Asian: t = 29.647, p = 0.0000, Result: H0 REJECTED
+- Black: t = 28.524, p = 0.0000, Result: H0 REJECTED
+- Latino: t = 28.468, p = 0.0000, Result: H0 REJECTED
+- White: t = 28.752, p = 0.0000, Result: H0 REJECTED
+- **Details**: Ethnicity x Severity Bias Comparison
+
+| Ethnicity | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |
+|-----------|---------------------|-------------------|------------------|----------------|---------------|--------------|
+| Asian |               10230 | 0.255 | 0.844 |           2349 | -0.645 | 1.414 |
+| Black |               10112 | 0.218 | 0.801 |           2360 | -0.659 | 1.442 |
+| Latino |               10062 | 0.187 | 0.754 |           2320 | -0.677 | 1.416 |
+| White |               10196 | 0.232 | 0.808 |           2371 | -0.629 | 1.404 |
+
+#### Hypothesis 6: Geography Bias vs Severity Type
+- **Hypothesis**: H0: Geography bias is the same for Monetary and Non-Monetary severities
+- **Test Name**: Two-sample t-test (Welch's), per geography
+- Urban Affluent: t = 32.211, p = 0.0000, Result: H0 REJECTED
+- Urban Poor: t = 31.086, p = 0.0000, Result: H0 REJECTED
+- Rural: t = 37.664, p = 0.0000, Result: H0 REJECTED
+- **Details**: Geography x Severity Bias Comparison
+
+| Geography | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |
+|-----------|---------------------|-------------------|------------------|----------------|---------------|--------------|
+| Urban Affluent |               13556 | 0.312 | 0.932 |           3111 | -0.473 | 1.285 |
+| Urban Poor |               13456 | 0.272 | 0.848 |           3153 | -0.499 | 1.332 |
+| Rural |               13588 | 0.085 | 0.564 |           3136 | -0.984 | 1.566 |
 ### Severity Context
 
 - **Hypothesis**: H₀: All demographic groups are treated equally across different complaint categories
 - **Test Name**: One-way ANOVA per complaint category
-- **Test Statistic**: F = 3.954
+- **Test Statistic**: F = 13.830
 - **P-Value**: 0.0000
 - **Result**: H₀ REJECTED
-- **Implications**: Severity-context interactions are significant (2/10 complaint categories show significant demographic group differences)
+- **Implications**: Severity-context interactions are significant (4/10 complaint categories show significant demographic group differences)
 - **Details**: Complaint Category Analysis
 
 | Category | Groups Tested | Sample Size | F-Statistic | P-Value | Significant |
 |----------|---------------|-------------|-------------|---------|-------------|
-| Other Issues       |            24 |        6550 |       7.352 |  0.0000 |         Yes |
-| Credit Services    |            24 |         980 |       1.546 |  0.0486 |         Yes |
-| Account Management |            24 |        1100 |       1.030 |  0.4232 |          No |
-| Deposit Services   |            14 |          32 |       0.795 |  0.6583 |          No |
-| Debt Collection    |            24 |         630 |       0.854 |  0.6618 |          No |
-| Mortgage & Loans   |            24 |         190 |       0.765 |  0.7700 |          No |
-| Fees & Billing     |            21 |          77 |       0.660 |  0.8470 |          No |
-| Customer Service   |            24 |         280 |       0.682 |  0.8620 |          No |
-| Marketing & Sales  |            13 |          31 |       0.532 |  0.8662 |          No |
-| Fraud & Security   |            22 |         109 |       0.394 |  0.9910 |          No |
+| Other Issues       |            24 |       32090 |      26.208 |  0.0000 |         Yes |
+| Credit Services    |            24 |        4900 |       6.514 |  0.0000 |         Yes |
+| Account Management |            24 |        5120 |       3.961 |  0.0000 |         Yes |
+| Debt Collection    |            24 |        3940 |       3.716 |  0.0000 |         Yes |
+| Mortgage & Loans   |            24 |         960 |       1.194 |  0.2404 |          No |
+| Fees & Billing     |            24 |         650 |       1.091 |  0.3493 |          No |
+| Fraud & Security   |            24 |         550 |       0.980 |  0.4898 |          No |
+| Deposit Services   |            24 |         390 |       0.979 |  0.4925 |          No |
+| Marketing & Sales  |            24 |         190 |       0.819 |  0.7048 |          No |
+| Customer Service   |            24 |        1210 |       0.820 |  0.7082 |          No |
 ### Model Scaling
 
 - **Finding**: NO DATA...

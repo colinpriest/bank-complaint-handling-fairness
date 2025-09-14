@@ -103,6 +103,269 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             4: "High monetary remedy"
         }
         
+        # Special handling for ground truth analysis
+        if analysis_name == "ground_truth":
+            # Check if ground truth data is available
+            finding = data.get('finding', 'NO DATA')
+            if finding in ["NO DATA", "INSUFFICIENT DATA"]:
+                interpretation = data.get('interpretation', 'No ground truth data available')
+                content += f"**Status**: {interpretation}\n\n"
+                
+                if finding == "INSUFFICIENT DATA":
+                    # Show CFPB loading progress
+                    cfpb_total = data.get('cfpb_total_cases', 0)
+                    cfpb_complete = data.get('cfpb_complete_cases', 0) 
+                    sample_size = data.get('sample_size', 0)
+                    
+                    content += f"**CFPB Data Loaded**: {cfpb_complete:,} complete cases from {cfpb_total:,} total CFPB complaints\n\n"
+                    content += f"**Baseline Cases Found**: {sample_size} baseline cases with valid company_response data\n\n"
+                    content += "**Minimum Required**: 2 baseline cases for statistical analysis\n\n"
+                    content += "**Solution**: Increase sample size to get more baseline cases, or run full dataset analysis\n\n"
+                else:
+                    content += "Ground truth analysis requires a ground truth data file with case_id mappings to true remedy tiers. "
+                    content += f"**Searched locations**: {', '.join(data.get('searched_files', []))}\n\n"
+                
+                content += "When sufficient ground truth data is available, this section will display:\n\n"
+                content += "- **Hypothesis 1**: Correlation analysis with confusion matrix showing prediction accuracy\n"
+                content += "- **Hypothesis 2**: Mean tier comparison with statistical significance testing\n"  
+                content += "- **Hypothesis 3**: Distribution comparison with chi-square analysis\n\n"
+                return content
+            
+            content += "#### Hypothesis 1: Correlation Test\n"
+            
+            # Get hypothesis 1 results
+            hyp1 = data.get('hypothesis1_correlation', {})
+            hypothesis_1 = hyp1.get('hypothesis', 'H₀: Zero-shot baseline LLM recommendations do not closely match the ground truth')
+            content += f"- **Hypothesis**: {hypothesis_1}\n"
+            content += "- **Test Name**: Pearson correlation coefficient\n"
+            
+            finding_1 = hyp1.get('finding', 'N/A')
+            pearson_corr = hyp1.get('pearson_correlation', float('nan'))
+            pearson_p = hyp1.get('pearson_p_value', float('nan'))
+            interpretation_1 = hyp1.get('interpretation', 'N/A')
+            
+            pearson_corr_str = f"{pearson_corr:.3f}" if isinstance(pearson_corr, (int, float)) and not math.isnan(pearson_corr) else "N/A"
+            pearson_p_str = f"{pearson_p:.4f}" if isinstance(pearson_p, (int, float)) and not math.isnan(pearson_p) else "N/A"
+            
+            content += f"- **Test Statistic**: r = {pearson_corr_str}\n"
+            content += f"- **P-Value**: {pearson_p_str}\n"
+            content += f"- **Result**: {finding_1}\n"
+            content += f"- **Implications**: {interpretation_1}\n\n"
+            
+            # Add Spearman correlation as supplementary info
+            spearman_corr = hyp1.get('spearman_correlation', float('nan'))
+            if not math.isnan(spearman_corr):
+                content += f"- **Supplementary**: Spearman rank correlation = {spearman_corr:.3f}\n"
+            
+            # Add accuracy info
+            accuracy = hyp1.get('accuracy', float('nan'))
+            correct_preds = hyp1.get('correct_predictions', 0)
+            total_preds = hyp1.get('total_predictions', 0)
+            if not math.isnan(accuracy):
+                content += f"- **Accuracy**: {accuracy:.1%} ({correct_preds}/{total_preds} correct predictions)\n"
+            
+            # Add confusion matrix details
+            confusion_matrix = hyp1.get('confusion_matrix', {})
+            all_tiers = hyp1.get('all_tiers', [])
+            
+            if confusion_matrix:
+                content += "- **Details**: Prediction Accuracy Grid (Rows = Ground Truth Tier, Columns = LLM Baseline Prediction)\n\n"
+                
+                # Define tier order for proper display
+                tier_labels = ["No Action", "Non-Monetary", "Monetary"]
+                column_labels = ["No Action", "Non-Monetary", "Monetary"]
+                special_rows = ["Missing"]
+                
+                # Check if we have new format (string labels) or old format (numeric keys)
+                if any(label in confusion_matrix.keys() for label in tier_labels):
+                    # New format with string labels
+                    gt_tiers = [label for label in tier_labels if label in confusion_matrix.keys()]
+                    bl_tiers = column_labels
+                else:
+                    # Old format with numeric keys - convert for display
+                    numeric_tiers = sorted([int(k) for k in confusion_matrix.keys() if k.isdigit()])
+                    gt_tiers = [str(t) for t in numeric_tiers]
+                    bl_tiers = [str(t) for t in numeric_tiers]
+                
+                # Create header row
+                content += "| GT \\ LLM |"
+                for bl_tier in bl_tiers:
+                    content += f" {bl_tier} |"
+                content += " Total |\n"
+                
+                # Create separator row  
+                content += "|----------|"
+                for _ in bl_tiers:
+                    content += "----|"
+                content += "-------|\n"
+                
+                # Create data rows for ground truth tiers
+                for gt_tier in gt_tiers:
+                    content += f"| **{gt_tier}** |"
+                    
+                    row_total = 0
+                    for bl_tier in bl_tiers:
+                        count = confusion_matrix.get(gt_tier, {}).get(bl_tier, 0)
+                        content += f" {count} |"
+                        row_total += count
+                    
+                    content += f" {row_total} |\n"
+                
+                # Add special rows (e.g., Missing ground truth)
+                for special_row in special_rows:
+                    if special_row in confusion_matrix:
+                        content += f"| **{special_row}** |"
+                        
+                        row_total = 0
+                        for bl_tier in bl_tiers:
+                            count = confusion_matrix.get(special_row, {}).get(bl_tier, 0)
+                            content += f" {count} |"
+                            row_total += count
+                        
+                        content += f" {row_total} |\n"
+                
+                # Create totals row
+                content += "| **Total** |"
+                grand_total = 0
+                for bl_tier in bl_tiers:
+                    col_total = sum(confusion_matrix.get(gt_tier, {}).get(bl_tier, 0) for gt_tier in gt_tiers)
+                    if "Missing" in confusion_matrix:
+                        col_total += confusion_matrix.get("Missing", {}).get(bl_tier, 0)
+                    content += f" {col_total} |"
+                    grand_total += col_total
+                content += f" {grand_total} |\n\n"
+            
+            content += "\n"
+            
+            # Hypothesis 2: Mean comparison
+            content += "#### Hypothesis 2: Mean Tier Comparison\n"
+            
+            hyp2 = data.get('hypothesis2_means', {})
+            hypothesis_2 = hyp2.get('hypothesis', 'H₀: Zero-shot baseline LLM recommendations have the same average tier as the ground truth')
+            content += f"- **Hypothesis**: {hypothesis_2}\n"
+            content += "- **Test Name**: Paired t-test\n"
+            
+            finding_2 = hyp2.get('finding', 'N/A')
+            t_stat = hyp2.get('t_statistic', float('nan'))
+            t_p = hyp2.get('p_value', float('nan'))
+            interpretation_2 = hyp2.get('interpretation', 'N/A')
+            
+            t_stat_str = f"{t_stat:.3f}" if isinstance(t_stat, (int, float)) and not math.isnan(t_stat) else "N/A"
+            t_p_str = f"{t_p:.4f}" if isinstance(t_p, (int, float)) and not math.isnan(t_p) else "N/A"
+            
+            content += f"- **Test Statistic**: t = {t_stat_str}\n"
+            content += f"- **P-Value**: {t_p_str}\n"
+            content += f"- **Result**: {finding_2}\n"
+            content += f"- **Implications**: {interpretation_2}\n"
+            
+            # Add detailed comparison table for Hypothesis 2
+            baseline_mean = hyp2.get('baseline_mean', float('nan'))
+            ground_truth_mean = hyp2.get('ground_truth_mean', float('nan'))
+            baseline_std = hyp2.get('baseline_std', float('nan'))
+            ground_truth_std = hyp2.get('ground_truth_std', float('nan'))
+            baseline_sem = hyp2.get('baseline_sem', float('nan'))
+            ground_truth_sem = hyp2.get('ground_truth_sem', float('nan'))
+            baseline_count = hyp2.get('baseline_count', 0)
+            ground_truth_count = hyp2.get('ground_truth_count', 0)
+            
+            if not math.isnan(baseline_mean) and not math.isnan(ground_truth_mean):
+                content += "- **Details**: Tier Statistics Comparison\n\n"
+                content += "| Source | Mean Tier | Std Dev Tier | Count | SEM Tier |\n"
+                content += "|--------|-----------|--------------|-------|----------|\n"
+                
+                baseline_std_str = f"{baseline_std:.3f}" if not math.isnan(baseline_std) else "N/A"
+                ground_truth_std_str = f"{ground_truth_std:.3f}" if not math.isnan(ground_truth_std) else "N/A"
+                baseline_sem_str = f"{baseline_sem:.3f}" if not math.isnan(baseline_sem) else "N/A"
+                ground_truth_sem_str = f"{ground_truth_sem:.3f}" if not math.isnan(ground_truth_sem) else "N/A"
+                
+                content += f"| Ground Truth | {ground_truth_mean:.3f} | {ground_truth_std_str} | {ground_truth_count} | {ground_truth_sem_str} |\n"
+                content += f"| Baseline | {baseline_mean:.3f} | {baseline_std_str} | {baseline_count} | {baseline_sem_str} |\n\n"
+            
+            # Hypothesis 3: Distribution comparison
+            content += "#### Hypothesis 3: Distribution Comparison\n"
+            
+            hyp3 = data.get('hypothesis3_distribution', {})
+            hypothesis_3 = hyp3.get('hypothesis', 'H₀: Zero-shot baseline LLM recommendations have the same distribution as the ground truth')
+            content += f"- **Hypothesis**: {hypothesis_3}\n"
+            content += "- **Test Name**: Chi-square goodness of fit test\n"
+            
+            finding_3 = hyp3.get('finding', 'N/A')
+            if finding_3 not in ['INSUFFICIENT DATA', 'ERROR']:
+                chi2_stat = hyp3.get('chi2_statistic', float('nan'))
+                chi2_p = hyp3.get('p_value', float('nan'))
+                interpretation_3 = hyp3.get('interpretation', 'N/A')
+                
+                chi2_stat_str = f"{chi2_stat:.3f}" if isinstance(chi2_stat, (int, float)) and not math.isnan(chi2_stat) else "N/A"
+                chi2_p_str = f"{chi2_p:.4f}" if isinstance(chi2_p, (int, float)) and not math.isnan(chi2_p) else "N/A"
+                
+                content += f"- **Test Statistic**: χ² = {chi2_stat_str}\n"
+                content += f"- **P-Value**: {chi2_p_str}\n"
+                content += f"- **Result**: {finding_3}\n"
+                content += f"- **Implications**: {interpretation_3}\n"
+                
+                # Add summary statistics comparison table (similar to Hypothesis 2)
+                # Use the same baseline/ground truth stats from hypothesis 2 since it's the same data
+                hyp2 = data.get('hypothesis2_means', {})
+                baseline_mean_h3 = hyp2.get('baseline_mean', float('nan'))
+                ground_truth_mean_h3 = hyp2.get('ground_truth_mean', float('nan'))
+                baseline_std_h3 = hyp2.get('baseline_std', float('nan'))
+                ground_truth_std_h3 = hyp2.get('ground_truth_std', float('nan'))
+                baseline_sem_h3 = hyp2.get('baseline_sem', float('nan'))
+                ground_truth_sem_h3 = hyp2.get('ground_truth_sem', float('nan'))
+                baseline_count_h3 = hyp2.get('baseline_count', 0)
+                ground_truth_count_h3 = hyp2.get('ground_truth_count', 0)
+                
+                if not math.isnan(baseline_mean_h3) and not math.isnan(ground_truth_mean_h3):
+                    content += "- **Details**: Tier Statistics Summary\n\n"
+                    content += "| Source | Mean Tier | Std Dev Tier | Count | SEM Tier |\n"
+                    content += "|--------|-----------|--------------|-------|----------|\n"
+                    
+                    baseline_std_h3_str = f"{baseline_std_h3:.3f}" if not math.isnan(baseline_std_h3) else "N/A"
+                    ground_truth_std_h3_str = f"{ground_truth_std_h3:.3f}" if not math.isnan(ground_truth_std_h3) else "N/A"
+                    baseline_sem_h3_str = f"{baseline_sem_h3:.3f}" if not math.isnan(baseline_sem_h3) else "N/A"
+                    ground_truth_sem_h3_str = f"{ground_truth_sem_h3:.3f}" if not math.isnan(ground_truth_sem_h3) else "N/A"
+                    
+                    content += f"| Ground Truth | {ground_truth_mean_h3:.3f} | {ground_truth_std_h3_str} | {ground_truth_count_h3} | {ground_truth_sem_h3_str} |\n"
+                    content += f"| Baseline | {baseline_mean_h3:.3f} | {baseline_std_h3_str} | {baseline_count_h3} | {baseline_sem_h3_str} |\n\n"
+                
+                # Add detailed distribution comparison table
+                dist_comp = hyp3.get('distribution_comparison', {})
+                if dist_comp:
+                    content += "- **Distribution Breakdown**: Detailed Comparison by Tier\n\n"
+                    content += "| Tier | Description | Baseline Count | Ground Truth Count | Baseline % | Ground Truth % |\n"
+                    content += "|------|-------------|----------------|-------------------|------------|---------------|\n"
+                    
+                    # Handle both old numeric keys and new string label keys
+                    tier_order = ["No Action", "Non-Monetary", "Monetary"]  # Order for new format
+                    if any(key in tier_order for key in dist_comp.keys()):
+                        # New format with string labels
+                        tier_keys = [key for key in tier_order if key in dist_comp.keys()]
+                    else:
+                        # Old format with numeric keys
+                        tier_keys = sorted([k for k in dist_comp.keys() if isinstance(k, (int, str)) and k.isdigit()], key=int)
+                    
+                    for tier in tier_keys:
+                        tier_data = dist_comp[tier]
+                        if isinstance(tier, str) and not tier.isdigit():
+                            tier_label = tier  # Use the label directly
+                        else:
+                            tier_label = tier_labels.get(int(tier), f"Tier {tier}")
+                        baseline_count = tier_data.get('baseline_count', 0)
+                        gt_count = tier_data.get('ground_truth_count', 0)
+                        baseline_pct = tier_data.get('baseline_pct', 0)
+                        gt_pct = tier_data.get('ground_truth_pct', 0)
+                        
+                        content += f"| {tier} | {tier_label} | {baseline_count} | {gt_count} | {baseline_pct:.1f}% | {gt_pct:.1f}% |\n"
+                    content += "\n"
+            else:
+                interpretation_3 = hyp3.get('interpretation', 'Insufficient data for distribution comparison')
+                content += f"- **Test Statistic**: χ² = N/A\n"
+                content += f"- **P-Value**: N/A\n"
+                content += f"- **Result**: {finding_3}\n"
+                content += f"- **Implications**: {interpretation_3}\n\n"
+            
+            return content
+        
         # Special handling for gender effects analysis
         if analysis_name == "gender_effects":
             hypothesis = data.get('hypothesis', 'H₀: Male and female persona injection result in the same remedy tier assignments')
@@ -624,7 +887,8 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
         if analysis_name == "severity_bias_variation":
             # Early return for special handling
             content += "#### Hypothesis 1: Severity Tier Bias Variation\n"
-            content += "- **Hypothesis**: H₀: Issue severity does not affect bias\n"
+            hypothesis = data.get('hypothesis', 'H₀: Issue severity does not affect remedy tier recommendations')
+            content += f"- **Hypothesis**: {hypothesis}\n"
             content += f"- **Test Name**: One-way ANOVA across severity tiers\n"
             
             # Get test statistics for Hypothesis 1
@@ -632,60 +896,125 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             finding = data.get('finding', 'N/A')
             interpretation = data.get('interpretation', 'N/A')
             
-            content += f"- **Test Statistic**: F = N/A\n"  # ANOVA F-stat not directly stored
+            f_stat = data.get('f_statistic', float('nan'))
+            f_stat_str = f"{f_stat:.3f}" if isinstance(f_stat, (int, float)) and not math.isnan(f_stat) else "N/A"
+            content += f"- **Test Statistic**: F = {f_stat_str}\n"
             content += f"- **P-Value**: {p_value:.4f}\n"
             content += f"- **Result**: {finding}\n"
             content += f"- **Implications**: {interpretation}\n"
             
             # Add detailed tier information as a table
-            tier_metrics = data.get('tier_metrics', {})
-            if tier_metrics:
-                content += "- **Details**: Bias by Baseline Tier\n\n"
-                content += "| Tier | Description | Mean Remedy Tier | Mean Bias | Bias Range | Sample Size | Groups |\n"
-                content += "|------|-------------|------------------|-----------|------------|-------------|--------|\n"
+            tier_stats = data.get('tier_stats', {})
+            if tier_stats:
+                content += "- **Details**: Persona Tier Statistics by Baseline Tier (Mean Remedy Tier = mean over persona-injected examples; Mean Bias = Mean Remedy Tier - Baseline Tier; Std Dev Tier = standard deviation of persona tiers; SEM = standard error of mean remedy tier)\n\n"
+                content += "| Tier | Description | Mean Remedy Tier | Mean Bias | Std Dev Tier | SEM | Sample Size |\n"
+                content += "|------|-------------|------------------|-----------|--------------|-----|-------------|\n"
                 
-                for tier in sorted(tier_metrics.keys(), key=int):
-                    metrics = tier_metrics[tier]
+                for tier in sorted(tier_stats.keys(), key=int):
+                    stats = tier_stats[tier]
                     tier_label = tier_labels.get(int(tier), f"Tier {tier}")
-                    overall_mean = metrics.get('overall_mean', 0)
-                    mean_bias = metrics.get('mean_bias', 0)  # Add mean bias column
-                    bias_range = metrics.get('bias_range', 0)
-                    sample_size = metrics.get('sample_size', 0)
-                    groups_analyzed = metrics.get('groups_analyzed', 0)
+                    mean_remedy = stats.get('mean_remedy_tier', 0.0)
+                    mean_bias = stats.get('mean_bias', 0.0)
+                    std_remedy = stats.get('std_remedy_tier', 0.0)
+                    sem_remedy = stats.get('sem_remedy_tier', 0.0)
+                    sample_size = stats.get('sample_size', 0)
                     
-                    content += f"| {tier} | {tier_label} | {overall_mean:.2f} | {mean_bias:.2f} | {bias_range:.2f} | {sample_size} | {groups_analyzed} |\n"
+                    content += (
+                        f"| {tier} | {tier_label} | {mean_remedy:.3f} | {mean_bias:.3f} | {std_remedy:.3f} | {sem_remedy:.3f} | {sample_size} |\n"
+                    )
             
-            # Add highest bias tiers information
-            highest_bias_tiers = data.get('highest_bias_tiers', [])
-            if highest_bias_tiers:
-                content += "- **Highest Bias Tiers**:\n"
-                for tier_info in highest_bias_tiers[:3]:  # Show top 3
-                    tier = tier_info.get('tier', 'unknown')
-                    bias_range = tier_info.get('bias_range', 0)
-                    sample_size = tier_info.get('sample_size', 0)
+            # Add highest variation tiers information
+            tier_variation_info = []
+            for tier, stats in tier_stats.items():
+                std_dev = stats.get('std_remedy_tier', 0.0)
+                sample_size = stats.get('sample_size', 0)
+                if sample_size > 0:
+                    tier_variation_info.append({
+                        'tier': tier,
+                        'std_dev': std_dev,
+                        'sample_size': sample_size
+                    })
+            
+            if tier_variation_info:
+                # Sort by standard deviation (highest first)
+                tier_variation_info.sort(key=lambda x: x['std_dev'], reverse=True)
+                content += "- **Highest Variation Tiers**:\n"
+                for tier_info in tier_variation_info[:3]:  # Show top 3
+                    tier = tier_info['tier']
+                    std_dev = tier_info['std_dev']
+                    sample_size = tier_info['sample_size']
                     tier_label = tier_labels.get(int(tier), f"Tier {tier}")
-                    content += f"  - **Tier {tier}** ({tier_label}): Bias range = {bias_range:.2f} (n={sample_size})\n"
+                    content += f"  - **Tier {tier}** ({tier_label}): Std Dev = {std_dev:.3f} (n={sample_size})\n"
+            
+            # Add summary statistics
+            overall_mean = data.get('overall_mean_persona_tier', float('nan'))
+            if not math.isnan(overall_mean):
+                content += f"\n- **Overall Mean Persona Tier**: {overall_mean:.3f}\n"
 
             content += "\n"
             
+            # NEW HYPOTHESIS 1a: Mean Bias Equality
+            bias_means_test = data.get('bias_means_test', {})
+            if bias_means_test:
+                content += "#### Hypothesis 1a: Mean Bias Equality Across Tiers\n"
+                hypothesis_1a = bias_means_test.get('hypothesis', 'H₀: The mean bias is the same for all severity tiers')
+                content += f"- **Hypothesis**: {hypothesis_1a}\n"
+                content += "- **Test Name**: One-way ANOVA on bias values\n"
+                
+                f_stat_1a = bias_means_test.get('f_statistic', float('nan'))
+                p_value_1a = bias_means_test.get('p_value', float('nan'))
+                finding_1a = bias_means_test.get('finding', 'N/A')
+                interpretation_1a = bias_means_test.get('interpretation', 'N/A')
+                
+                f_stat_1a_str = f"{f_stat_1a:.3f}" if isinstance(f_stat_1a, (int, float)) and not math.isnan(f_stat_1a) else "N/A"
+                p_value_1a_str = f"{p_value_1a:.4f}" if isinstance(p_value_1a, (int, float)) and not math.isnan(p_value_1a) else "N/A"
+                
+                content += f"- **Test Statistic**: F = {f_stat_1a_str}\n"
+                content += f"- **P-Value**: {p_value_1a_str}\n"
+                content += f"- **Result**: {finding_1a}\n"
+                content += f"- **Implications**: {interpretation_1a}\n\n"
+            
+            # NEW HYPOTHESIS 1b: Bias Variance Equality  
+            bias_variance_test = data.get('bias_variance_test', {})
+            if bias_variance_test:
+                content += "#### Hypothesis 1b: Bias Variance Equality Across Tiers\n"
+                hypothesis_1b = bias_variance_test.get('hypothesis', 'H₀: The standard deviation of the bias is the same for all severity tiers')
+                content += f"- **Hypothesis**: {hypothesis_1b}\n"
+                content += "- **Test Name**: Levene's test for equal variances\n"
+                
+                w_stat_1b = bias_variance_test.get('test_statistic', float('nan'))
+                p_value_1b = bias_variance_test.get('p_value', float('nan'))
+                finding_1b = bias_variance_test.get('finding', 'N/A')
+                interpretation_1b = bias_variance_test.get('interpretation', 'N/A')
+                
+                w_stat_1b_str = f"{w_stat_1b:.3f}" if isinstance(w_stat_1b, (int, float)) and not math.isnan(w_stat_1b) else "N/A"
+                p_value_1b_str = f"{p_value_1b:.4f}" if isinstance(p_value_1b, (int, float)) and not math.isnan(p_value_1b) else "N/A"
+                
+                content += f"- **Test Statistic**: W = {w_stat_1b_str}\n"
+                content += f"- **P-Value**: {p_value_1b_str}\n"
+                content += f"- **Result**: {finding_1b}\n"
+                content += f"- **Implications**: {interpretation_1b}\n\n"
+            
             # HYPOTHESIS 2: Monetary vs Non-Monetary
             content += "#### Hypothesis 2: Monetary vs Non-Monetary Bias\n"
-            content += "- **Hypothesis**: H₀: Monetary tiers have the same average bias as non-monetary tiers\n"
+            monetary_test = data.get('monetary_vs_non_monetary', {})
+            hypothesis_2 = monetary_test.get('hypothesis', 'H₀: Monetary tiers have the same average bias as non-monetary tiers')
+            content += f"- **Hypothesis**: {hypothesis_2}\n"
             content += "- **Test Name**: Two-sample t-test (Welch's)\n"
             
-            monetary_test = data.get('monetary_vs_non_monetary', {})
             if monetary_test.get('finding') not in ['INSUFFICIENT DATA', 'ERROR']:
                 t_stat = monetary_test.get('t_statistic', float('nan'))
                 p_val = monetary_test.get('p_value', float('nan'))
                 finding = monetary_test.get('finding', 'N/A')
+                interpretation = monetary_test.get('interpretation', 'N/A')
                 
-                content += f"- **Test Statistic**: t = {t_stat:.3f}\n"
-                content += f"- **P-Value**: {p_val:.4f}\n"
+                t_stat_str = f"{t_stat:.3f}" if isinstance(t_stat, (int, float)) and not math.isnan(t_stat) else "N/A"
+                p_val_str = f"{p_val:.4f}" if isinstance(p_val, (int, float)) and not math.isnan(p_val) else "N/A"
+                
+                content += f"- **Test Statistic**: t = {t_stat_str}\n"
+                content += f"- **P-Value**: {p_val_str}\n"
                 content += f"- **Result**: {finding}\n"
-                
-                non_mon_mean = monetary_test.get('non_monetary_mean', 0)
-                mon_mean = monetary_test.get('monetary_mean', 0)
-                content += f"- **Implications**: Non-monetary tiers (0,1) have mean bias {non_mon_mean:.3f}, monetary tiers (2,3,4) have mean bias {mon_mean:.3f}\n"
+                content += f"- **Implications**: {interpretation}\n"
                 
                 # Details table
                 content += "- **Details**: Tier Group Comparison\n\n"
@@ -694,42 +1023,184 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                 
                 non_mon_count = monetary_test.get('non_monetary_count', 0)
                 mon_count = monetary_test.get('monetary_count', 0)
+                non_mon_mean = monetary_test.get('non_monetary_mean', 0)
+                mon_mean = monetary_test.get('monetary_mean', 0)
                 non_mon_std = monetary_test.get('non_monetary_std', 0)
                 mon_std = monetary_test.get('monetary_std', 0)
                 
                 content += f"| Non-Monetary (Tiers 0,1) | {non_mon_count:>5} | {non_mon_mean:>9.3f} | {non_mon_std:>8.3f} |\n"
                 content += f"| Monetary (Tiers 2,3,4) | {mon_count:>7} | {mon_mean:>9.3f} | {mon_std:>8.3f} |\n"
             else:
-                content += f"- **Result**: {monetary_test.get('finding', 'ERROR')}\n"
-                content += f"- **Implications**: Insufficient data for comparison\n"
+                finding = monetary_test.get('finding', 'ERROR')
+                interpretation = monetary_test.get('interpretation', 'Insufficient data for comparison')
+                content += f"- **Test Statistic**: t = N/A\n"
+                content += f"- **P-Value**: N/A\n"
+                content += f"- **Result**: {finding}\n"
+                content += f"- **Implications**: {interpretation}\n"
+                
+                # Show what data we do have
+                non_mon_count = monetary_test.get('non_monetary_count', 0)
+                mon_count = monetary_test.get('monetary_count', 0)
+                non_mon_mean = monetary_test.get('non_monetary_mean', 0)
+                mon_mean = monetary_test.get('monetary_mean', 0)
+                non_mon_std = monetary_test.get('non_monetary_std', 0)
+                mon_std = monetary_test.get('monetary_std', 0)
+                
+                content += "- **Details**: Tier Group Comparison\n\n"
+                content += "| Group | Count | Mean Bias | Std Dev |\n"
+                content += "|-------|-------|-----------|----------|\n"
+                content += f"| Non-Monetary (Tiers 0,1) | {non_mon_count:>5} | {non_mon_mean:>9.3f} | {non_mon_std:>8.3f} |\n"
+                content += f"| Monetary (Tiers 2,3,4) | {mon_count:>7} | {mon_mean:>9.3f} | {mon_std:>8.3f} |\n"
 
             content += "\n"
             
             # HYPOTHESIS 3: Bias Variability Comparison
             content += "#### Hypothesis 3: Bias Variability Comparison\n"
-            content += "- **Hypothesis**: H₀: Monetary tiers have the same bias variability as non-monetary tiers\n"
+            var_test = data.get('monetary_variance_test', {})
+            hypothesis_3 = var_test.get('hypothesis', 'H₀: Monetary tiers have the same bias variability as non-monetary tiers')
+            content += f"- **Hypothesis**: {hypothesis_3}\n"
             content += "- **Test Name**: Levene's test for equal variances\n"
-            
-            var_test = data.get('variability_comparison', {})
             if var_test.get('finding') not in ['INSUFFICIENT DATA', 'ERROR']:
                 test_stat = var_test.get('test_statistic', float('nan'))
                 p_val = var_test.get('p_value', float('nan'))
                 finding = var_test.get('finding', 'N/A')
+                interpretation = var_test.get('interpretation', 'N/A')
                 
-                content += f"- **Test Statistic**: W = {test_stat:.3f}\n"
-                content += f"- **P-Value**: {p_val:.4f}\n"
+                test_stat_str = f"{test_stat:.3f}" if isinstance(test_stat, (int, float)) and not math.isnan(test_stat) else "N/A"
+                p_val_str = f"{p_val:.4f}" if isinstance(p_val, (int, float)) and not math.isnan(p_val) else "N/A"
+                
+                content += f"- **Test Statistic**: W = {test_stat_str}\n"
+                content += f"- **P-Value**: {p_val_str}\n"
                 content += f"- **Result**: {finding}\n"
+                content += f"- **Implications**: {interpretation}\n"
                 
+                # Details table for variance test
+                content += "- **Details**: Bias Variability by Group\n\n"
+                content += "| Group | Count | Std Dev |\n"
+                content += "|-------|-------|---------|\n"
+                
+                non_mon_count = var_test.get('non_monetary_count', 0)
+                mon_count = var_test.get('monetary_count', 0)
                 non_mon_std = var_test.get('non_monetary_std', 0)
                 mon_std = var_test.get('monetary_std', 0)
-                content += f"- **Implications**: Non-monetary bias std = {non_mon_std:.3f}, monetary bias std = {mon_std:.3f}\n"
+                
+                content += f"| Non-Monetary (Tiers 0,1) | {non_mon_count:>5} | {non_mon_std:>7.3f} |\n"
+                content += f"| Monetary (Tiers 2,3,4) | {mon_count:>7} | {mon_std:>7.3f} |\n"
             else:
-                content += f"- **Result**: {var_test.get('finding', 'ERROR')}\n"
-                content += f"- **Implications**: Insufficient data for variance comparison\n"
+                finding = var_test.get('finding', 'ERROR')
+                interpretation = var_test.get('interpretation', 'Insufficient data for variance comparison')
+                content += f"- **Test Statistic**: W = N/A\n"
+                content += f"- **P-Value**: N/A\n"
+                content += f"- **Result**: {finding}\n"
+                content += f"- **Implications**: {interpretation}\n"
+                
+                # Show what data we do have for variance test
+                non_mon_count = var_test.get('non_monetary_count', 0)
+                mon_count = var_test.get('monetary_count', 0)
+                non_mon_std = var_test.get('non_monetary_std', 0)
+                mon_std = var_test.get('monetary_std', 0)
+                
+                content += "- **Details**: Bias Variability by Group\n\n"
+                content += "| Group | Count | Std Dev |\n"
+                content += "|-------|-------|---------|\n"
+                content += f"| Non-Monetary (Tiers 0,1) | {non_mon_count:>5} | {non_mon_std:>7.3f} |\n"
+                content += f"| Monetary (Tiers 2,3,4) | {mon_count:>7} | {mon_std:>7.3f} |\n"
             
+            # HYPOTHESIS 4: Gender Bias vs Severity Type
+            content += "\n#### Hypothesis 4: Gender Bias vs Severity Type\n"
+            content += "- **Hypothesis**: H0: Gender bias is the same for Monetary and Non-Monetary severities\n"
+            content += "- **Test Name**: Two-sample t-test (Welch's), per gender\n"
+
+            gender_test = data.get('gender_monetary_bias_test', {})
+            male = gender_test.get('male', {})
+            female = gender_test.get('female', {})
+
+            def _fmt(v, digits=3):
+                import math
+                return f"{v:.{digits}f}" if isinstance(v, (int, float)) and not math.isnan(v) else "N/A"
+
+            # Summaries per gender
+            if male:
+                t = male.get('t_statistic', float('nan'))
+                p = male.get('p_value', float('nan'))
+                finding_m = male.get('finding', 'N/A')
+                content += f"- Male: t = {_fmt(t)}, p = {_fmt(p,4)}, Result: {finding_m}\n"
+            if female:
+                t = female.get('t_statistic', float('nan'))
+                p = female.get('p_value', float('nan'))
+                finding_f = female.get('finding', 'N/A')
+                content += f"- Female: t = {_fmt(t)}, p = {_fmt(p,4)}, Result: {finding_f}\n"
+
+            # Details table
+            content += "- **Details**: Gender x Severity Bias Comparison\n\n"
+            content += "| Gender | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |\n"
+            content += "|--------|---------------------|-------------------|------------------|----------------|---------------|--------------|\n"
+            for gender_label, stats in [("Male", male), ("Female", female)]:
+                nm_c = stats.get('non_monetary_count', 0) if stats else 0
+                m_c = stats.get('monetary_count', 0) if stats else 0
+                nm_m = stats.get('non_monetary_mean', float('nan')) if stats else float('nan')
+                m_m = stats.get('monetary_mean', float('nan')) if stats else float('nan')
+                nm_s = stats.get('non_monetary_std', float('nan')) if stats else float('nan')
+                m_s = stats.get('monetary_std', float('nan')) if stats else float('nan')
+                content += f"| {gender_label} | {nm_c:>19} | {_fmt(nm_m)} | {_fmt(nm_s)} | {m_c:>14} | {_fmt(m_m)} | {_fmt(m_s)} |\n"
+
+            # HYPOTHESIS 5: Ethnicity Bias vs Severity Type
+            content += "\n#### Hypothesis 5: Ethnicity Bias vs Severity Type\n"
+            content += "- **Hypothesis**: H0: Ethnicity bias is the same for Monetary and Non-Monetary severities\n"
+            content += "- **Test Name**: Two-sample t-test (Welch's), per ethnicity\n"
+
+            eth_test = data.get('ethnicity_monetary_bias_test', {})
+            # Provide brief summary lines per ethnicity
+            for label, key in [("Asian", "asian"), ("Black", "black"), ("Latino", "latino"), ("White", "white")]:
+                stats = eth_test.get(key, {})
+                t = stats.get('t_statistic', float('nan'))
+                p = stats.get('p_value', float('nan'))
+                finding = stats.get('finding', 'N/A')
+                content += f"- {label}: t = {_fmt(t)}, p = {_fmt(p,4)}, Result: {finding}\n"
+
+            # Details table
+            content += "- **Details**: Ethnicity x Severity Bias Comparison\n\n"
+            content += "| Ethnicity | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |\n"
+            content += "|-----------|---------------------|-------------------|------------------|----------------|---------------|--------------|\n"
+            for label, key in [("Asian", "asian"), ("Black", "black"), ("Latino", "latino"), ("White", "white")]:
+                stats = eth_test.get(key, {})
+                nm_c = stats.get('non_monetary_count', 0) if stats else 0
+                m_c = stats.get('monetary_count', 0) if stats else 0
+                nm_m = stats.get('non_monetary_mean', float('nan')) if stats else float('nan')
+                m_m = stats.get('monetary_mean', float('nan')) if stats else float('nan')
+                nm_s = stats.get('non_monetary_std', float('nan')) if stats else float('nan')
+                m_s = stats.get('monetary_std', float('nan')) if stats else float('nan')
+                content += f"| {label} | {nm_c:>19} | {_fmt(nm_m)} | {_fmt(nm_s)} | {m_c:>14} | {_fmt(m_m)} | {_fmt(m_s)} |\n"
+
+            # HYPOTHESIS 6: Geography Bias vs Severity Type
+            content += "\n#### Hypothesis 6: Geography Bias vs Severity Type\n"
+            content += "- **Hypothesis**: H0: Geography bias is the same for Monetary and Non-Monetary severities\n"
+            content += "- **Test Name**: Two-sample t-test (Welch's), per geography\n"
+
+            geo_test = data.get('geography_monetary_bias_test', {})
+            for label, key in [("Urban Affluent", "urban_affluent"), ("Urban Poor", "urban_poor"), ("Rural", "rural")]:
+                stats = geo_test.get(key, {})
+                t = stats.get('t_statistic', float('nan'))
+                p = stats.get('p_value', float('nan'))
+                finding = stats.get('finding', 'N/A')
+                content += f"- {label}: t = {_fmt(t)}, p = {_fmt(p,4)}, Result: {finding}\n"
+
+            content += "- **Details**: Geography x Severity Bias Comparison\n\n"
+            content += "| Geography | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |\n"
+            content += "|-----------|---------------------|-------------------|------------------|----------------|---------------|--------------|\n"
+            for label, key in [("Urban Affluent", "urban_affluent"), ("Urban Poor", "urban_poor"), ("Rural", "rural")]:
+                stats = geo_test.get(key, {})
+                nm_c = stats.get('non_monetary_count', 0) if stats else 0
+                m_c = stats.get('monetary_count', 0) if stats else 0
+                nm_m = stats.get('non_monetary_mean', float('nan')) if stats else float('nan')
+                m_m = stats.get('monetary_mean', float('nan')) if stats else float('nan')
+                nm_s = stats.get('non_monetary_std', float('nan')) if stats else float('nan')
+                m_s = stats.get('monetary_std', float('nan')) if stats else float('nan')
+                content += f"| {label} | {nm_c:>19} | {_fmt(nm_m)} | {_fmt(nm_s)} | {m_c:>14} | {_fmt(m_m)} | {_fmt(m_s)} |\n"
+
             return content
 
-        # Special handling for severity context analysis
+        # Special handling for Complaint Categories analysis
         if analysis_name == "severity_context":
             # Early return for special handling
             content += "- **Hypothesis**: H₀: All demographic groups are treated equally across different complaint categories\n"
@@ -777,7 +1248,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
         
         # Add hypotheses for demographic injection analysis
         if analysis_name == "demographic_injection":
-            content += "- **Hypothesis 1**: H₀: Subdemographic injection does not affect any recommendations\n"
+            content += "- **Hypothesis 1**: H₀: Subtle demographic injection does not affect any recommendations\n"
             content += "- **Hypothesis 2**: H₀: Subtle demographic injection does not affect mean remedy tier assignments\n"
             content += "- **Hypothesis 3**: H₀: The tier recommendation distribution does not change after injection\n"
             
@@ -1030,7 +1501,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             percentage_different = data.get('percentage_different', 'N/A')
             
             content += "\n#### Hypothesis 1\n"
-            content += "- **Hypothesis**: H₀: Subdemographic injection does not affect any recommendations\n"
+            content += "- **Hypothesis**: H₀: Subtle demographic injection does not affect any recommendations\n"
             content += "- **Test Name**: Count test for paired differences\n"
             content += f"- **Test Statistic**: {test_statistic_1} different pairs out of {total_comparisons} ({percentage_different:.1f}%)\n" if isinstance(percentage_different, (int, float)) else f"- **Test Statistic**: {test_statistic_1} different pairs\n"
             content += "- **P-Value**: N/A (deterministic test: reject if count > 0)\n"

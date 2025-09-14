@@ -17,7 +17,7 @@ Specific hypotheses tested include:
 4. **Geographic Bias**: Rural vs urban and affluent vs poor demographics affect outcomes
 5. **Bias Directionality**: Bias patterns are consistent across demographic groups
 6. **Process Fairness**: Demographic information affects procedural aspects of responses
-7. **Severity Context**: Bias varies across different types of banking complaints
+7. **Complaint Categories**: Bias varies across different types of banking complaints
 8. **Fairness Strategy Effectiveness**: Bias mitigation strategies reduce observed disparities
 
 ### 1.2 Significance
@@ -131,7 +131,7 @@ For each complaint template, the following records are generated:
 
 ### 4.1 Demographic Injection Analysis
 
-**Hypothesis 1**: Subdemographic injection effects
+**Hypothesis 1**: Subtle demographic injection effects
 - **Test**: Count test for paired differences
 - **Metric**: Proportion of baseline-persona pairs with different tier assignments
 - **Null**: No pairs show different assignments
@@ -189,7 +189,7 @@ For each complaint template, the following records are generated:
 - **Groups**: 24 demographic personas
 - **Multiple Comparisons**: Bonferroni correction
 
-### 4.5 Severity Context Analysis
+### 4.5 Complaint Categories Analysis
 
 **Test**: One-way ANOVA per complaint category
 - **Groups**: 24 demographic personas
