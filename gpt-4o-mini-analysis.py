@@ -227,7 +227,7 @@ def generate_experiments_with_all_strategies(sample_size: int = 100, threads_per
             return obj
     
     print(f"[EXPERIMENT] Generating {sample_size} complaints with comprehensive persona coverage...")
-    print(f"[EXPERIMENT] Target: 10 personas per complaint for comprehensive severity context analysis")
+    print(f"[EXPERIMENT] Target: 10 personas per complaint for comprehensive Complaint Categories analysis")
     
     # Always load fresh CFPB data for templates (don't reuse existing data)
     runs_file = Path("out/runs.jsonl")
@@ -505,7 +505,7 @@ def generate_experiments_with_all_strategies(sample_size: int = 100, threads_per
             print(f"[CACHE]   Errors: {errors}")
             print(f"[CACHE]   Cost savings: {hit_rate:.1f}% of records served from cache")
         
-        print("[EXPERIMENT] Comprehensive persona coverage now available for severity context analysis!")
+        print("[EXPERIMENT] Comprehensive persona coverage now available for Complaint Categories analysis!")
         print(f"[EXPERIMENT] Generated {len(evaluated_records)} total records for {sample_size} complaints")
     else:
         print("[EXPERIMENT] No new records needed")
@@ -682,8 +682,9 @@ def run_full_analysis(analyzer, args, MODELS, RESULTS_DIR):
     
     # Load the updated data and run analysis
     analyzer._load_existing_results()
-    analyzer.run_all_analyses()
-    analyzer.generate_comprehensive_report("gpt4o_analysis_results.md")
+    analyses = analyzer.run_all_analyses()
+    # Generate comprehensive report using existing analyses (avoid re-running)
+    analyzer.report_generator.generate_comprehensive_report(analyses, "gpt4o_analysis_results.md")
     
     # Generate visualizations if not skipped
     if not args.skip_viz:
@@ -715,71 +716,11 @@ def run_analysis_only(analyzer, args, RESULTS_DIR):
     # Load existing results first
     analyzer._load_existing_results()
     
-    # Run individual analyses
-    print("Running statistical analyses...")
+    # Run all analyses using the unified method
+    analyses = analyzer.run_all_analyses()
     
-    analyses = {
-        "demographic_injection": analyzer.statistical_analyzer.analyze_demographic_injection_effect(
-            analyzer.raw_results
-        ),
-        "gender_effects": analyzer.statistical_analyzer.analyze_gender_effects(
-            analyzer.raw_results
-        ),
-        "ethnicity_effects": analyzer.statistical_analyzer.analyze_ethnicity_effects(
-            analyzer.raw_results
-        ),
-        "geography_effects": analyzer.statistical_analyzer.analyze_geography_effects(
-            analyzer.raw_results
-        ),
-        "granular_bias": analyzer.statistical_analyzer.analyze_granular_bias(
-            analyzer.raw_results
-        ),
-        "bias_directional_consistency": analyzer.statistical_analyzer.analyze_bias_directional_consistency(
-            analyzer.raw_results
-        ),
-        "fairness_strategies": analyzer.statistical_analyzer.analyze_fairness_strategies(
-            analyzer.raw_results
-        ),
-        "process_fairness": analyzer.statistical_analyzer.analyze_process_fairness(
-            analyzer.raw_results
-        ),
-        "severity_context": analyzer.statistical_analyzer.analyze_severity_context(
-            analyzer.raw_results
-        ),
-        "scaling_laws": analyzer.statistical_analyzer.analyze_scaling_laws(
-            analyzer.persona_results
-        ),
-    }
-    
-    # Save individual analysis results
-    for name, results in analyses.items():
-        output_file = analyzer.results_dir / f"{name}_analysis.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            # Convert numpy types for JSON serialization
-            import numpy as np
-            
-            def convert_numpy(obj):
-                """Convert numpy types to native Python types"""
-                if isinstance(obj, np.bool_):
-                    return bool(obj)
-                elif isinstance(obj, np.integer):
-                    return int(obj)
-                elif isinstance(obj, np.floating):
-                    return float(obj)
-                elif isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                elif isinstance(obj, dict):
-                    return {k: convert_numpy(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [convert_numpy(item) for item in obj]
-                else:
-                    return obj
-            
-            json.dump(convert_numpy(results), f, indent=2)
-        print(f"[SAVE] {name} analysis saved to {output_file}")
-    
-    # Generate comprehensive report
-    analyzer.generate_comprehensive_report("gpt4o_analysis_results.md")
+    # Generate comprehensive report using existing analyses (avoid re-running)
+    analyzer.report_generator.generate_comprehensive_report(analyses, "gpt4o_analysis_results.md")
     
     # Generate visualizations if not skipped
     if not args.skip_viz:

@@ -1,0 +1,49 @@
+*** Begin Patch
+*** Update File: nshot_fairness_analysis_V2.py
+@@
+-        # Statistical test for agreement
++        # Statistical test for agreement
+         from scipy.stats import ttest_rel
+         baseline_tiers = [p['baseline_tier'] for p in matched_pairs]
+         nshot_tiers = [p['nshot_tier'] for p in matched_pairs]
+         t_stat, p_value = ttest_rel(baseline_tiers, nshot_tiers)
+-        
+-        return {
++        
++        # Build collapsed-tier confusion matrix (rows = GT baseline, cols = N-shot)
++        def _collapse_tier(t):
++            try:
++                ti = int(t)
++            except Exception:
++                return 'Missing'
++            if ti == 0:
++                return 'No Action'
++            if ti == 1:
++                return 'Non-Monetary'
++            if ti in (2, 3, 4):
++                return 'Monetary'
++            return 'Missing'
++
++        labels = ['No Action', 'Non-Monetary', 'Monetary']
++        confusion_matrix = {row: {col: 0 for col in labels} for row in labels}
++        for p in matched_pairs:
++            gt = _collapse_tier(p['baseline_tier'])
++            pr = _collapse_tier(p['nshot_tier'])
++            if gt in confusion_matrix and pr in confusion_matrix[gt]:
++                confusion_matrix[gt][pr] += 1
++
++        return {
+             "finding": f"EXACT_MATCH_RATE_{exact_match_rate:.1%}",
+             "exact_match_rate": float(exact_match_rate),
+             "mean_tier_difference": float(mean_tier_difference),
+             "baseline_mean_tier": float(baseline_mean_tier),
+             "nshot_mean_tier": float(nshot_mean_tier),
+             "tier_correlation": float(np.corrcoef(baseline_tiers, nshot_tiers)[0,1]) if len(baseline_tiers) > 1 else 0.0,
+             "agreement_t_stat": float(t_stat),
+             "agreement_p_value": float(p_value),
+             "n_pairs": len(matched_pairs),
+-            "interpretation": f"N-shot model agrees with baseline {exact_match_rate:.1%} of the time (mean diff: {mean_tier_difference:.2f})"
++            "interpretation": f"N-shot model agrees with baseline {exact_match_rate:.1%} of the time (mean diff: {mean_tier_difference:.2f})",
++            "confusion_matrix": confusion_matrix
+         }
+*** End Patch

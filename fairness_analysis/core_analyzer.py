@@ -48,17 +48,21 @@ class AdvancedFairnessAnalyzer:
         """Run all statistical analyses"""
         print("\n[ANALYSIS] Running all statistical analyses...")
         
-        # Only load existing results if cache is requested
-        if use_cache:
-            self._load_existing_results()
-        else:
-            # Load fresh raw results for analysis
-            self._load_raw_results()
+        # Only load data if we don't already have it loaded
+        if self.raw_results is None or len(self.raw_results) == 0:
+            if use_cache:
+                self._load_existing_results()
+            else:
+                # Load fresh raw results for analysis
+                self._load_raw_results()
         
         analyses = {}
         
         try:
             # Run individual analyses
+            analyses["ground_truth"] = self.statistical_analyzer.analyze_ground_truth(
+                self.raw_results
+            )
             analyses["demographic_injection"] = self.statistical_analyzer.analyze_demographic_injection_effect(
                 self.raw_results
             )
@@ -90,9 +94,6 @@ class AdvancedFairnessAnalyzer:
                 self.raw_results
             )
             analyses["model_scaling"] = self.statistical_analyzer.analyze_scaling_laws(
-                self.persona_results
-            )
-            analyses["corrective_justice"] = self.statistical_analyzer.analyze_corrective_justice(
                 self.persona_results
             )
             
@@ -156,24 +157,33 @@ class AdvancedFairnessAnalyzer:
         """Load existing experimental results"""
         # Map of analysis types to actual data files
         data_file_mapping = {
-            "raw_results": "enhanced_runs.jsonl",  # Use enhanced_runs.jsonl for V2
+            "raw_results": "runs.jsonl",  # Standard runs.jsonl file
             "persona_results": "persona_model_interactions_analysis.json",
             "strategy_results": "strategy_accuracy_equalization_analysis.json",
             "directional_analysis": "directional_fairness_analysis.json",
             "ground_truth": "ground_truth_validation_analysis.json"
         }
         
-        # Also check for data in the main out directory
+        # Check for data in the results directory first, then fall back to main out directory
+        local_runs_file = self.results_dir / "runs.jsonl"
         out_dir = Path("out")
-        if out_dir.exists() and (out_dir / "runs.jsonl").exists():
-            # Use the main experimental results if available
-            data_file_mapping["raw_results"] = str(out_dir / "runs.jsonl")
-            # print(f"[DEBUG] Found real experimental data at {out_dir / 'runs.jsonl'}")
+
+        if local_runs_file.exists():
+            # Use the local results directory runs.jsonl if it exists (mark as absolute to avoid double-prefixing)
+            data_file_mapping["raw_results"] = f"ABSOLUTE:{str(local_runs_file)}"
+            # print(f"[DEBUG] Found local experimental data at {local_runs_file}")
+        elif out_dir.exists() and (out_dir / "runs.jsonl").exists():
+            # Fall back to the main experimental results if no local file (mark as absolute)
+            data_file_mapping["raw_results"] = f"ABSOLUTE:{str(out_dir / 'runs.jsonl')}"
+            # print(f"[DEBUG] Using main experimental data at {out_dir / 'runs.jsonl'}")
         
         files_found = []
         for data_type, filename in data_file_mapping.items():
             # Handle both relative and absolute paths
-            if Path(filename).is_absolute() or str(filename).startswith(('out/', 'advanced_results/', 'out\\', 'advanced_results\\')):
+            if str(filename).startswith('ABSOLUTE:'):
+                # Remove the ABSOLUTE: prefix and use as-is
+                file_path = Path(filename[9:])
+            elif Path(filename).is_absolute() or str(filename).startswith(('out/', 'advanced_results/', 'out\\', 'advanced_results\\')):
                 file_path = Path(filename)
             else:
                 file_path = self.results_dir / filename

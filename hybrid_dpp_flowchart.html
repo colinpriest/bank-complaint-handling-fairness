@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid DPP Algorithm Flow Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .legend h3 {
+            color: #2d3748;
+            margin-top: 0;
+        }
+        .legend-item {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            margin-right: 15px;
+            border-radius: 5px;
+            border: 1px solid #cbd5e0;
+        }
+        .phase-explanation {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .phase-card {
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+        }
+        .phase-card h4 {
+            margin-top: 0;
+            color: #4a5568;
+        }
+        .phase-card ul {
+            color: #718096;
+            padding-left: 20px;
+        }
+        .phase-1 { background: #fef5e7; border-color: #f39c12; }
+        .phase-2 { background: #eaf4fc; border-color: #3498db; }
+        .phase-3 { background: #eafaf1; border-color: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hybrid DPP Algorithm</h1>
+        <div class="subtitle">Combining Centrality, Exact Sampling, and Greedy Selection</div>
+        
+        <div class="mermaid">
+            %%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#fff', 'primaryBorderColor':'#2d3748', 'primaryTextColor':'#2d3748', 'lineColor':'#4a5568', 'secondaryColor':'#f7fafc', 'tertiaryColor':'#edf2f7', 'background':'#ffffff'}}}%%
+            flowchart TD
+                Start([Start: Input k points needed]) --> Input[/"Input:<br/>• Similarity matrix S<br/>• Number of points k<br/>• Quality scores or constant"/]
+                
+                Input --> CheckK{k = 1?}
+                
+                CheckK -->|Yes| Central[["🎯 Phase 1: Central Point<br/>Calculate centrality scores:<br/>quality[i] = mean(S[i,:]))"]]
+                Central --> SelectFirst["Select point with<br/>highest centrality<br/>(deterministic or probabilistic)"]
+                SelectFirst --> End1([Return single point])
+                
+                CheckK -->|No, k ≥ 2| BuildL["Build DPP Kernel Matrix L<br/>L[i,i] = quality[i]²<br/>L[i,j] = quality[i] × S[i,j] × quality[j]"]
+                
+                BuildL --> Phase1Multi[["🎯 Phase 1: Central Point<br/>Select first point by centrality"]]
+                Phase1Multi --> UpdateSubset1["Subset = {central_point}<br/>Points selected = 1"]
+                
+                UpdateSubset1 --> CheckK2{k = 2?}
+                
+                CheckK2 -->|Yes| Phase2Two[["🔷 Phase 2: Exact DPP<br/>Sample 2nd point exactly<br/>P(j | first) ∝ det(L_{first,j})"]]
+                Phase2Two --> End2([Return 2 points])
+                
+                CheckK2 -->|No, k > 2| Phase2Multi[["🔷 Phase 2: Exact DPP<br/>Sample 2nd point exactly<br/>using conditional DPP"]]
+                Phase2Multi --> UpdateSubset2["Subset = {point_1, point_2}<br/>Points selected = 2"]
+                
+                UpdateSubset2 --> CheckComplete{Points selected < k?}
+                
+                CheckComplete -->|Yes| Phase3[["🟢 Phase 3: Greedy Selection<br/>For each remaining point:<br/>Select j = argmax det(L_{S∪{j}})"]]
+                Phase3 --> UpdateSubset3["Add best point to subset<br/>Points selected += 1"]
+                UpdateSubset3 --> CheckComplete
+                
+                CheckComplete -->|No| EndMulti([Return k points])
+                
+                style Central fill:#fef5e7,stroke:#f39c12,stroke-width:3px
+                style Phase1Multi fill:#fef5e7,stroke:#f39c12,stroke-width:3px
+                style Phase2Two fill:#eaf4fc,stroke:#3498db,stroke-width:3px
+                style Phase2Multi fill:#eaf4fc,stroke:#3498db,stroke-width:3px
+                style Phase3 fill:#eafaf1,stroke:#27ae60,stroke-width:3px
+                style Start fill:#667eea,stroke:#667eea,color:#fff
+                style End1 fill:#764ba2,stroke:#764ba2,color:#fff
+                style End2 fill:#764ba2,stroke:#764ba2,color:#fff
+                style EndMulti fill:#764ba2,stroke:#764ba2,color:#fff
+        </div>
+
+        <div class="legend">
+            <h3>Algorithm Components</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #fef5e7;"></div>
+                <strong>Phase 1 (Orange):</strong> Centrality-based selection for first point
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #eaf4fc;"></div>
+                <strong>Phase 2 (Blue):</strong> Exact DPP sampling for second point
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #eafaf1;"></div>
+                <strong>Phase 3 (Green):</strong> Greedy augmentation for remaining points
+            </div>
+        </div>
+
+        <div class="phase-explanation">
+            <div class="phase-card phase-1">
+                <h4>🎯 Phase 1: Centrality Selection</h4>
+                <ul>
+                    <li><strong>When:</strong> Always for first point</li>
+                    <li><strong>Method:</strong> quality[i] = mean(similarity[i,:])</li>
+                    <li><strong>Purpose:</strong> Start with representative point</li>
+                    <li><strong>Complexity:</strong> O(N)</li>
+                </ul>
+            </div>
+            
+            <div class="phase-card phase-2">
+                <h4>🔷 Phase 2: Exact DPP</h4>
+                <ul>
+                    <li><strong>When:</strong> For second point (if k ≥ 2)</li>
+                    <li><strong>Method:</strong> Sample from true DPP distribution</li>
+                    <li><strong>Purpose:</strong> Ensure proper diversity foundation</li>
+                    <li><strong>Complexity:</strong> O(N³) for eigendecomposition</li>
+                </ul>
+            </div>
+            
+            <div class="phase-card phase-3">
+                <h4>🟢 Phase 3: Greedy Selection</h4>
+                <ul>
+                    <li><strong>When:</strong> For points 3 through k</li>
+                    <li><strong>Method:</strong> arg max det(L_S∪{j})</li>
+                    <li><strong>Purpose:</strong> Fast approximation with good quality</li>
+                    <li><strong>Complexity:</strong> O(Nk³) total</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #f0f4f8; border-radius: 10px;">
+            <h3 style="color: #2d3748;">Key Insights</h3>
+            <ul style="color: #4a5568; line-height: 1.8;">
+                <li><strong>k=1:</strong> Pure centrality selection (no diversity needed)</li>
+                <li><strong>k=2:</strong> Central + Exact DPP (establish diversity)</li>
+                <li><strong>k=3-6:</strong> Central + Exact + Greedy (balance quality/speed)</li>
+                <li><strong>Trade-off:</strong> Gets exact probabilistic foundation with first 2 points, then trades exactness for speed</li>
+                <li><strong>Advantage:</strong> Better than pure greedy (which might start poorly) and faster than pure exact (which is O(N³) for all points)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

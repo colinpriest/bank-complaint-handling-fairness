@@ -81,6 +81,10 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
         content = "## Analysis Results\n\n"
         
         for analysis_name, analysis_data in analyses.items():
+            # Skip nshot_accuracy as it's handled manually in the N-Shot Specific Analysis section
+            if analysis_name == "nshot_accuracy":
+                continue
+                
             content += f"### {analysis_name.replace('_', ' ').title()}\n\n"
             
             if isinstance(analysis_data, dict):
@@ -381,6 +385,26 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             content += f"- **P-Value**: {p_value:.4f}\n" if isinstance(p_value, (int, float)) else f"- **P-Value**: {p_value}\n"
             content += f"- **Result**: {finding}\n"
             content += f"- **Implications**: {interpretation}\n"
+            # Data sufficiency note
+            try:
+                n_groups = len(sample_sizes) if isinstance(sample_sizes, dict) else 0
+                valid_groups = sum(1 for v in (sample_sizes or {}).values() if isinstance(v, int) and v >= 2)
+                baseline_count = data.get('baseline_count', 0)
+                reasons = []
+                if not isinstance(f_statistic, (int, float)) or (isinstance(f_statistic, float) and math.isnan(f_statistic)):
+                    reasons.append('F-statistic unavailable')
+                if not isinstance(p_value, (int, float)) or (isinstance(p_value, float) and math.isnan(p_value)):
+                    reasons.append('p-value unavailable')
+                if valid_groups < 2:
+                    reasons.append(f'valid groups={valid_groups} (<2)')
+                if isinstance(baseline_count, int) and baseline_count < 2:
+                    reasons.append(f'baseline={baseline_count} (<2)')
+                if reasons:
+                    content += f"- **Data Sufficiency**: Limited ({'; '.join(reasons)}). Results may be unstable.\n"
+                else:
+                    content += f"- **Data Sufficiency**: Adequate (groups={n_groups}, valid groups={valid_groups}, baseline={baseline_count}).\n"
+            except Exception:
+                pass
             
             # Add details table
             baseline_mean = data.get('baseline_mean', float('nan'))
@@ -444,6 +468,26 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             content += f"- **P-Value**: {p_value:.4f}\n" if isinstance(p_value, (int, float)) else f"- **P-Value**: {p_value}\n"
             content += f"- **Result**: {finding}\n"
             content += f"- **Implications**: {interpretation}\n"
+            # Data sufficiency note
+            try:
+                n_groups = len(sample_sizes) if isinstance(sample_sizes, dict) else 0
+                valid_groups = sum(1 for v in (sample_sizes or {}).values() if isinstance(v, int) and v >= 2)
+                baseline_count = data.get('baseline_count', 0)
+                reasons = []
+                if not isinstance(f_statistic, (int, float)) or (isinstance(f_statistic, float) and math.isnan(f_statistic)):
+                    reasons.append('F-statistic unavailable')
+                if not isinstance(p_value, (int, float)) or (isinstance(p_value, float) and math.isnan(p_value)):
+                    reasons.append('p-value unavailable')
+                if valid_groups < 2:
+                    reasons.append(f'valid groups={valid_groups} (<2)')
+                if isinstance(baseline_count, int) and baseline_count < 2:
+                    reasons.append(f'baseline={baseline_count} (<2)')
+                if reasons:
+                    content += f"- **Data Sufficiency**: Limited ({'; '.join(reasons)}). Results may be unstable.\n"
+                else:
+                    content += f"- **Data Sufficiency**: Adequate (groups={n_groups}, valid groups={valid_groups}, baseline={baseline_count}).\n"
+            except Exception:
+                pass
             
             # Add details table for ethnicity groups
             if ethnicity_means and sample_sizes:
@@ -1116,7 +1160,6 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             female = gender_test.get('female', {})
 
             def _fmt(v, digits=3):
-                import math
                 return f"{v:.{digits}f}" if isinstance(v, (int, float)) and not math.isnan(v) else "N/A"
 
             # Summaries per gender
@@ -1473,7 +1516,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
                 content += f"- **P-Value 2**: {p_value_h2:.3f}\n"
             content += f"- **Interpretation 2**: {interpretation_h2}\n"
 
-        # Initialize skip_fields for demographic injection
+        # Initialize skip_fields for special handling
         skip_fields = []
         
         # Special handling for demographic injection analysis
@@ -1609,7 +1652,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             # Add difference row
             if isinstance(paired_baseline_mean, (int, float)) and isinstance(paired_persona_mean, (int, float)):
                 diff = paired_persona_mean - paired_baseline_mean
-                content += f"| **Difference**   |   -   | **{diff:+.3f}** | {diff_std_str:>7} | {diff_sem_str:>3} |\n"
+                content += f"| **Difference**   |   -   | **{diff:+.3f}** | {diff_std_str:>7} |   -   |\n"
             
             content += "\n"
             
@@ -1681,6 +1724,50 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             # Skip ALL other fields for demographic injection - we've already formatted everything we need
             skip_fields = list(data.keys())
 
+        # Special handling for nshot_accuracy analysis
+        if analysis_name == "nshot_accuracy":
+            # Add confusion matrix details
+            confusion_matrix = data.get('confusion_matrix', {})
+            if confusion_matrix:
+                content += "- **Details**: Ground Truth vs N-shot Prediction Grid\n\n"
+                content += "| GT \\ N-shot | No Action | Non-Monetary | Monetary | Total |\n"
+                content += "|-------------|-----------|--------------|----------|-------|\n"
+                
+                # Calculate totals for each row
+                row_totals = {}
+                for gt_label in ['No Action', 'Non-Monetary', 'Monetary']:
+                    if gt_label in confusion_matrix:
+                        row_total = sum(confusion_matrix[gt_label].values())
+                        row_totals[gt_label] = row_total
+                    else:
+                        row_totals[gt_label] = 0
+                
+                # Add rows
+                for gt_label in ['No Action', 'Non-Monetary', 'Monetary']:
+                    if gt_label in confusion_matrix:
+                        no_action = confusion_matrix[gt_label].get('No Action', 0)
+                        non_monetary = confusion_matrix[gt_label].get('Non-Monetary', 0)
+                        monetary = confusion_matrix[gt_label].get('Monetary', 0)
+                        total = row_totals[gt_label]
+                        content += f"| **{gt_label}** | {no_action:>9} | {non_monetary:>12} | {monetary:>8} | {total:>5} |\n"
+                    else:
+                        content += f"| **{gt_label}** | {0:>9} | {0:>12} | {0:>8} | {0:>5} |\n"
+                
+                # Calculate column totals
+                col_totals = {'No Action': 0, 'Non-Monetary': 0, 'Monetary': 0}
+                for gt_label in ['No Action', 'Non-Monetary', 'Monetary']:
+                    if gt_label in confusion_matrix:
+                        for pred_label in ['No Action', 'Non-Monetary', 'Monetary']:
+                            col_totals[pred_label] += confusion_matrix[gt_label].get(pred_label, 0)
+                
+                # Add totals row
+                grand_total = sum(row_totals.values())
+                content += f"| **Total** | {col_totals['No Action']:>9} | {col_totals['Non-Monetary']:>12} | {col_totals['Monetary']:>8} | {grand_total:>5} |\n"
+                content += "\n"
+            
+            # Skip confusion_matrix field since we've already formatted it
+            skip_fields.append('confusion_matrix')
+
         for key, value in data.items():
             # Skip generic finding for process_fairness (we already printed two findings above)
             if analysis_name == "process_fairness" and key.lower() == 'finding':
@@ -1688,8 +1775,8 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             # Skip individual hypothesis findings for fairness_strategies (we already printed them above)
             if analysis_name == "fairness_strategies" and key in ['finding_h1', 'finding_h2', 't_statistic_h1', 'p_value_h1', 'interpretation_h1', 'f_statistic_h2', 'p_value_h2', 'interpretation_h2']:
                 continue
-            # Skip fields we already formatted for demographic injection
-            if analysis_name == "demographic_injection" and key in skip_fields:
+            # Skip fields we already formatted for special handling
+            if key in skip_fields:
                 continue
             if isinstance(value, (int, float)):
                 # Format floating point numbers to 3 decimal places
@@ -1978,3 +2065,5 @@ This analysis uses advanced statistical methods to evaluate fairness patterns in
 ---
 *Report generated by Advanced Fairness Analysis System*
 """
+
+

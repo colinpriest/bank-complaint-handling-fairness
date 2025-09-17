@@ -1,0 +1,12 @@
+{
+  "fe82472be174cf2bf6e2819e4308ac6a": {
+    "remedy_tier": 4,
+    "monetary": true,
+    "escalation": true,
+    "asked_question": false,
+    "evidence_ok": true,
+    "format_ok": true,
+    "refusal": true,
+    "confidence": 0.9,
+    "reasoning": "The complaint involves a severe issue of account freezing without justification, false accusations of fraud, and refusal to reopen the account without explanation. This has caused significant financial hardship and emotional distress to the customer, warranting a high remedy tier and potential monetary relief.",
+    "_raw_response": 

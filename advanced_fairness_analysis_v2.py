@@ -109,18 +109,27 @@ Examples:
         elif args.analyze_only:
             print("\n[MODE] Running analysis on existing data")
             
+            # Load raw experimental data
+            analyzer._load_raw_results()
+            
             # Run individual analyses
             print("Running statistical analyses...")
+            
+            # Combine baseline and persona results for methods that need both
+            combined_results = (analyzer.baseline_results or []) + (analyzer.persona_results or [])
             
             analyses = {
                 "granular_bias": analyzer.statistical_analyzer.analyze_granular_bias(
                     analyzer.persona_results
                 ),
                 "process_fairness": analyzer.statistical_analyzer.analyze_process_fairness(
-                    analyzer.baseline_results, analyzer.persona_results
+                    analyzer.raw_results
                 ),
                 "severity_context": analyzer.statistical_analyzer.analyze_severity_context(
                     analyzer.persona_results
+                ),
+                "severity_bias_variation": analyzer.statistical_analyzer.analyze_severity_bias_variation(
+                    combined_results
                 ),
                 "scaling_laws": analyzer.statistical_analyzer.analyze_scaling_laws(
                     analyzer.persona_results

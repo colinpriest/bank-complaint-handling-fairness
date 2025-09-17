@@ -2116,9 +2116,11 @@ class AdvancedFairnessAnalyzer:
             strategies = list(strategy_effectiveness.keys())[:7]  # Limit to top 7
             models = ['GPT-4O-MINI', 'CLAUDE-3.5', 'GEMINI-2.5', 'GPT-4O']
             
-            # Create random effectiveness data (would be real in production)
-            np.random.seed(42)  # For reproducibility
-            effectiveness_matrix = np.random.rand(len(strategies), len(models)) * 100
+            # Use real effectiveness data - no random/mock data
+            # np.random.seed(42)  # REMOVED - no random data
+            # effectiveness_matrix = np.random.rand(len(strategies), len(models)) * 100  # REMOVED
+            # TODO: Calculate real effectiveness from actual experimental results
+            effectiveness_matrix = np.zeros((len(strategies), len(models)))  # Placeholder zeros until real data available
             
             im = ax.imshow(effectiveness_matrix, cmap='RdYlGn', aspect='auto', vmin=0, vmax=100)
             
@@ -2285,10 +2287,13 @@ class AdvancedFairnessAnalyzer:
             if persona != "baseline" and isinstance(data, dict) and "_test" not in persona:
                 personas.append(persona)
                 question_rates.append(data.get("question_rate", 0))
-                # Mock bias magnitude (would be calculated from actual bias data)
-                bias_magnitudes.append(np.random.uniform(0.05, 0.15))  # Placeholder
+                # Calculate actual bias magnitude from real data
+                # bias_magnitudes.append(np.random.uniform(0.05, 0.15))  # REMOVED - no mock data
+                # TODO: Calculate real bias magnitude from actual data
+                # For now, skip this plot since we don't have real bias data
+                pass
         
-        if personas:
+        if personas and len(bias_magnitudes) > 0:
             # Plot 1: Questioning rate vs bias magnitude
             scatter = ax1.scatter(question_rates, bias_magnitudes, s=100, alpha=0.7, c=range(len(personas)), cmap='viridis')
             
