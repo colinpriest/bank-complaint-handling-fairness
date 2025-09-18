@@ -684,17 +684,19 @@ class BankComplaintFairnessAnalyzer:
             with self.cache_lock:
                 if combined_key not in self.category_stats_cache:
                     self.category_stats_cache[combined_key] = category_stats
-                    if total_count > 0:
-                        print(f"[STATS] '{combined_key}': T0={category_stats['tier_0_percent']:.1f}%, "
-                              f"T1={category_stats['tier_1_percent']:.1f}%, "
-                              f"T2={category_stats['tier_2_percent']:.1f}% (n={total_count})")
-                    else:
-                        print(f"[STATS] '{combined_key}': Using global statistics (no data)")
+                    # Commented out stats printing to avoid interfering with progress bar
+                    # if total_count > 0:
+                    #     print(f"[STATS] '{combined_key}': T0={category_stats['tier_0_percent']:.1f}%, "
+                    #           f"T1={category_stats['tier_1_percent']:.1f}%, "
+                    #           f"T2={category_stats['tier_2_percent']:.1f}% (n={total_count})")
+                    # else:
+                    #     print(f"[STATS] '{combined_key}': Using global statistics (no data)")
 
             return category_stats
 
         except Exception as e:
-            print(f"[ERROR] Failed to calculate combined category statistics for '{combined_key}': {e}")
+            # Commented out error printing to avoid interfering with progress bar
+            # print(f"[ERROR] Failed to calculate combined category statistics for '{combined_key}': {e}")
             # Fall back to global statistics
             fallback_stats = {
                 'tier_0_percent': 65.6,
