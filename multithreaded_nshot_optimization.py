@@ -1988,24 +1988,40 @@ class MultithreadedCategoryFilteredOptimizer(MultithreadedNShotOptimizer):
             return False
 
     def filter_examples_by_category(self, query_example: Dict, all_examples: List[Dict]) -> List[Dict]:
-        """Filter examples to match query's product and issue category"""
-        query_product = query_example.get('product', '').lower().strip()
-        query_issue = query_example.get('issue', '').lower().strip()
+        """Filter examples matching the query, relaxing constraints when necessary."""
+        query_case_id = query_example.get('case_id')
+        query_product = (query_example.get('product') or '').lower().strip()
+        query_issue = (query_example.get('issue') or '').lower().strip()
 
-        filtered_examples = []
-        for example in all_examples:
-            # Skip the query example itself
-            if example['case_id'] == query_example['case_id']:
-                continue
+        def filter_candidates(match_product: bool, match_issue: bool) -> List[Dict]:
+            candidates: List[Dict] = []
+            for example in all_examples:
+                if example.get('case_id') == query_case_id:
+                    continue
+                example_product = (example.get('product') or '').lower().strip()
+                example_issue = (example.get('issue') or '').lower().strip()
 
-            example_product = example.get('product', '').lower().strip()
-            example_issue = example.get('issue', '').lower().strip()
+                if match_product and example_product != query_product:
+                    continue
+                if match_issue and example_issue != query_issue:
+                    continue
 
-            # Must match both product and issue
-            if example_product == query_product and example_issue == query_issue:
-                filtered_examples.append(example)
+                if example.get('embedding') is None:
+                    continue
 
-        return filtered_examples
+                candidates.append(example)
+            return candidates
+
+        candidates = filter_candidates(match_product=True, match_issue=True)
+        if candidates:
+            return candidates
+
+        if query_product:
+            candidates = filter_candidates(match_product=True, match_issue=False)
+            if candidates:
+                return candidates
+
+        return filter_candidates(match_product=False, match_issue=False)
 
     def calculate_category_tier_statistics(self, product: str, issue: str) -> Dict[str, float]:
         """Calculate tier distribution statistics for a specific product/issue category"""

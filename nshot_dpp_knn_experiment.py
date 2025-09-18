@@ -214,41 +214,53 @@ class NShotDPPKNNExperiment:
         return top_k_indices.tolist()
 
     def combine_dpp_knn_examples(self, query_embedding: np.ndarray, candidates: List[Dict],
-                                n_dpp: int, k_nn: int) -> List[Dict]:
+                                n_dpp: int, k_nn: int, total_required: Optional[int] = None) -> List[Dict]:
         """
         Combine DPP and k-NN example selection
         """
         if n_dpp == 0 and k_nn == 0:
             return []
 
-        selected_examples = []
-        used_indices = set()
+        max_needed = total_required if total_required is not None else (n_dpp + k_nn)
+        if max_needed <= 0:
+            return []
 
-        # First, select DPP examples for diversity
+        selected_examples: List[Dict] = []
+        used_case_ids = set()
+
         if n_dpp > 0:
-            dpp_indices = self.select_dpp_examples(candidates, n_dpp)
-            for idx in dpp_indices:
-                if idx < len(candidates):  # Safety check
-                    selected_examples.append(candidates[idx])
-                    used_indices.add(idx)
+            indexed_candidates = [
+                (idx, ex) for idx, ex in enumerate(candidates) if ex.get('embedding') is not None
+            ]
+            if indexed_candidates:
+                embeddings = np.array([ex['embedding'] for _, ex in indexed_candidates], dtype=np.float32)
+                selector = HybridDPP(embeddings, random_state=42)
+                local_indices = selector.select(min(n_dpp, len(indexed_candidates)))
+                for local_idx in local_indices:
+                    if local_idx >= len(indexed_candidates):
+                        continue
+                    orig_idx, ex = indexed_candidates[local_idx]
+                    selected_examples.append(ex)
+                    used_case_ids.add(ex.get('case_id'))
 
-        # Then, select k-NN examples for relevance (avoiding duplicates)
         if k_nn > 0:
-            # Filter out already selected candidates
-            remaining_candidates = [candidates[i] for i in range(len(candidates)) if i not in used_indices]
-
+            remaining_candidates = [
+                ex for ex in candidates
+                if ex.get('embedding') is not None and ex.get('case_id') not in used_case_ids
+            ]
             if remaining_candidates:
+                candidate_embeddings = np.array([ex['embedding'] for ex in remaining_candidates], dtype=np.float32)
                 knn_indices = self.select_knn_examples(query_embedding, remaining_candidates, k_nn)
+                for idx in knn_indices:
+                    if idx >= len(remaining_candidates):
+                        continue
+                    ex = remaining_candidates[idx]
+                    selected_examples.append(ex)
+                    used_case_ids.add(ex.get('case_id'))
+                    if len(selected_examples) >= max_needed:
+                        break
 
-                # Map back to original indices
-                remaining_map = {new_idx: orig_idx for new_idx, orig_idx in enumerate(range(len(candidates))) if orig_idx not in used_indices}
-
-                for new_idx in knn_indices:
-                    if new_idx in remaining_map:
-                        orig_idx = remaining_map[new_idx]
-                        selected_examples.append(candidates[orig_idx])
-
-        return selected_examples
+        return selected_examples[:max_needed]
 
     def call_gpt4o_mini_analysis(self, system_prompt: str, user_prompt: str) -> Optional[ProcessAnalysis]:
         """Send prompt to GPT-4o-mini for analysis"""
@@ -337,15 +349,30 @@ class NShotDPPKNNExperiment:
                     target_tier = target_example['tier']
 
                     # Create candidate pool (exclude target)
-                    candidates = [ex for ex in examples_with_embeddings if ex['case_id'] != target_example['case_id']]
+                    candidates = [
+                        ex for ex in examples_with_embeddings
+                        if ex['case_id'] != target_example['case_id'] and ex.get('embedding') is not None
+                    ]
 
-                    if len(candidates) < total_shots:
+                    if not candidates:
                         continue
 
-                    # Select examples using DPP + k-NN combination
                     selected_examples = self.combine_dpp_knn_examples(
-                        target_embedding, candidates, n_dpp, k_nn
+                        target_embedding, candidates, n_dpp, k_nn, total_shots
                     )
+
+                    if not selected_examples or len(selected_examples) < total_shots:
+                        # Fall back to relaxed global selection
+                        fallback_examples = [
+                            ex for ex in examples_with_embeddings
+                            if ex['case_id'] != target_example['case_id'] and ex.get('embedding') is not None
+                        ]
+                        selected_examples = self.combine_dpp_knn_examples(
+                            target_embedding, fallback_examples, n_dpp, k_nn, total_shots
+                        )
+
+                    if not selected_examples:
+                        continue
 
                     # Convert to format expected by prompt generator
                     nshot_examples = []

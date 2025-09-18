@@ -64,6 +64,11 @@ class Persona(Base):
     geography = Column(String(50), nullable=False)
     language_style = Column(String(50))
     typical_names = Column(Text)  # JSON array
+    typical_activities = Column(Text)  # JSON array
+    gender_hints = Column(Text) # JSON array
+    ethnicity_hints = Column(Text) # JSON array
+    geography_hints = Column(Text) # JSON array
+    typical_occupations = Column(Text) # JSON array
     typical_locations = Column(Text)  # JSON array
     typical_companies = Column(Text)  # JSON array
     typical_products = Column(Text)  # JSON array
@@ -122,6 +127,9 @@ class Experiment(Base):
 
     # Cache reference
     cache_id = Column(Integer)  # Links to llm_cache.id
+
+    # Vector embeddings for experiment content
+    vector_embeddings = Column(Text)  # JSON-encoded embedding of combined experiment content
 
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -409,10 +417,30 @@ class DatabaseCheck:
                 print("[WARNING] Could not import COMPREHENSIVE_PERSONAS from nshot_fairness_analysis_V2")
                 print("[INFO] Creating basic personas set...")
                 COMPREHENSIVE_PERSONAS = {
-                    'asian_male_urban': {'names': ['David Chen', 'Kevin Wu'], 'locations': [('San Francisco', 'CA')], 'companies': ['Tech Corp'], 'products': ['Checking']},
-                    'black_female_urban': {'names': ['Keisha Johnson', 'Alicia Brown'], 'locations': [('Atlanta', 'GA')], 'companies': ['Local Bank'], 'products': ['Savings']},
-                    'latino_male_rural': {'names': ['Carlos Rodriguez', 'Miguel Santos'], 'locations': [('El Paso', 'TX')], 'companies': ['Credit Union'], 'products': ['Credit card']},
-                    'white_female_suburban': {'names': ['Sarah Miller', 'Jennifer Davis'], 'locations': [('Denver', 'CO')], 'companies': ['National Bank'], 'products': ['Mortgage']}
+                    'white_male_urban_affluent': {'names': ['William Thompson', 'James Anderson'], 'locations': [('Greenwich, CT', '06830')], 'companies': ['Goldman Sachs'], 'products': ['Private banking'], 'language_style': 'formal', 'typical_activities': ['a charity gala', 'a board meeting', 'a golf tournament'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['after our Easter celebration', 'before our big Christmas dinner'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'white_male_urban_poor': {'names': ['Billy Johnson', 'Tommy Smith'], 'locations': [('Detroit, MI', '48201')], 'companies': ['Check Into Cash'], 'products': ['Payday loan'], 'language_style': 'colloquial', 'typical_activities': ['my second job', 'a temp agency', 'a pawn shop'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['after our Easter celebration', 'before our big Christmas dinner'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'white_male_rural': {'names': ['Billy Joe Smith', 'Jimmy Ray Johnson'], 'locations': [('Huntsville, AL', '35801')], 'companies': ['Regions Bank'], 'products': ['Farm loan'], 'language_style': 'colloquial', 'typical_activities': ['the feed store', 'a hunting trip', 'the county fair'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['after our Easter celebration', 'before our big Christmas dinner'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'white_female_urban_affluent': {'names': ['Elizabeth Thompson', 'Sarah Anderson'], 'locations': [('Greenwich, CT', '06830')], 'companies': ['Goldman Sachs'], 'products': ['Private banking'], 'language_style': 'formal', 'typical_activities': ['a charity auction', 'a gallery opening', 'a pilates class'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['after our Easter celebration', 'before our big Christmas dinner'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'white_female_urban_poor': {'names': ['Lisa Johnson', 'Tammy Smith'], 'locations': [('Detroit, MI', '48201')], 'companies': ['Check Into Cash'], 'products': ['Payday loan'], 'language_style': 'informal', 'typical_activities': ['the laundromat', 'a night shift', 'a food pantry'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['after our Easter celebration', 'before our big Christmas dinner'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'white_female_rural': {'names': ['Margaret Johnson', 'Patricia Miller'], 'locations': [('Naples, FL', '34102')], 'companies': ['TD Bank'], 'products': ['Retirement account'], 'language_style': 'verbose', 'typical_activities': ['the farmers\' market', 'a church potluck', 'a quilting bee'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['after our Easter celebration', 'before our big Christmas dinner'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'black_male_urban_affluent': {'names': ['Marcus Thompson', 'Andre Anderson'], 'locations': [('Atlanta, GA', '30309')], 'companies': ['Chase'], 'products': ['Mortgage'], 'language_style': 'formal', 'typical_activities': ['a networking event', 'a jazz club', 'a fundraiser for my alma mater'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['during a Kwanzaa celebration', 'after a Juneteenth cookout'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'black_male_urban_poor': {'names': ['Jamal Williams', 'Tyrone Johnson'], 'locations': [('Detroit, MI', '48201')], 'companies': ['Check Into Cash'], 'products': ['Payday loan'], 'language_style': 'informal', 'typical_activities': ['a pickup basketball game', 'a community meeting', 'a job fair'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['during a Kwanzaa celebration', 'after a Juneteenth cookout'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'black_male_rural': {'names': ['James Johnson', 'Robert Williams'], 'locations': [('Jackson, MS', '39201')], 'companies': ['Regions Bank'], 'products': ['Farm loan'], 'language_style': 'colloquial', 'typical_activities': ['a fishing trip', 'a family reunion', 'a church service'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['during a Kwanzaa celebration', 'after a Juneteenth cookout'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'black_female_urban_affluent': {'names': ['Michelle Thompson', 'Angela Anderson'], 'locations': [('Atlanta, GA', '30309')], 'companies': ['Chase'], 'products': ['Mortgage'], 'language_style': 'formal', 'typical_activities': ['a professional conference', 'a gallery opening', 'a charity board meeting'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['during a Kwanzaa celebration', 'after a Juneteenth cookout'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'black_female_urban_poor': {'names': ['Keisha Williams', 'Tamika Johnson'], 'locations': [('Detroit, MI', '48201')], 'companies': ['Check Into Cash'], 'products': ['Payday loan'], 'language_style': 'informal', 'typical_activities': ['a community health clinic', 'a parent-teacher conference', 'a bus stop'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['during a Kwanzaa celebration', 'after a Juneteenth cookout'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'black_female_rural': {'names': ['Mary Johnson', 'Patricia Williams'], 'locations': [('Jackson, MS', '39201')], 'companies': ['TD Bank'], 'products': ['Retirement account'], 'language_style': 'verbose', 'typical_activities': ['a church bake sale', 'a gospel choir practice', 'a family cookout'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['during a Kwanzaa celebration', 'after a Juneteenth cookout'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'latino_male_urban_affluent': {'names': ['Carlos Rodriguez', 'Miguel Gonzalez'], 'locations': [('Miami, FL', '33125')], 'companies': ['Chase'], 'products': ['Mortgage'], 'language_style': 'formal', 'typical_activities': ['a meeting with investors', 'a salsa club', 'a wine tasting'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['before the Dia de los Muertos procession', 'during the local Cinco de Mayo festival'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'latino_male_urban_poor': {'names': ['Carlos Rodriguez', 'Miguel Gonzalez'], 'locations': [('El Paso, TX', '79901')], 'companies': ['Western Union'], 'products': ['Money transfer'], 'language_style': 'mixed', 'typical_activities': ['a construction job', 'a money transfer office', 'a soccer game'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['before the Dia de los Muertos procession', 'during the local Cinco de Mayo festival'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'latino_male_rural': {'names': ['Jose Rodriguez', 'Miguel Gonzalez'], 'locations': [('Fresno, CA', '93701')], 'companies': ['Regions Bank'], 'products': ['Farm loan'], 'language_style': 'colloquial', 'typical_activities': ['a farm job', 'a quinceañera', 'a local market'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['before the Dia de los Muertos procession', 'during the local Cinco de Mayo festival'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'latino_female_urban_affluent': {'names': ['Maria Rodriguez', 'Carmen Gonzalez'], 'locations': [('Miami, FL', '33125')], 'companies': ['Chase'], 'products': ['Mortgage'], 'language_style': 'formal', 'typical_activities': ['a charity luncheon', 'a designer boutique', 'an art gallery'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['before the Dia de los Muertos procession', 'during the local Cinco de Mayo festival'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'latino_female_urban_poor': {'names': ['Maria Rodriguez', 'Carmen Gonzalez'], 'locations': [('El Paso, TX', '79901')], 'companies': ['Western Union'], 'products': ['Money transfer'], 'language_style': 'mixed', 'typical_activities': ['a cleaning job', 'a local market', 'a church service'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['before the Dia de los Muertos procession', 'during the local Cinco de Mayo festival'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'latino_female_rural': {'names': ['Maria Rodriguez', 'Carmen Gonzalez'], 'locations': [('Fresno, CA', '93701')], 'companies': ['TD Bank'], 'products': ['Retirement account'], 'language_style': 'verbose', 'typical_activities': ['a family gathering', 'a local festival', 'a craft fair'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['before the Dia de los Muertos procession', 'during the local Cinco de Mayo festival'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'asian_male_urban_affluent': {'names': ['David Chen', 'Michael Wang'], 'locations': [('Fremont, CA', '94538')], 'companies': ['Chase'], 'products': ['Mortgage'], 'language_style': 'formal', 'typical_activities': ['a tech conference', 'a go tournament', 'a classical music concert'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['during the Lunar New Year parade', 'while preparing for the Mid-Autumn Festival'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'asian_male_urban_poor': {'names': ['David Chen', 'Michael Wang'], 'locations': [('Chinatown, NY', '10013')], 'companies': ['Check Into Cash'], 'products': ['Payday loan'], 'language_style': 'informal', 'typical_activities': ['a restaurant job', 'an English class', 'a community center'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['during the Lunar New Year parade', 'while preparing for the Mid-Autumn Festival'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'asian_male_rural': {'names': ['David Chen', 'Michael Wang'], 'locations': [('Fresno, CA', '93701')], 'companies': ['Regions Bank'], 'products': ['Farm loan'], 'language_style': 'colloquial', 'typical_activities': ['a farm', 'a community garden', 'a local temple'], 'gender_hints': ['My wife and I', 'As a father'], 'ethnicity_hints': ['during the Lunar New Year parade', 'while preparing for the Mid-Autumn Festival'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']},
+                    'asian_female_urban_affluent': {'names': ['Jennifer Chen', 'Linda Wang'], 'locations': [('Fremont, CA', '94538')], 'companies': ['Chase'], 'products': ['Mortgage'], 'language_style': 'formal', 'typical_activities': ['a charity gala', 'a violin lesson for my child', 'a luxury shopping trip'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['during the Lunar New Year parade', 'while preparing for the Mid-Autumn Festival'], 'geography_hints': ['getting out of a taxi', 'after valet parked my car'], 'typical_occupations': ['doctor', 'lawyer', 'investment banker']},
+                    'asian_female_urban_poor': {'names': ['Jennifer Chen', 'Linda Wang'], 'locations': [('Chinatown, NY', '10013')], 'companies': ['Check Into Cash'], 'products': ['Payday loan'], 'language_style': 'informal', 'typical_activities': ['a garment factory', 'a nail salon', 'a local market'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['during the Lunar New Year parade', 'while preparing for the Mid-Autumn Festival'], 'geography_hints': ['on the bus', 'at the public library'], 'typical_occupations': ['cashier', 'janitor', 'food service worker']},
+                    'asian_female_rural': {'names': ['Jennifer Chen', 'Linda Wang'], 'locations': [('Fresno, CA', '93701')], 'companies': ['TD Bank'], 'products': ['Retirement account'], 'language_style': 'verbose', 'typical_activities': ['a community garden', 'a local festival', 'a temple service'], 'gender_hints': ['My husband and I', 'As a mother'], 'ethnicity_hints': ['during the Lunar New Year parade', 'while preparing for the Mid-Autumn Festival'], 'geography_hints': ['on the long drive into town', 'after fueling up my truck'], 'typical_occupations': ['farmer', 'truck driver', 'small business owner']}
                 }
 
             personas_added = 0
@@ -432,7 +460,12 @@ class DatabaseCheck:
                     typical_names=json.dumps(data.get('names', [])),
                     typical_locations=json.dumps([f"{loc[0]}, {loc[1]}" for loc in data.get('locations', [])]),
                     typical_companies=json.dumps(data.get('companies', [])),
-                    typical_products=json.dumps(data.get('products', []))
+                    typical_products=json.dumps(data.get('products', [])),
+                    typical_activities=json.dumps(data.get('typical_activities', [])),
+                    gender_hints=json.dumps(data.get('gender_hints', [])),
+                    ethnicity_hints=json.dumps(data.get('ethnicity_hints', [])),
+                    geography_hints=json.dumps(data.get('geography_hints', [])),
+                    typical_occupations=json.dumps(data.get('typical_occupations', []))
                 )
 
                 self.session.add(persona)
@@ -881,6 +914,155 @@ class DatabaseCheck:
             self.session.rollback()
             return False
 
+    def check_and_generate_experiment_embeddings(self, model_name: str = 'all-MiniLM-L6-v2', batch_size: int = 32) -> bool:
+        """
+        Check for missing vector embeddings in experiments table and generate them.
+
+        Args:
+            model_name: Name of the sentence transformer model to use
+            batch_size: Number of records to process at once
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            print(f"\n[INFO] Checking vector embeddings in experiments table...")
+
+            # Ensure we have a database connection
+            if not self.session:
+                if not self.connect_to_database():
+                    print(f"[ERROR] Could not connect to database for experiment embeddings")
+                    return False
+
+            # First check if the vector_embeddings column exists
+            try:
+                # Try a simple query to test if column exists
+                from sqlalchemy import text
+                self.session.execute(text("SELECT vector_embeddings FROM experiments LIMIT 1"))
+            except Exception as col_error:
+                if "does not exist" in str(col_error).lower():
+                    print(f"[INFO] vector_embeddings column does not exist in experiments table")
+                    print(f"[INFO] Skipping experiment embedding generation")
+                    return True
+                else:
+                    raise col_error
+
+            # Count records with missing embeddings
+            total_count = self.session.query(Experiment).count()
+            missing_count = self.session.query(Experiment).filter(
+                (Experiment.vector_embeddings == None) |
+                (Experiment.vector_embeddings == '')
+            ).count()
+
+            if missing_count == 0:
+                print(f"[INFO] All {total_count:,} experiment records have vector embeddings")
+                return True
+
+            print(f"[INFO] Found {missing_count:,} experiment records missing embeddings (out of {total_count:,} total)")
+            print(f"[INFO] Generating embeddings using model: {model_name}")
+
+            # Try to import sentence transformers
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError:
+                print("[ERROR] sentence-transformers not installed")
+                print("[INFO] Install with: pip install sentence-transformers")
+                return False
+
+            # Load the model
+            print(f"[INFO] Loading sentence transformer model '{model_name}'...")
+            model = SentenceTransformer(model_name)
+            print(f"[INFO] Model loaded. Embedding dimension: {model.get_sentence_embedding_dimension()}")
+
+            # Process records in batches
+            records_processed = 0
+            records_to_process = self.session.query(Experiment).filter(
+                (Experiment.vector_embeddings == None) |
+                (Experiment.vector_embeddings == '')
+            ).all()
+
+            print(f"[INFO] Processing {len(records_to_process):,} experiment records in batches of {batch_size}...")
+
+            for i in range(0, len(records_to_process), batch_size):
+                batch = records_to_process[i:i + batch_size]
+                texts_to_embed = []
+
+                for record in batch:
+                    # Combine experiment configuration for embedding
+                    text_parts = []
+
+                    # Add decision method and model
+                    if record.decision_method:
+                        text_parts.append(f"Method: {record.decision_method}")
+                    if record.llm_model:
+                        text_parts.append(f"Model: {record.llm_model}")
+
+                    # Add demographic information if present
+                    if record.persona:
+                        text_parts.append(f"Persona: {record.persona}")
+                    if record.gender:
+                        text_parts.append(f"Gender: {record.gender}")
+                    if record.ethnicity:
+                        text_parts.append(f"Ethnicity: {record.ethnicity}")
+                    if record.geography:
+                        text_parts.append(f"Geography: {record.geography}")
+
+                    # Add mitigation strategy if present
+                    if record.risk_mitigation_strategy:
+                        text_parts.append(f"Strategy: {record.risk_mitigation_strategy}")
+
+                    # Add prompts (main content)
+                    if record.system_prompt:
+                        text_parts.append(f"System: {record.system_prompt}")
+                    if record.user_prompt:
+                        text_parts.append(f"User: {record.user_prompt}")
+
+                    # Combine all parts
+                    combined_text = " ".join(text_parts)
+                    texts_to_embed.append(combined_text)
+
+                # Generate embeddings for the batch
+                embeddings = model.encode(texts_to_embed, show_progress_bar=False)
+
+                # Update records with embeddings
+                for record, embedding in zip(batch, embeddings):
+                    # Convert numpy array to JSON string
+                    embedding_json = json.dumps(embedding.tolist())
+                    record.vector_embeddings = embedding_json
+                    records_processed += 1
+
+                # Commit the batch
+                self.session.commit()
+
+                # Progress update
+                if records_processed % 1000 == 0 or records_processed == len(records_to_process):
+                    percentage = (records_processed / len(records_to_process)) * 100
+                    print(f"[INFO] Processed {records_processed:,}/{len(records_to_process):,} experiment records ({percentage:.1f}%)")
+
+            print(f"[SUCCESS] Generated embeddings for {records_processed:,} experiment records")
+
+            # Verify all records now have embeddings
+            final_missing = self.session.query(Experiment).filter(
+                (Experiment.vector_embeddings == None) |
+                (Experiment.vector_embeddings == '')
+            ).count()
+
+            if final_missing == 0:
+                print(f"[SUCCESS] All experiment records now have vector embeddings")
+                return True
+            else:
+                print(f"[WARNING] {final_missing} experiment records still missing embeddings")
+                return False
+
+        except Exception as e:
+            print(f"[ERROR] Failed to generate experiment embeddings: {str(e)}")
+            print(f"[INFO] This may be because the vector_embeddings column doesn't exist yet")
+            try:
+                self.session.rollback()
+            except:
+                pass
+            return False
+
     def check_llm_cache_table(self) -> bool:
         """
         Check if llm_cache table exists and has data.
@@ -947,6 +1129,18 @@ class DatabaseCheck:
         """
         counts = {}
         try:
+            # Ensure we have a database connection
+            if not self.session:
+                if not self.connect_to_database():
+                    print(f"[ERROR] Could not connect to database for table counts")
+                    return counts
+
+            # Rollback any pending transactions first
+            try:
+                self.session.rollback()
+            except:
+                pass
+
             counts['personas'] = self.session.query(Persona).count()
             counts['mitigation_strategies'] = self.session.query(MitigationStrategy).count()
             counts['ground_truth'] = self.session.query(GroundTruth).count()
@@ -955,5 +1149,83 @@ class DatabaseCheck:
             counts['nshot_optimisation'] = self.session.query(NShotOptimisation).count()
         except Exception as e:
             print(f"[ERROR] Could not get table counts: {str(e)}")
+            # Try to rollback again in case of error
+            try:
+                if self.session:
+                    self.session.rollback()
+            except:
+                pass
 
         return counts
+
+    def check_baseline_experiments_view(self) -> bool:
+        """
+        Check if baseline_experiments view exists and create it if not.
+
+        Returns:
+            bool: True if view exists or was created successfully, False otherwise
+        """
+        try:
+            print(f"\n[INFO] Checking baseline_experiments view...")
+
+            # Ensure we have a database connection
+            if not self.session:
+                if not self.connect_to_database():
+                    print(f"[ERROR] Could not connect to database for view check")
+                    return False
+
+            # Check if view exists
+            from sqlalchemy import text
+            check_view_sql = """
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.views
+                    WHERE table_schema = 'public'
+                    AND table_name = 'baseline_experiments'
+                );
+            """
+
+            result = self.session.execute(text(check_view_sql))
+            view_exists = result.fetchone()[0]
+
+            if view_exists:
+                print(f"[INFO] baseline_experiments view already exists")
+                return True
+
+            print(f"[INFO] Creating baseline_experiments view...")
+
+            # Create the view
+            create_view_sql = """
+                CREATE VIEW baseline_experiments AS
+                SELECT
+                    experiment_id,
+                    case_id,
+                    decision_method,
+                    llm_model,
+                    llm_simplified_tier,
+                    system_prompt,
+                    user_prompt,
+                    system_response,
+                    process_confidence,
+                    information_needed,
+                    asks_for_info,
+                    reasoning,
+                    cache_id,
+                    created_at
+                FROM experiments
+                WHERE persona IS NULL
+                  AND risk_mitigation_strategy IS NULL;
+            """
+
+            self.session.execute(text(create_view_sql))
+            self.session.commit()
+
+            print(f"[SUCCESS] baseline_experiments view created successfully")
+            return True
+
+        except Exception as e:
+            print(f"[ERROR] Failed to check/create baseline_experiments view: {str(e)}")
+            try:
+                self.session.rollback()
+            except:
+                pass
+            return False
