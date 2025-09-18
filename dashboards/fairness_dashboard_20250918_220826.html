@@ -1,88 +1,10 @@
-#!/usr/bin/env python3
-"""
-HTML Dashboard Generator for Bank Complaint Handling Fairness Analysis
-
-This module creates an interactive HTML dashboard with multiple tabs showing
-fairness analysis results, persona injection effects, bias mitigation, and
-ground truth accuracy metrics.
-"""
-
-import os
-import json
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-from pathlib import Path
-
-
-class HTMLDashboard:
-    """Generate interactive HTML dashboard for fairness analysis results"""
-
-    def __init__(self, output_dir: str = "dashboards"):
-        """
-        Initialize the HTML dashboard generator
-
-        Args:
-            output_dir: Directory to save dashboard files
-        """
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
-
-        # Dashboard configuration
-        self.tabs = [
-            {"id": "headline", "name": "Headline Results", "default": True},
-            {"id": "persona", "name": "Persona Injection", "default": False},
-            {"id": "severity", "name": "Severity and Bias", "default": False},
-            {"id": "mitigation", "name": "Bias Mitigation", "default": False},
-            {"id": "accuracy", "name": "Ground Truth Accuracy", "default": False}
-        ]
-
-    def generate_dashboard(self, experiment_data: Dict[str, Any]) -> str:
-        """
-        Generate complete HTML dashboard
-
-        Args:
-            experiment_data: Dictionary containing all experiment results and metrics
-
-        Returns:
-            Path to generated HTML file
-        """
-        # Generate timestamp for unique filename
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = self.output_dir / f"fairness_dashboard_{timestamp}.html"
-
-        # Build complete HTML content
-        html_content = self._build_html_structure(experiment_data)
-
-        # Write to file
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-
-        print(f"[SUCCESS] Dashboard generated: {output_file}")
-        return str(output_file)
-
-    def _build_html_structure(self, data: Dict[str, Any]) -> str:
-        """Build complete HTML structure with all components"""
-        return f"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Fairness Dashboard - Bank Complaint Analysis</title>
-    {self._get_css_styles()}
-    {self._get_javascript()}
-</head>
-<body>
-    <div class="dashboard-container">
-        {self._build_header(data)}
-        {self._build_navigation()}
-        {self._build_tab_content(data)}
-    </div>
-</body>
-</html>"""
-
-    def _get_css_styles(self) -> str:
-        """Generate CSS styles for the dashboard"""
-        return """<style>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -443,11 +365,8 @@ class HTMLDashboard:
                 white-space: nowrap;
             }
         }
-        </style>"""
-
-    def _get_javascript(self) -> str:
-        """Generate JavaScript for dashboard interactivity"""
-        return """<script>
+        </style>
+    <script>
         function showTab(tabId, event) {
             // Prevent default anchor behavior
             if (event) {
@@ -582,80 +501,39 @@ class HTMLDashboard:
                 });
             });
         });
-        </script>"""
-
-    def _build_header(self, data: Dict[str, Any]) -> str:
-        """Build dashboard header with summary information"""
-        timestamp = data.get('timestamp', datetime.now().isoformat())
-        total_experiments = data.get('total_experiments', 0)
-        sample_size = data.get('sample_size', 0)
-
-        # Extract accuracy results if available
-        accuracy_results = data.get('accuracy_results', {})
-        zero_shot_acc = accuracy_results.get('zero_shot', 0)
-        n_shot_acc = accuracy_results.get('n_shot', 0)
-
-        metrics_html = ""
-        if zero_shot_acc > 0 or n_shot_acc > 0:
-            metrics_html = f"""
+        </script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>LLM Fairness Dashboard</h1>
+            <p>Bank Complaint Handling Fairness Analysis</p>
+            <p>Generated: 2025-01-18T21:59:00 | Total Experiments: 1,000</p>
+            
             <div class="metrics-grid" style="margin-top: 20px;">
                 <div class="metric-card">
-                    <div class="metric-value">{zero_shot_acc:.3f}</div>
+                    <div class="metric-value">0.750</div>
                     <div class="metric-label">Zero-Shot Accuracy</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">{n_shot_acc:.3f}</div>
+                    <div class="metric-value">0.820</div>
                     <div class="metric-label">N-Shot Accuracy</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">{sample_size:,}</div>
+                    <div class="metric-value">500</div>
                     <div class="metric-label">Sample Size</div>
                 </div>
-            </div>"""
+            </div>
+        </div>
+        <div class="nav-tabs">
+    <div class="nav-tab active" data-tab-id="headline" onclick="showTab('headline', event)" data-default="true">Headline Results</div>
+    <div class="nav-tab " data-tab-id="persona" onclick="showTab('persona', event)" >Persona Injection</div>
+    <div class="nav-tab " data-tab-id="severity" onclick="showTab('severity', event)" >Severity and Bias</div>
+    <div class="nav-tab " data-tab-id="mitigation" onclick="showTab('mitigation', event)" >Bias Mitigation</div>
+    <div class="nav-tab " data-tab-id="accuracy" onclick="showTab('accuracy', event)" >Ground Truth Accuracy</div>
+</div>
+        <div id="headline" class="tab-content active">
 
-        return f"""<div class="header">
-            <h1>LLM Fairness Dashboard</h1>
-            <p>Bank Complaint Handling Fairness Analysis</p>
-            <p>Generated: {timestamp} | Total Experiments: {total_experiments:,}</p>
-            {metrics_html}
-        </div>"""
-
-    def _build_navigation(self) -> str:
-        """Build navigation tabs"""
-        nav_html = '<div class="nav-tabs">\n'
-        for tab in self.tabs:
-            default_attr = 'data-default="true"' if tab["default"] else ''
-            active_class = "active" if tab["default"] else ""
-            nav_html += f'    <div class="nav-tab {active_class}" data-tab-id="{tab["id"]}" onclick="showTab(\'{tab["id"]}\', event)" {default_attr}>{tab["name"]}</div>\n'
-        nav_html += '</div>'
-        return nav_html
-
-    def _build_tab_content(self, data: Dict[str, Any]) -> str:
-        """Build all tab content sections"""
-        content_html = ""
-
-        for tab in self.tabs:
-            active_class = "active" if tab["default"] else ""
-            content_html += f'<div id="{tab["id"]}" class="tab-content {active_class}">\n'
-
-            if tab["id"] == "headline":
-                content_html += self._build_headline_tab(data)
-            elif tab["id"] == "persona":
-                content_html += self._build_persona_tab(data)
-            elif tab["id"] == "severity":
-                content_html += self._build_severity_tab(data)
-            elif tab["id"] == "mitigation":
-                content_html += self._build_mitigation_tab(data)
-            elif tab["id"] == "accuracy":
-                content_html += self._build_accuracy_tab(data)
-
-            content_html += '</div>\n'
-
-        return content_html
-
-    def _build_headline_tab(self, data: Dict[str, Any]) -> str:
-        """Build Headline Results tab content with sub-tabs"""
-        return f"""
         <div class="sub-nav-tabs">
             <div class="sub-nav-tab active" data-sub-tab-id="headline-persona">Persona Injection</div>
             <div class="sub-nav-tab" data-sub-tab-id="headline-severity">Severity & Bias</div>
@@ -766,151 +644,9 @@ class HTMLDashboard:
                 </div>
             </div>
         </div>
-        """
-
-    def _build_severity_tab(self, data: Dict[str, Any]) -> str:
-        """Build Severity and Bias tab content with sub-tabs"""
-        return f"""
-        <div class="sub-nav-tabs">
-            <div class="sub-nav-tab active" data-sub-tab-id="severity-tier">Tier Recommendations</div>
-            <div class="sub-nav-tab" data-sub-tab-id="severity-process">Process Bias</div>
         </div>
+<div id="persona" class="tab-content ">
 
-        <div id="severity-tier" class="sub-tab-content active">
-            <div class="section">
-                <h2>Tier Recommendations</h2>
-
-                <div class="result-item">
-                    <div class="result-title">Result 1: Confusion Matrix – Zero Shot</div>
-                    <div class="result-placeholder">[Placeholder: Confusion matrix for zero-shot tier predictions by complaint severity]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Confusion Matrix – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Confusion matrix for n-shot tier predictions by complaint severity]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Tier Impact Rate – Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Comparison of tier assignment rates for monetary vs non-monetary complaints]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 4: Mean Tier Impact– Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments for monetary vs non-monetary complaints]</div>
-                </div>
-            </div>
-        </div>
-
-        <div id="severity-process" class="sub-tab-content">
-            <div class="section">
-                <h2>Process Bias</h2>
-
-                <div class="result-item">
-                    <div class="result-title">Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in zero-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in n-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Implied Stereotyping - Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Stereotyping analysis by complaint severity type]</div>
-                </div>
-            </div>
-        </div>
-        """
-
-    def _build_mitigation_tab(self, data: Dict[str, Any]) -> str:
-        """Build Bias Mitigation tab content with sub-tabs"""
-        return f"""
-        <div class="sub-nav-tabs">
-            <div class="sub-nav-tab active" data-sub-tab-id="mitigation-tier">Tier Recommendations</div>
-            <div class="sub-nav-tab" data-sub-tab-id="mitigation-process">Process Bias</div>
-        </div>
-
-        <div id="mitigation-tier" class="sub-tab-content active">
-            <div class="section">
-                <h2>Tier Recommendations</h2>
-
-                <div class="result-item">
-                    <div class="result-title">Result 1: Confusion Matrix – With and Without Mitigation</div>
-                    <div class="result-placeholder">[Placeholder: Confusion matrix comparing tier predictions with and without bias mitigation]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Tier Impact Rate – With and Without Mitigation</div>
-                    <div class="result-placeholder">[Placeholder: Tier assignment rate comparison with and without bias mitigation]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Mean Tier Impact – With and Without Mitigation</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments with and without bias mitigation]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 4: Bias Mitigation Rankings</div>
-                    <div class="result-placeholder">[Placeholder: Ranking of bias mitigation strategies by effectiveness]</div>
-                </div>
-            </div>
-        </div>
-
-        <div id="mitigation-process" class="sub-tab-content">
-            <div class="section">
-                <h2>Process Bias</h2>
-
-                <div class="result-item">
-                    <div class="result-title">Result 1: Question Rate – With and Without Mitigation – Zero-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates with/without mitigation in zero-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Question Rate – With and Without Mitigation – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates with/without mitigation in n-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Implied Stereotyping - Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Stereotyping analysis with bias mitigation effects]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 4: Bias Mitigation Rankings</div>
-                    <div class="result-placeholder">[Placeholder: Process bias mitigation strategy rankings]</div>
-                </div>
-            </div>
-        </div>
-        """
-
-    def _build_persona_tab(self, data: Dict[str, Any]) -> str:
-        """Build Persona Injection tab content with sub-tabs"""
-        # Get the data from the provided data dictionary
-        persona_analysis = data.get('persona_analysis', {})
-        
-        # Build Zero-Shot Confusion Matrix
-        zero_shot_matrix = persona_analysis.get('zero_shot_confusion_matrix', [])
-        zero_shot_table = self._build_confusion_matrix(zero_shot_matrix, 'Zero Shot')
-        
-        # Build N-Shot Confusion Matrix
-        n_shot_matrix = persona_analysis.get('n_shot_confusion_matrix', [])
-        n_shot_table = self._build_confusion_matrix(n_shot_matrix, 'N-Shot')
-        
-        # Build Tier Impact Rate table
-        tier_impact = persona_analysis.get('tier_impact_rate', [])
-        tier_impact_table = self._build_tier_impact_table(tier_impact)
-        
-        # Build Mean Tier comparison table
-        mean_tier = persona_analysis.get('mean_tier_comparison', [])
-        mean_tier_table = self._build_mean_tier_table(mean_tier)
-        
-        # Build Tier Distribution table
-        tier_distribution = persona_analysis.get('tier_distribution', {})
-        tier_dist_table = self._build_tier_distribution_table(tier_distribution)
-        
-        return f"""
         <div class="sub-nav-tabs">
             <div class="sub-nav-tab active" data-sub-tab-id="persona-tier">Tier Recommendations</div>
             <div class="sub-nav-tab" data-sub-tab-id="persona-process">Process Bias</div>
@@ -925,27 +661,161 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 1: Confusion Matrix – Zero Shot</div>
-                    {zero_shot_table}
+                    
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" style="width: auto; margin: 0 auto; min-width: 300px;">
+                <colgroup>
+                    <col style="width: 100px;">  <!-- Baseline column -->
+                    <col style="width: 100px;"> <col style="width: 100px;"> <col style="width: 100px;">  <!-- Data columns -->
+                </colgroup>
+                <thead class="table-light">
+                    <tr>
+                        <th></th>
+                        <th colspan="3" style="text-align: center;">Persona Tier</th>
+                    </tr>
+                    <tr><th>Baseline</th><th>0</th><th>1</th><th>2</th></tr>
+                </thead>
+                <tbody style="font-family: monospace; font-size: 14px;"><tr><td><strong>0</strong></td><td style="text-align: center;">100</td><td style="text-align: center;">0</td><td style="text-align: center;">0</td></tr><tr><td><strong>1</strong></td><td style="text-align: center;">0</td><td style="text-align: center;">150</td><td style="text-align: center;">0</td></tr><tr><td><strong>2</strong></td><td style="text-align: center;">0</td><td style="text-align: center;">0</td><td style="text-align: center;">80</td></tr></tbody>
+            </table>
+        </div>
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 2: Confusion Matrix – N-Shot</div>
-                    {n_shot_table}
+                    
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" style="width: auto; margin: 0 auto; min-width: 300px;">
+                <colgroup>
+                    <col style="width: 100px;">  <!-- Baseline column -->
+                    <col style="width: 100px;"> <col style="width: 100px;"> <col style="width: 100px;">  <!-- Data columns -->
+                </colgroup>
+                <thead class="table-light">
+                    <tr>
+                        <th></th>
+                        <th colspan="3" style="text-align: center;">Persona Tier</th>
+                    </tr>
+                    <tr><th>Baseline</th><th>0</th><th>1</th><th>2</th></tr>
+                </thead>
+                <tbody style="font-family: monospace; font-size: 14px;"><tr><td><strong>0</strong></td><td style="text-align: center;">120</td><td style="text-align: center;">0</td><td style="text-align: center;">0</td></tr><tr><td><strong>1</strong></td><td style="text-align: center;">0</td><td style="text-align: center;">180</td><td style="text-align: center;">0</td></tr><tr><td><strong>2</strong></td><td style="text-align: center;">0</td><td style="text-align: center;">0</td><td style="text-align: center;">100</td></tr></tbody>
+            </table>
+        </div>
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 3: Tier Impact Rate – Zero-Shot vs. N-Shot</div>
-                    {tier_impact_table}
+                    
+        <div class="result-table">
+            <h4>Tier Impact Rate</h4>
+            <div class="table-responsive">
+                <table class="tier-impact">
+                    <thead>
+                        <tr>
+                            <th>LLM Method</th>
+                            <th>Same Tier</th>
+                            <th>Different Tier</th>
+                            <th>Total</th>
+                            <th>% Different</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            <tr>
+                <td>zero-shot</td>
+                <td>200</td>
+                <td>50</td>
+                <td>250</td>
+                <td>20.0%</td>
+            </tr>
+            <tr>
+                <td>n-shot</td>
+                <td>350</td>
+                <td>30</td>
+                <td>380</td>
+                <td>7.9%</td>
+            </tr>
+        <tr class="total-row">
+            <td><strong>Total</strong></td>
+            <td><strong>550</strong></td>
+            <td><strong>80</strong></td>
+            <td><strong>630</strong></td>
+            <td><strong>12.7%</strong></td>
+        </tr></tbody>
+                </table>
+            </div>
+            
+                <div class="conclusion">
+                    <h4>Conclusion:</h4>
+                    <p>H0: persona-injection does not affect tier selection</p>
+                    <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
+                    <p>Implication: The LLM is influenced by sensitive personal attributes.</p>
+                </div>
+        </div>
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 4: Mean Tier – Persona-Injected vs. Baseline</div>
-                    {mean_tier_table}
+                    
+        <div class="result-table">
+            <h4>Mean Tier Comparison</h4>
+            <div class="table-responsive">
+                <table class="mean-tier">
+                    <thead>
+                        <tr>
+                            <th>LLM Method</th>
+                            <th>Mean Baseline Tier</th>
+                            <th>Mean Persona Tier</th>
+                            <th>N</th>
+                            <th>Std Dev</th>
+                            <th>SEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            <tr>
+                <td>zero-shot</td>
+                <td>1.20</td>
+                <td>1.30</td>
+                <td>250</td>
+                <td>0.80</td>
+                <td>0.0506</td>
+            </tr></tbody>
+                </table>
+            </div>
+            
+                <div class="conclusion">
+                    <h4>Statistical Analysis (Zero-Shot):</h4>
+                    <p>H0: The mean tier is the same with and without persona injection</p>
+                    <p>Test: Paired t-test</p>
+                    <p>Effect Size (Cohen's d): 0.13 (negligible)</p>
+                    <p>Mean Difference: +0.10 (from 1.20 to 1.30)</p>
+                    <p>Test Statistic: t(249) = 1.9764</p>
+                    <p>p-value: 0.0492</p>
+                    <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
+                    <p>Implication: The LLM's recommended tier is higher when it sees humanizing attributes, somewhat analogous to a display of empathy.</p>
+                </div>
+        </div>
                 </div>
                 
                 <div class="result-item">
                     <div class="result-title">Result 5: Tier Distribution – Persona-Injected vs. Baseline</div>
-                    {tier_dist_table}
+                    
+        <div class="result-table">
+            <h4>Tier Distribution</h4>
+            <div class="table-responsive">
+                <table class="tier-distribution">
+                    <thead><tr><th>Method</th><th>Tier 0</th><th>Tier 1</th><th>Tier 2</th></tr></thead>
+                    <tbody><tr><td><strong>Baseline</strong></td><td>100</td><td>200</td><td>150</td></tr><tr><td><strong>Persona Injected</strong></td><td>90</td><td>220</td><td>140</td></tr></tbody>
+                </table>
+            </div>
+            
+                <div class="conclusion">
+                    <h4>Statistical Analysis:</h4>
+                    <p>H0: The tier distribution is independent of persona injection.</p>
+                    <p>Test: Chi-squared test of independence</p>
+                    <p>Test Statistic: χ²(2) = 5.20</p>
+                    <p>p-value: 0.0740</p>
+                    <p>Conclusion: The null hypothesis is <strong>not rejected</strong> (p ≥ 0.05).</p>
+                    <p>Implication: The distributions of tier recommendations are not significantly different between baseline and persona-injected experiments.</p>
+                </div>
+        </div>
                 </div>
             </div>
         </div>
@@ -1063,349 +933,122 @@ class HTMLDashboard:
                 </div>
             </div>
         </div>
-        """
+        </div>
+<div id="severity" class="tab-content ">
 
-    def _build_tier_distribution_table(self, distribution_data: Dict) -> str:
-        """
-        Build HTML table for tier distribution
-        
-        Args:
-            distribution_data: Dictionary containing tier distribution data
-            
-        Returns:
-            HTML string for the tier distribution table
-        """
-        if not distribution_data:
-            return '<div class="result-placeholder">No tier distribution data available</div>'
-            
-        # Create header row
-        header_row = '<tr><th>Method</th>'
-        
-        # Get all unique tiers from the data
-        tiers = set()
-        for key in distribution_data.keys():
-            if key.endswith('_distribution'):
-                if isinstance(distribution_data[key], dict):
-                    tiers.update(distribution_data[key].keys())
-        
-        # Exclude stats from tier calculation
-        if 'statistical_analysis' in tiers:
-            tiers.remove('statistical_analysis')
+        <div class="sub-nav-tabs">
+            <div class="sub-nav-tab active" data-sub-tab-id="severity-tier">Tier Recommendations</div>
+            <div class="sub-nav-tab" data-sub-tab-id="severity-process">Process Bias</div>
+        </div>
 
-        tiers = sorted(list(tiers)) if tiers else [0, 1, 2] # Default tiers
-        
-        header_row += ''.join(f'<th>Tier {tier}</th>' for tier in tiers) + '</tr>'
-        
-        # Create data rows
-        rows = []
-        for method in ['baseline', 'persona_injected']:
-            row_data = [f'<td><strong>{method.replace("_", " ").title()}</strong></td>']
-            dist = distribution_data.get(f'{method}_distribution', {})
-            
-            for tier in tiers:
-                count = dist.get(tier, 0)
-                row_data.append(f'<td>{count:,}</td>')
-                
-            rows.append(f'<tr>{"".join(row_data)}</tr>')
+        <div id="severity-tier" class="sub-tab-content active">
+            <div class="section">
+                <h2>Tier Recommendations</h2>
 
-        # Build statistical analysis conclusion
-        stats_html = ""
-        stats = distribution_data.get('statistical_analysis')
-        if stats:
-            chi2 = stats.get('chi2')
-            p_value = stats.get('p_value')
-            dof = stats.get('dof')
+                <div class="result-item">
+                    <div class="result-title">Result 1: Confusion Matrix – Zero Shot</div>
+                    <div class="result-placeholder">[Placeholder: Confusion matrix for zero-shot tier predictions by complaint severity]</div>
+                </div>
 
-            if p_value is not None:
-                is_significant = p_value < 0.05
-                p_value_display = f"{p_value:.4f}" if p_value >= 0.0001 else "< 0.0001"
-                
-                implication_text = "The distributions of tier recommendations are not significantly different between baseline and persona-injected experiments."
-                if is_significant:
-                    implication_text = "The distributions of tier recommendations are significantly different, suggesting that persona injection influences the pattern of tier assignments."
+                <div class="result-item">
+                    <div class="result-title">Result 2: Confusion Matrix – N-Shot</div>
+                    <div class="result-placeholder">[Placeholder: Confusion matrix for n-shot tier predictions by complaint severity]</div>
+                </div>
 
-                stats_html = f"""
-                <div class="conclusion">
-                    <h4>Statistical Analysis:</h4>
-                    <p>H0: The tier distribution is independent of persona injection.</p>
-                    <p>Test: Chi-squared test of independence</p>
-                    <p>Test Statistic: χ²({dof}) = {chi2:.2f}</p>
-                    <p>p-value: {p_value_display}</p>
-                    <p>Conclusion: The null hypothesis is <strong>{'rejected' if is_significant else 'not rejected'}</strong> (p {'<' if p_value < 0.05 else '≥'} 0.05).</p>
-                    <p>Implication: {implication_text}</p>
-                </div>"""
+                <div class="result-item">
+                    <div class="result-title">Result 3: Tier Impact Rate – Monetary vs. Non-Monetary</div>
+                    <div class="result-placeholder">[Placeholder: Comparison of tier assignment rates for monetary vs non-monetary complaints]</div>
+                </div>
 
-        return f'''
-        <div class="result-table">
-            <div class="table-responsive">
-                <table class="tier-distribution">
-                    <thead>{header_row}</thead>
-                    <tbody>{"".join(rows)}</tbody>
-                </table>
+                <div class="result-item">
+                    <div class="result-title">Result 4: Mean Tier Impact– Monetary vs. Non-Monetary</div>
+                    <div class="result-placeholder">[Placeholder: Average tier assignments for monetary vs non-monetary complaints]</div>
+                </div>
             </div>
-            {stats_html}
-        </div>'''
+        </div>
 
-    def _build_confusion_matrix(self, matrix_data: List[Dict], matrix_type: str) -> str:
-        """
-        Build HTML table for confusion matrix with comma-formatted numbers
-        
-        Args:
-            matrix_data: List of dicts containing confusion matrix data
-            matrix_type: Type of matrix ('zero_shot' or 'n_shot')
-            
-        Returns:
-            HTML string for the confusion matrix table
-        """
-        if not matrix_data:
-            return '<div class="result-placeholder">No data available for confusion matrix</div>'
-            
-        # Get unique tiers from the data
-        baseline_tiers = sorted(set(item['baseline_tier'] for item in matrix_data))
-        persona_tiers = sorted(set(item['persona_injected_tier'] for item in matrix_data))
-        
-        # Create header row with just the tier numbers
-        header_row = '<tr><th>Baseline</th>' + \
-                   ''.join(f'<th>{tier}</th>' for tier in persona_tiers) + '</tr>'
-        
-        # Create data rows with comma-formatted numbers
-        rows = []
-        for base_tier in baseline_tiers:
-            row_data = [f'<td><strong>{base_tier}</strong></td>']
-            for pers_tier in persona_tiers:
-                # Find matching count
-                count = 0
-                for item in matrix_data:
-                    if item['baseline_tier'] == base_tier and item['persona_injected_tier'] == pers_tier:
-                        count = item['experiment_count']
-                        break
-                # Format number with commas
-                formatted_count = f"{count:,}"
-                row_data.append(f'<td style="text-align: center;">{formatted_count}</td>')
-            rows.append(f'<tr>{"".join(row_data)}</tr>')
-        
-        # Build the complete HTML table with proper styling
-        return f'''
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover" style="width: auto; margin: 0 auto; min-width: 300px;">
-                <colgroup>
-                    <col style="width: 100px;">  <!-- Baseline column -->
-                    {' '.join(f'<col style="width: 100px;">' for _ in persona_tiers)}  <!-- Data columns -->
-                </colgroup>
-                <thead class="table-light">
-                    <tr>
-                        <th></th>
-                        <th colspan="{len(persona_tiers)}" style="text-align: center;">Persona Tier</th>
-                    </tr>
-                    {header_row}
-                </thead>
-                <tbody style="font-family: monospace; font-size: 14px;">{"".join(rows)}</tbody>
-            </table>
-        </div>'''
+        <div id="severity-process" class="sub-tab-content">
+            <div class="section">
+                <h2>Process Bias</h2>
 
-    def _build_tier_impact_table(self, impact_data: List[Dict]) -> str:
-        """
-        Build HTML table for tier impact rate
-        
-        Args:
-            impact_data: List of dicts containing tier impact data
-            
-        Returns:
-            HTML string for the tier impact table
-        """
-        if not impact_data:
-            return '<div class="result-placeholder">No tier impact data available</div>'
-            
-        # Calculate totals
-        total_same = sum(item.get('same_tier_count', 0) for item in impact_data)
-        total_different = sum(item.get('different_tier_count', 0) for item in impact_data)
-        total_experiments = total_same + total_different
-        
-        # Create rows
-        rows = []
-        for item in impact_data:
-            same = item.get('same_tier_count', 0)
-            different = item.get('different_tier_count', 0)
-            total = same + different
-            pct_different = (different / total * 100) if total > 0 else 0
-            
-            rows.append(f'''
-            <tr>
-                <td>{item.get('llm_method', 'N/A')}</td>
-                <td>{same:,}</td>
-                <td>{different:,}</td>
-                <td>{total:,}</td>
-                <td>{pct_different:.1f}%</td>
-            </tr>''')
-        
-        # Add totals row
-        pct_total = (total_different / total_experiments * 100) if total_experiments > 0 else 0
-        rows.append(f'''
-        <tr class="total-row">
-            <td><strong>Total</strong></td>
-            <td><strong>{total_same:,}</strong></td>
-            <td><strong>{total_different:,}</strong></td>
-            <td><strong>{total_experiments:,}</strong></td>
-            <td><strong>{pct_total:.1f}%</strong></td>
-        </tr>''')
-        
-        # Add conclusion
-        conclusion = ""
-        if total_experiments > 0:
-            if total_different > 0:
-                conclusion = """
-                <div class="conclusion">
-                    <h4>Conclusion:</h4>
-                    <p>H0: persona-injection does not affect tier selection</p>
-                    <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
-                    <p>Implication: The LLM is influenced by sensitive personal attributes.</p>
-                </div>"""
-            else:
-                conclusion = """
-                <div class="conclusion">
-                    <h4>Conclusion:</h4>
-                    <p>H0: persona-injection does not affect tier selection</p>
-                    <p>Conclusion: The null hypothesis is <strong>not rejected</strong> (p ≥ 0.05).</p>
-                    <p>Implication: The LLM is not influenced by sensitive personal attributes.</p>
-                </div>"""
-        
-        return f'''
-        <div class="result-table">
-            <div class="table-responsive">
-                <table class="tier-impact">
-                    <thead>
-                        <tr>
-                            <th>LLM Method</th>
-                            <th>Same Tier</th>
-                            <th>Different Tier</th>
-                            <th>Total</th>
-                            <th>% Different</th>
-                        </tr>
-                    </thead>
-                    <tbody>{"".join(rows)}</tbody>
-                </table>
+                <div class="result-item">
+                    <div class="result-title">Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot</div>
+                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in zero-shot experiments]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot</div>
+                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in n-shot experiments]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 3: Implied Stereotyping - Monetary vs. Non-Monetary</div>
+                    <div class="result-placeholder">[Placeholder: Stereotyping analysis by complaint severity type]</div>
+                </div>
             </div>
-            {conclusion}
-        </div>'''
+        </div>
+        </div>
+<div id="mitigation" class="tab-content ">
 
-    def _build_mean_tier_table(self, mean_tier_data: List[Dict]) -> str:
-        """
-        Build HTML table for mean tier comparison
-        
-        Args:
-            mean_tier_data: List of dicts containing mean tier data with statistics
-            
-        Returns:
-            HTML string for the mean tier table
-        """
-        if not mean_tier_data:
-            return '<div class="result-placeholder">No mean tier data available</div>'
-            
-        # Create rows
-        rows = []
-        for item in mean_tier_data:
-            # Calculate SEM safely to avoid division by zero
-            experiment_count = item.get('experiment_count', 0)
-            stddev = item.get('stddev_tier_difference', 0)
-            sem = stddev / (experiment_count ** 0.5) if experiment_count > 0 else 0
-            
-            rows.append(f'''
-            <tr>
-                <td>{item.get('llm_method', 'N/A')}</td>
-                <td>{item.get('mean_baseline_tier', 0):.2f}</td>
-                <td>{item.get('mean_persona_tier', 0):.2f}</td>
-                <td>{experiment_count:,}</td>
-                <td>{stddev:.2f}</td>
-                <td>{sem:.4f}</td>
-            </tr>''')
-        
-        # Add statistical test results
-        stats_html = ""
-        for item in mean_tier_data:
-            mean_baseline = item.get('mean_baseline_tier', 0)
-            mean_persona = item.get('mean_persona_tier', 0)
-            stddev = item.get('stddev_tier_difference', 0)
-            n = item.get('experiment_count', 0)
-            
-            if n > 0 and mean_baseline is not None and mean_persona is not None:
-                # Calculate effect size (Cohen's d)
-                pooled_std = stddev  # Since we're using the SD of differences
-                cohens_d = (mean_persona - mean_baseline) / pooled_std if pooled_std > 0 else 0
-                
-                # Calculate t-statistic and degrees of freedom for paired t-test
-                t_statistic = (mean_persona - mean_baseline) / (stddev / (n ** 0.5)) if stddev > 0 and n > 0 else 0
-                df = n - 1  # degrees of freedom
-                
-                # Calculate exact p-value using t-distribution CDF
-                from scipy.stats import t
-                if t_statistic >= 0:
-                    p_value = (1 - t.cdf(abs(t_statistic), df)) * 2  # two-tailed test
-                else:
-                    p_value = t.cdf(-abs(t_statistic), df) * 2  # two-tailed test
-                
-                # Round very small p-values to avoid scientific notation
-                p_value_display = f"{p_value:.4f}" if p_value >= 0.0001 else "< 0.0001"
-                
-                # Determine if the difference is statistically significant
-                is_significant = p_value < 0.05
-                
-                # Determine direction and magnitude of effect
-                if mean_persona > mean_baseline:
-                    direction = "higher"
-                    magnitude = "slightly" if 0.2 <= cohens_d < 0.5 else "moderately" if 0.5 <= cohens_d < 0.8 else ""
-                    implication = "somewhat analogous to a display of empathy" if cohens_d > 0 else ""
-                elif mean_persona < mean_baseline:
-                    direction = "lower"
-                    magnitude = "slightly" if -0.5 < cohens_d <= -0.2 else "moderately" if -0.8 < cohens_d <= -0.5 else ""
-                    implication = "suggesting potential bias against certain attributes"
-                else:
-                    direction = "the same as"
-                    magnitude = ""
-                    implication = ""
+        <div class="sub-nav-tabs">
+            <div class="sub-nav-tab active" data-sub-tab-id="mitigation-tier">Tier Recommendations</div>
+            <div class="sub-nav-tab" data-sub-tab-id="mitigation-process">Process Bias</div>
+        </div>
 
-                # Prepare implication text
-                implication_text = "On average, humanizing attributes did not meaningfully affect the recommended remedy tier."
-                if is_significant:
-                    effect_description = ' '.join(filter(None, [magnitude, direction]))
-                    implication_text = f"The LLM's recommended tier is {effect_description} when it sees humanizing attributes, {implication}."
+        <div id="mitigation-tier" class="sub-tab-content active">
+            <div class="section">
+                <h2>Tier Recommendations</h2>
 
-                # Build the statistical report
-                stats_html += f"""
-                <div class="conclusion">
-                    <h4>Statistical Analysis ({item.get('llm_method', 'N/A').title()}):</h4>
-                    <p>H0: The mean tier is the same with and without persona injection</p>
-                    <p>Test: Paired t-test</p>
-                    <p>Effect Size (Cohen's d): {abs(cohens_d):.2f} ({'small' if 0.2 <= abs(cohens_d) < 0.5 else 'medium' if 0.5 <= abs(cohens_d) < 0.8 else 'large' if abs(cohens_d) >= 0.8 else 'negligible'})</p>
-                    <p>Mean Difference: {mean_persona - mean_baseline:+.2f} (from {mean_baseline:.2f} to {mean_persona:.2f})</p>
-                    <p>Test Statistic: t({df}) = {t_statistic:.4f}</p>
-                    <p>p-value: {p_value_display}</p>
-                    <p>Conclusion: The null hypothesis is <strong>{"rejected" if is_significant else "not rejected"}</strong> (p {'<' if p_value < 0.05 else '≥'} 0.05).</p>
-                    <p>Implication: {implication_text}</p>
-                </div>"""
-        
-        return f'''
-        <div class="result-table">
-            <div class="table-responsive">
-                <table class="mean-tier">
-                    <thead>
-                        <tr>
-                            <th>LLM Method</th>
-                            <th>Mean Baseline Tier</th>
-                            <th>Mean Persona Tier</th>
-                            <th>N</th>
-                            <th>Std Dev</th>
-                            <th>SEM</th>
-                        </tr>
-                    </thead>
-                    <tbody>{"".join(rows)}</tbody>
-                </table>
+                <div class="result-item">
+                    <div class="result-title">Result 1: Confusion Matrix – With and Without Mitigation</div>
+                    <div class="result-placeholder">[Placeholder: Confusion matrix comparing tier predictions with and without bias mitigation]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 2: Tier Impact Rate – With and Without Mitigation</div>
+                    <div class="result-placeholder">[Placeholder: Tier assignment rate comparison with and without bias mitigation]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 3: Mean Tier Impact – With and Without Mitigation</div>
+                    <div class="result-placeholder">[Placeholder: Average tier assignments with and without bias mitigation]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 4: Bias Mitigation Rankings</div>
+                    <div class="result-placeholder">[Placeholder: Ranking of bias mitigation strategies by effectiveness]</div>
+                </div>
             </div>
-            {stats_html}
-        </div>'''
+        </div>
 
-    def _build_accuracy_tab(self, data: Dict[str, Any]) -> str:
-        """Build Ground Truth Accuracy tab content with sub-tabs"""
-        return f"""
+        <div id="mitigation-process" class="sub-tab-content">
+            <div class="section">
+                <h2>Process Bias</h2>
+
+                <div class="result-item">
+                    <div class="result-title">Result 1: Question Rate – With and Without Mitigation – Zero-Shot</div>
+                    <div class="result-placeholder">[Placeholder: Information request rates with/without mitigation in zero-shot experiments]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 2: Question Rate – With and Without Mitigation – N-Shot</div>
+                    <div class="result-placeholder">[Placeholder: Information request rates with/without mitigation in n-shot experiments]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 3: Implied Stereotyping - Monetary vs. Non-Monetary</div>
+                    <div class="result-placeholder">[Placeholder: Stereotyping analysis with bias mitigation effects]</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 4: Bias Mitigation Rankings</div>
+                    <div class="result-placeholder">[Placeholder: Process bias mitigation strategy rankings]</div>
+                </div>
+            </div>
+        </div>
+        </div>
+<div id="accuracy" class="tab-content ">
+
         <div class="sub-nav-tabs">
             <div class="sub-nav-tab active" data-sub-tab-id="accuracy-overview">Overview</div>
             <div class="sub-nav-tab" data-sub-tab-id="accuracy-comparison">Method Comparison</div>
@@ -1479,4 +1122,8 @@ class HTMLDashboard:
                 </div>
             </div>
         </div>
-        """
+        </div>
+
+    </div>
+</body>
+</html>

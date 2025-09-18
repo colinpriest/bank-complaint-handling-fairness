@@ -1,18 +1,39 @@
 # LLM Fairness Dashboard
 
-## Tabs:
+## Navigation Structure
 
-1) Headline Results – default to showing this tab
-2) Persona Injection
-3) Severity and Bias
-4) Bias Mitigation
-5) Ground Truth Accuracy
+The dashboard uses a **two-level tab system** for improved navigation:
+
+### Main Tabs (Top Level):
+1) **Headline Results** – default to showing this tab
+2) **Persona Injection**
+3) **Severity and Bias**
+4) **Bias Mitigation**
+5) **Ground Truth Accuracy**
+
+### Sub-Tabs (Within Each Main Tab):
+
+Each main tab contains multiple sub-tabs to organize content by analysis type:
+
+- **Headline Results**: Persona Injection, Severity & Bias, Bias Mitigation, Ground Truth
+- **Persona Injection**: Tier Recommendations, Process Bias, Gender Bias, Ethnicity Bias, Geographic Bias
+- **Severity and Bias**: Tier Recommendations, Process Bias
+- **Bias Mitigation**: Tier Recommendations, Process Bias
+- **Ground Truth Accuracy**: Overview, Method Comparison, Strategy Analysis
+
+## User Interface Features
+
+- **Responsive Design**: Works on desktop and mobile devices
+- **Interactive Navigation**: Click to switch between main tabs and sub-tabs
+- **Visual Hierarchy**: Clear distinction between main tabs and sub-tabs
+- **Consistent Styling**: Unified design language across all navigation elements
+- **Auto-Reset**: Sub-tabs reset to first tab when switching main tabs
 
 ## Detailed Reports
 
 ### Tab 1: Headline Results
 
-#### Section 1: Persona Injection
+#### Sub-Tab 1.1: Persona Injection
 
 Result 1: Does Persona Injection Affect Tier?
 
@@ -30,13 +51,13 @@ Result 7: Does Persona Injection Affect Accuracy?
 
 Result 8: Does Zero-Shot Prompting Amplify Bias?
 
-#### Section 2: Severity and Bias
+#### Sub-Tab 1.2: Severity & Bias
 
 Result 1: Does Severity Affect Tier Bias?
 
 Result 2: Does Severity Affect Process Bias?
 
-#### Section 3: Bias Mitigation
+#### Sub-Tab 1.3: Bias Mitigation
 
 Result 1: Can Bias Mitigation Reduce Tier Bias?
 
@@ -46,7 +67,7 @@ Result 3: Most and Least Effective Bias Mitigation Strategies
 
 Result 4: Does Bias Mitigation Affect Accuracy?
 
-#### Section 4: Ground Truth Accuracy
+#### Sub-Tab 1.4: Ground Truth
 
 Result 1: Does N-Shot Prompting Improve Accuracy?
 
@@ -54,7 +75,7 @@ Result 2: Most and Least Effective N-Shot Strategies
 
 ### Tab 2: Persona Injection
 
-#### Section 1: Tier Recommendations
+#### Sub-Tab 2.1: Tier Recommendations
 
 Result 1: Confusion Matrix – Zero Shot
 
@@ -212,7 +233,7 @@ filter and join the data:
     * If H0 was rejected, the LLM is significantly changing the remedy tier decisions, influenced by sensitive personal attributes.
     * If H0 was rejected, the LLM is not significantly changing the remedy tier decisions, influenced by sensitive personal attributes.
 
-#### Section 2: Process Bias
+#### Sub-Tab 2.2: Process Bias
 
 Result 1: Question Rate – Persona-Injected vs. Baseline – Zero-Shot
 
@@ -220,7 +241,7 @@ Result 2: Question Rate – Persona-Injected vs. Baseline – N-Shot
 
 Result 3: Implied Stereotyping
 
-#### Section 3: Gender Bias
+#### Sub-Tab 2.3: Gender Bias
 
 Result 1: Mean Tier by Gender and by Zero-Shot/N-Shot
 
@@ -232,9 +253,9 @@ Result 4: Question Rate – Persona-Injected vs. Baseline – by Gender and by Z
 
 Result 5: Disadvantage Ranking by Gender and by Zero-Shot/N-Shot
 
-#### Section 4: Ethnicity Bias
+#### Sub-Tab 2.4: Ethnicity Bias
 
-Result 1: Mean Tier by Gender and by Zero-Shot/N-Shot
+Result 1: Mean Tier by Ethnicity and by Zero-Shot/N-Shot
 
 Result 2: Tier Distribution by Ethnicity and by Zero-Shot/N-Shot
 
@@ -244,7 +265,7 @@ Result 4: Question Rate – Persona-Injected vs. Baseline – by Ethnicity and b
 
 Result 5: Disadvantage Ranking by Ethnicity and by Zero-Shot/N-Shot
 
-#### Section 5: Geographic Bias
+#### Sub-Tab 2.5: Geographic Bias
 
 Result 1: Mean Tier by Geography and by Zero-Shot/N-Shot
 
@@ -258,7 +279,7 @@ Result 5: Disadvantage Ranking by Geography and by Zero-Shot/N-Shot
 
 ### Tab 3: Severity and Bias
 
-#### Section 1: Tier Recommendations
+#### Sub-Tab 3.1: Tier Recommendations
 
 Result 1: Confusion Matrix – Zero Shot
 
@@ -268,7 +289,7 @@ Result 3: Tier Impact Rate – Monetary vs. Non-Monetary
 
 Result 4: Mean Tier Impact– Monetary vs. Non-Monetary
 
-#### Section 2: Process Bias
+#### Sub-Tab 3.2: Process Bias
 
 Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot
 
@@ -278,7 +299,7 @@ Result 3: Implied Stereotyping - Monetary vs. Non-Monetary
 
 ### Tab 4: Bias Mitigation
 
-#### Section 1: Tier Recommendations
+#### Sub-Tab 4.1: Tier Recommendations
 
 Result 1: Confusion Matrix – With and Without Mitigation
 
@@ -288,7 +309,7 @@ Result 3: Mean Tier Impact – With and Without Mitigation
 
 Result 4: Bias Mitigation Rankings
 
-#### Section 2: Process Bias
+#### Sub-Tab 4.2: Process Bias
 
 Result 1: Question Rate – With and Without Mitigation – Zero-Shot
 
@@ -297,3 +318,61 @@ Result 2: Question Rate – With and Without Mitigation – N-Shot
 Result 3: Implied Stereotyping - Monetary vs. Non-Monetary
 
 Result 4: Bias Mitigation Rankings
+
+### Tab 5: Ground Truth Accuracy
+
+#### Sub-Tab 5.1: Overview
+
+Result 1: Overall Accuracy Comparison
+
+Result 2: Zero-Shot vs N-Shot Accuracy
+
+Result 3: Confidence vs Accuracy Correlation
+
+#### Sub-Tab 5.2: Method Comparison
+
+Result 1: Zero-Shot vs N-Shot Performance
+
+Result 2: Baseline vs Persona-Injected Accuracy
+
+Result 3: With vs Without Bias Mitigation
+
+#### Sub-Tab 5.3: Strategy Analysis
+
+Result 1: Most and Least Effective Strategies
+
+Result 2: Accuracy by Bias Mitigation Strategy
+
+Result 3: N-Shot Strategy Effectiveness
+
+## Technical Implementation
+
+### HTML Structure
+- **Main Navigation**: Top-level tabs using `.nav-tabs` and `.nav-tab` classes
+- **Sub-Navigation**: Secondary tabs using `.sub-nav-tabs` and `.sub-nav-tab` classes
+- **Content Areas**: Tab content using `.tab-content` and `.sub-tab-content` classes
+
+### CSS Features
+- **Responsive Design**: Mobile-friendly with collapsible navigation
+- **Visual Hierarchy**: Different styling for main tabs vs sub-tabs
+- **Hover Effects**: Interactive feedback on tab hover
+- **Active States**: Clear indication of currently selected tabs
+- **Gradient Styling**: Modern gradient backgrounds for active tabs
+
+### JavaScript Functionality
+- **Tab Switching**: `showTab()` function for main tab navigation
+- **Sub-Tab Switching**: `showSubTab()` function for sub-tab navigation
+- **Auto-Reset**: Sub-tabs automatically reset to first tab when switching main tabs
+- **Event Handling**: Click event listeners for both main and sub-tabs
+- **URL Hash Support**: Direct linking to specific tabs via URL hash
+
+### Data Integration
+- **Dynamic Content**: Sub-tabs populated with real analysis data
+- **Table Generation**: Automatic HTML table creation for statistical results
+- **Statistical Analysis**: Built-in statistical test results and interpretations
+- **Responsive Tables**: Tables that work on all screen sizes
+
+### Browser Compatibility
+- **Modern Browsers**: Full support for Chrome, Firefox, Safari, Edge
+- **Mobile Support**: Touch-friendly navigation on mobile devices
+- **Accessibility**: Keyboard navigation and screen reader support
