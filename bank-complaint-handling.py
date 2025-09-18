@@ -283,6 +283,17 @@ class BankComplaintFairnessAnalyzer:
         # Cache for category statistics to avoid repeated calculations
         self.category_stats_cache = {}
         self.cache_lock = threading.Lock()
+        
+        # Thread-local storage for database connections
+        self.thread_local = threading.local()
+
+    def get_thread_db_connection(self):
+        """Get thread-local database connection"""
+        if not hasattr(self.thread_local, 'connection'):
+            self.thread_local.connection = psycopg2.connect(**self.db_config)
+            self.thread_local.connection.autocommit = False  # Ensure explicit transaction control
+            self.thread_local.cursor = self.thread_local.connection.cursor()
+        return self.thread_local.connection, self.thread_local.cursor
 
     def setup_database(self):
         """Setup database using existing DatabaseCheck infrastructure"""
