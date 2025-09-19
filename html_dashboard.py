@@ -679,7 +679,13 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 3: Does Gender Injection Affect Tier?</div>
-                    <div class="result-placeholder">[Placeholder: Gender-specific tier assignment bias analysis]</div>
+                    <div class="result-content">
+                        <p><strong>Hypothesis:</strong> The mean tier is the same with and without gender injection</p>
+                        <p>Test: Paired t-test</p>
+                        <p>Mean Difference: <span class="stat-value">[MEAN_DIFFERENCE]</span></p>
+                        <p>Test Statistic: t(<span class="stat-value">[DEGREES_OF_FREEDOM]</span>) = <span class="stat-value">[TEST_STATISTIC]</span></p>
+                        <p>p-value: <span class="stat-value">[P_VALUE]</span></p>
+                    </div>
                 </div>
 
                 <div class="result-item">
@@ -934,7 +940,7 @@ class HTMLDashboard:
                 </div>
 
                 <div class="result-item">
-                    <div class="result-title">Result 3: Tier Impact Rate – Zero-Shot vs. N-Shot</div>
+                    <div class="result-title">Result 3: Tier Impact Rate</div>
                     {tier_impact_table}
                 </div>
 
@@ -956,17 +962,17 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 1: Question Rate – Persona-Injected vs. Baseline – Zero-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Rate of requesting additional information in zero-shot experiments]</div>
+                    {self._build_question_rate_table(persona_analysis.get('zero_shot_question_rate', {}), 'Zero-Shot Question Rate')}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 2: Question Rate – Persona-Injected vs. Baseline – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Rate of requesting additional information in n-shot experiments]</div>
+                    {self._build_question_rate_table(persona_analysis.get('n_shot_question_rate', {}), 'N-Shot Question Rate')}
                 </div>
 
                 <div class="result-item">
-                    <div class="result-title">Result 3: Implied Stereotyping</div>
-                    <div class="result-placeholder">[Placeholder: Analysis of stereotyping patterns in LLM responses]</div>
+                    <div class="result-title">Result 3: N-Shot versus Zero-Shot</div>
+                    {self._build_nshot_vs_zeroshot_table(persona_analysis.get('nshot_vs_zeroshot_comparison', {}))}
                 </div>
             </div>
         </div>
@@ -1257,7 +1263,7 @@ class HTMLDashboard:
                 <div class="conclusion">
                     <h4>Conclusion:</h4>
                     <p>H0: persona-injection does not affect tier selection</p>
-                    <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
+                    <p>Conclusion: The null hypothesis is <strong>rejected</strong>.</p>
                     <p>Implication: The LLM is influenced by sensitive personal attributes.</p>
                 </div>"""
             else:
@@ -1265,7 +1271,7 @@ class HTMLDashboard:
                 <div class="conclusion">
                     <h4>Conclusion:</h4>
                     <p>H0: persona-injection does not affect tier selection</p>
-                    <p>Conclusion: The null hypothesis is <strong>not rejected</strong> (p ≥ 0.05).</p>
+                    <p>Conclusion: The null hypothesis is <strong>not rejected</strong>.</p>
                     <p>Implication: The LLM is not influenced by sensitive personal attributes.</p>
                 </div>"""
         
@@ -1398,6 +1404,213 @@ class HTMLDashboard:
                         </tr>
                     </thead>
                     <tbody>{"".join(rows)}</tbody>
+                </table>
+            </div>
+            {stats_html}
+        </div>'''
+
+    def _build_question_rate_table(self, question_data: Dict, title: str) -> str:
+        """
+        Build HTML table for question rate analysis
+        
+        Args:
+            question_data: Dictionary containing question rate data
+            title: Title for the analysis
+            
+        Returns:
+            HTML string for the question rate table
+        """
+        if not question_data:
+            return '<div class="result-placeholder">No question rate data available</div>'
+            
+        # Extract data
+        baseline_count = question_data.get('baseline_count', 0)
+        baseline_questions = question_data.get('baseline_questions', 0)
+        persona_count = question_data.get('persona_count', 0)
+        persona_questions = question_data.get('persona_questions', 0)
+        
+        # Calculate rates
+        baseline_rate = (baseline_questions / baseline_count * 100) if baseline_count > 0 else 0
+        persona_rate = (persona_questions / persona_count * 100) if persona_count > 0 else 0
+        
+        # Build table rows
+        rows = f'''
+        <tr>
+            <td><strong>Baseline</strong></td>
+            <td>{int(baseline_count):,}</td>
+            <td>{int(baseline_questions):,}</td>
+            <td>{baseline_rate:.1f}%</td>
+        </tr>
+        <tr>
+            <td><strong>Persona-Injected</strong></td>
+            <td>{int(persona_count):,}</td>
+            <td>{int(persona_questions):,}</td>
+            <td>{persona_rate:.1f}%</td>
+        </tr>'''
+        
+        # Statistical analysis
+        stats_html = ""
+        if baseline_count > 0 and persona_count > 0:
+            # Perform chi-squared test for independence
+            from scipy.stats import chi2_contingency
+            
+            # Create contingency table
+            contingency_table = [
+                [baseline_questions, baseline_count - baseline_questions],  # baseline: questions, no questions
+                [persona_questions, persona_count - persona_questions]      # persona: questions, no questions
+            ]
+            
+            try:
+                chi2, p_value, dof, expected = chi2_contingency(contingency_table)
+                
+                # Round very small p-values
+                p_value_display = f"{p_value:.4f}" if p_value >= 0.0001 else "< 0.0001"
+                
+                # Determine significance
+                is_significant = p_value < 0.05
+                
+                # Determine implication
+                if is_significant:
+                    if persona_rate > baseline_rate:
+                        implication = "The LLM is significantly more likely to ask questions when it sees humanizing attributes, suggesting increased engagement or scrutiny."
+                    else:
+                        implication = "The LLM is significantly less likely to ask questions when it sees humanizing attributes, suggesting reduced engagement or scrutiny."
+                else:
+                    implication = "The LLM's question rate is not significantly affected by humanizing attributes."
+                
+                stats_html = f"""
+                <div class="conclusion">
+                    <h4>Statistical Analysis:</h4>
+                    <p>H0: The question rate is the same with and without persona injection</p>
+                    <p>Test: Chi-squared test of independence</p>
+                    <p>Test Statistic: χ²({dof}) = {chi2:.2f}</p>
+                    <p>p-value: {p_value_display}</p>
+                    <p>Conclusion: The null hypothesis is <strong>{'rejected' if is_significant else 'not rejected'}</strong> (p {'<' if p_value < 0.05 else '≥'} 0.05).</p>
+                    <p>Implication: {implication}</p>
+                </div>"""
+            except Exception as e:
+                stats_html = f"""
+                <div class="conclusion">
+                    <h4>Statistical Analysis:</h4>
+                    <p>Unable to perform statistical test: {str(e)}</p>
+                </div>"""
+        
+        return f'''
+        <div class="result-table">
+            <div class="table-responsive">
+                <table class="question-rate">
+                    <thead>
+                        <tr>
+                            <th>Condition</th>
+                            <th>Count</th>
+                            <th>Questions</th>
+                            <th>Question Rate %</th>
+                        </tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                </table>
+            </div>
+            {stats_html}
+        </div>'''
+
+    def _build_nshot_vs_zeroshot_table(self, comparison_data: Dict) -> str:
+        """
+        Build HTML table for N-Shot vs Zero-Shot comparison
+        
+        Args:
+            comparison_data: Dictionary containing comparison data
+            
+        Returns:
+            HTML string for the comparison table
+        """
+        if not comparison_data:
+            return '<div class="result-placeholder">No N-Shot vs Zero-Shot comparison data available</div>'
+            
+        # Extract data
+        zero_shot_count = comparison_data.get('zero_shot_count', 0)
+        zero_shot_questions = comparison_data.get('zero_shot_questions', 0)
+        n_shot_count = comparison_data.get('n_shot_count', 0)
+        n_shot_questions = comparison_data.get('n_shot_questions', 0)
+        
+        # Calculate rates
+        zero_shot_rate = (zero_shot_questions / zero_shot_count * 100) if zero_shot_count > 0 else 0
+        n_shot_rate = (n_shot_questions / n_shot_count * 100) if n_shot_count > 0 else 0
+        
+        # Build table rows
+        rows = f'''
+        <tr>
+            <td><strong>Zero-Shot</strong></td>
+            <td>{int(zero_shot_count):,}</td>
+            <td>{int(zero_shot_questions):,}</td>
+            <td>{zero_shot_rate:.1f}%</td>
+        </tr>
+        <tr>
+            <td><strong>N-Shot</strong></td>
+            <td>{int(n_shot_count):,}</td>
+            <td>{int(n_shot_questions):,}</td>
+            <td>{n_shot_rate:.1f}%</td>
+        </tr>'''
+        
+        # Statistical analysis
+        stats_html = ""
+        if zero_shot_count > 0 and n_shot_count > 0:
+            # Perform chi-squared test for independence
+            from scipy.stats import chi2_contingency
+            
+            # Create contingency table
+            contingency_table = [
+                [zero_shot_questions, zero_shot_count - zero_shot_questions],  # zero-shot: questions, no questions
+                [n_shot_questions, n_shot_count - n_shot_questions]            # n-shot: questions, no questions
+            ]
+            
+            try:
+                chi2, p_value, dof, expected = chi2_contingency(contingency_table)
+                
+                # Round very small p-values
+                p_value_display = f"{p_value:.4f}" if p_value >= 0.0001 else "< 0.0001"
+                
+                # Determine significance
+                is_significant = p_value < 0.05
+                
+                # Determine implication
+                if is_significant:
+                    if n_shot_rate < zero_shot_rate:
+                        implication = "N-Shot examples reduce the influence of sensitive personal attributes on the LLM's questioning behavior."
+                    else:
+                        implication = "N-Shot examples increase the influence of sensitive personal attributes on the LLM's questioning behavior."
+                else:
+                    implication = "The LLM's questioning behavior is not significantly affected by the addition of N-Shot examples."
+                
+                stats_html = f"""
+                <div class="conclusion">
+                    <h4>Statistical Analysis:</h4>
+                    <p>H0: The question rate is the same with and without N-Shot examples</p>
+                    <p>Test: Chi-squared test of independence</p>
+                    <p>Test Statistic: χ²({dof}) = {chi2:.2f}</p>
+                    <p>p-value: {p_value_display}</p>
+                    <p>Conclusion: The null hypothesis is <strong>{'rejected' if is_significant else 'not rejected'}</strong> (p {'<' if p_value < 0.05 else '≥'} 0.05).</p>
+                    <p>Implication: {implication}</p>
+                </div>"""
+            except Exception as e:
+                stats_html = f"""
+                <div class="conclusion">
+                    <h4>Statistical Analysis:</h4>
+                    <p>Unable to perform statistical test: {str(e)}</p>
+                </div>"""
+        
+        return f'''
+        <div class="result-table">
+            <div class="table-responsive">
+                <table class="nshot-comparison">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Count</th>
+                            <th>Questions</th>
+                            <th>Question Rate %</th>
+                        </tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
                 </table>
             </div>
             {stats_html}

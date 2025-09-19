@@ -1,10 +1,36 @@
 # LLM Fairness Dashboard
 
+## Recent Updates and Fixes (September 2024)
+
+### Process Bias Analysis Improvements
+- **Fixed SQL Query Issues**: Resolved ambiguous column references in process bias queries by properly qualifying table aliases
+- **Corrected Data Source**: Removed unnecessary joins with `llm_cache` table and now query `experiments` table directly for more accurate results
+- **Fixed Inflated Counts**: Eliminated non-unique join issues that were causing experiment counts to be multiplied by cache entries
+- **Improved Data Filtering**: Enhanced filtering logic to properly separate zero-shot vs n-shot experiments and exclude bias mitigation strategies
+- **Type Safety**: Added explicit float conversions to prevent decimal/float type mismatches in statistical calculations
+
+### HTML Dashboard Enhancements
+- **Number Formatting**: Updated count columns to display as comma-formatted integers (e.g., "1,230" instead of "1,230.0")
+- **Report Generation**: Fixed HTML report generation to work properly without requiring `--report-only` flag
+- **Data Integration**: Improved integration between `extract_question_rate_data.py` and HTML dashboard for process bias results
+- **Statistical Analysis**: Enhanced statistical test calculations with proper type handling
+
+### Database Schema Updates
+- **Added Missing Columns**: Added `vector_embeddings` column to `experiments` table for embedding storage
+- **Improved Data Integrity**: Enhanced data validation and error handling in database operations
+
+### Performance and Reliability
+- **TensorFlow Warning Suppression**: Added environment variables and warning filters to suppress TensorFlow deprecation warnings
+- **API Error Handling**: Fixed OpenAI API calls with proper parameter handling
+- **Sample Size Control**: Corrected `--sample-size` parameter to properly limit experiment generation
+- **Cache Management**: Improved LLM cache handling and reduced redundant API calls
+
 ## Navigation Structure
 
 The dashboard uses a **two-level tab system** for improved navigation:
 
 ### Main Tabs (Top Level):
+
 1) **Headline Results** – default to showing this tab
 2) **Persona Injection**
 3) **Severity and Bias**
@@ -115,7 +141,7 @@ Result 2: Confusion Matrix – N-Shot
   * three columns, each for a persona-injected tier
   * three rows, each for a baseline tier
 
-Result 3: Tier Impact Rate – Zero-Shot vs. N-Shot
+Result 3: Tier Impact Rate
 
 * filter and join the data:
   * SELECT
@@ -172,8 +198,6 @@ Result 4: Mean Tier – Persona-Injected vs. Baseline
     * If H0 was accepted, it means that, on average, sensitive human attributes don't change the recommended remedy tier.
 
 Result 5: Tier Distribution – Persona-Injected vs. Baseline
-
-
 
 filter and join the data:
 
@@ -235,11 +259,85 @@ filter and join the data:
 
 #### Sub-Tab 2.2: Process Bias
 
+**Implementation Status**: ✅ Fully Implemented and Fixed (September 2024)
+
 Result 1: Question Rate – Persona-Injected vs. Baseline – Zero-Shot
+
+* **Data Source**: Direct query from `experiments` table (no cache joins)
+* **SQL Query**:
+  ```sql
+  SELECT 
+      SUM(CASE WHEN e.persona IS NULL AND e.risk_mitigation_strategy IS NULL 
+               AND e.decision_method = 'zero-shot' AND e.llm_simplified_tier != -999
+               AND e.asks_for_info = true THEN 1 ELSE 0 END) as baseline_questions,
+      SUM(CASE WHEN e.persona IS NULL AND e.risk_mitigation_strategy IS NULL 
+               AND e.decision_method = 'zero-shot' AND e.llm_simplified_tier != -999
+               THEN 1 ELSE 0 END) as baseline_count,
+      SUM(CASE WHEN e.persona IS NOT NULL AND e.risk_mitigation_strategy IS NULL 
+               AND e.decision_method = 'zero-shot' AND e.llm_simplified_tier != -999
+               AND e.asks_for_info = true THEN 1 ELSE 0 END) as persona_questions,
+      SUM(CASE WHEN e.persona IS NOT NULL AND e.risk_mitigation_strategy IS NULL 
+               AND e.decision_method = 'zero-shot' AND e.llm_simplified_tier != -999
+               THEN 1 ELSE 0 END) as persona_count
+  FROM experiments e
+  WHERE e.decision_method = 'zero-shot' 
+      AND e.llm_simplified_tier != -999
+      AND e.risk_mitigation_strategy IS NULL;
+  ```
+* **Display Format**: 
+  - Count columns: Comma-formatted integers (e.g., "1,230")
+  - Question Rate: Percentage with one decimal place (e.g., "0.8%")
+* **Statistical Analysis**: Chi-squared test for independence with proper type handling
 
 Result 2: Question Rate – Persona-Injected vs. Baseline – N-Shot
 
-Result 3: Implied Stereotyping
+* **Data Source**: Direct query from `experiments` table (no cache joins)
+* **SQL Query**: Similar to Result 1 but filtered for `decision_method = 'n-shot'`
+* **Display Format**: Same as Result 1
+* **Statistical Analysis**: Chi-squared test for independence with proper type handling
+
+Result 3: N-Shot versus Zero-Shot
+
+* **Data Source**: Direct query from `experiments` table using CTEs
+* **SQL Query**:
+  ```sql
+  WITH zero_shot_persona AS (
+      SELECT 
+          SUM(CASE WHEN e.asks_for_info = true THEN 1 ELSE 0 END) as zero_shot_questions,
+          COUNT(*) as zero_shot_count
+      FROM experiments e
+      WHERE e.decision_method = 'zero-shot' 
+          AND e.persona IS NOT NULL 
+          AND e.risk_mitigation_strategy IS NULL
+          AND e.llm_simplified_tier != -999
+  ),
+  n_shot_persona AS (
+      SELECT 
+          SUM(CASE WHEN e.asks_for_info = true THEN 1 ELSE 0 END) as n_shot_questions,
+          COUNT(*) as n_shot_count
+      FROM experiments e
+      WHERE e.decision_method = 'n-shot' 
+          AND e.persona IS NOT NULL 
+          AND e.risk_mitigation_strategy IS NULL
+          AND e.llm_simplified_tier != -999
+  )
+  SELECT 
+      COALESCE(z.zero_shot_questions, 0) as zero_shot_questions,
+      COALESCE(z.zero_shot_count, 0) as zero_shot_count,
+      COALESCE(n.n_shot_questions, 0) as n_shot_questions,
+      COALESCE(n.n_shot_count, 0) as n_shot_count
+  FROM zero_shot_persona z
+  CROSS JOIN n_shot_persona n;
+  ```
+* **Display Format**: Same as Results 1 and 2
+* **Statistical Analysis**: Chi-squared test comparing zero-shot vs n-shot question rates
+
+**Key Improvements Made**:
+- ✅ Fixed ambiguous column references
+- ✅ Eliminated non-unique join issues
+- ✅ Proper filtering for decision methods and bias mitigation exclusion
+- ✅ Type-safe statistical calculations
+- ✅ Comma-formatted integer display for counts
 
 #### Sub-Tab 2.3: Gender Bias
 
@@ -348,11 +446,13 @@ Result 3: N-Shot Strategy Effectiveness
 ## Technical Implementation
 
 ### HTML Structure
+
 - **Main Navigation**: Top-level tabs using `.nav-tabs` and `.nav-tab` classes
 - **Sub-Navigation**: Secondary tabs using `.sub-nav-tabs` and `.sub-nav-tab` classes
 - **Content Areas**: Tab content using `.tab-content` and `.sub-tab-content` classes
 
 ### CSS Features
+
 - **Responsive Design**: Mobile-friendly with collapsible navigation
 - **Visual Hierarchy**: Different styling for main tabs vs sub-tabs
 - **Hover Effects**: Interactive feedback on tab hover
@@ -360,6 +460,7 @@ Result 3: N-Shot Strategy Effectiveness
 - **Gradient Styling**: Modern gradient backgrounds for active tabs
 
 ### JavaScript Functionality
+
 - **Tab Switching**: `showTab()` function for main tab navigation
 - **Sub-Tab Switching**: `showSubTab()` function for sub-tab navigation
 - **Auto-Reset**: Sub-tabs automatically reset to first tab when switching main tabs
@@ -367,12 +468,45 @@ Result 3: N-Shot Strategy Effectiveness
 - **URL Hash Support**: Direct linking to specific tabs via URL hash
 
 ### Data Integration
+
 - **Dynamic Content**: Sub-tabs populated with real analysis data
 - **Table Generation**: Automatic HTML table creation for statistical results
 - **Statistical Analysis**: Built-in statistical test results and interpretations
 - **Responsive Tables**: Tables that work on all screen sizes
+- **Number Formatting**: Comma-formatted integers for count columns, percentage formatting for rates
+
+### Database Integration
+
+- **Direct Queries**: Process bias analysis uses direct `experiments` table queries
+- **Type Safety**: Explicit float conversions prevent decimal/float type mismatches
+- **Filtering Logic**: Proper separation of zero-shot vs n-shot experiments
+- **Bias Mitigation Exclusion**: Automatic filtering out of bias mitigation experiments
+- **Error Handling**: Robust error handling for database connection and query execution
+
+### File Structure
+
+- **Main Script**: `bank-complaint-handling.py` - Primary analysis and report generation
+- **Data Extraction**: `extract_question_rate_data.py` - Process bias data extraction
+- **HTML Dashboard**: `html_dashboard.py` - HTML report generation and formatting
+- **Database Setup**: `database_check.py` - Database schema and connection management
+- **Embedding Generation**: `generate_embeddings.py` - Vector embedding creation
+
+### Command-Line Interface
+
+- **Main Analysis**: `python bank-complaint-handling.py` - Run full analysis with experiment generation
+- **Report Only**: `python bank-complaint-handling.py --report-only` - Generate HTML report from existing data
+- **Sample Size Control**: `python bank-complaint-handling.py --sample-size 500` - Limit experiments to specified number of cases
+- **Data Extraction**: `python extract_question_rate_data.py` - Extract process bias data for testing
+
+### Environment Setup
+
+- **Database**: PostgreSQL database with proper schema and tables
+- **Environment Variables**: TensorFlow warning suppression via `TF_ENABLE_ONEDNN_OPTS=0` and `TF_CPP_MIN_LOG_LEVEL=3`
+- **Dependencies**: OpenAI API, PostgreSQL, SentenceTransformers, scipy, pandas
+- **Cache Management**: LLM response caching to reduce API costs and improve performance
 
 ### Browser Compatibility
+
 - **Modern Browsers**: Full support for Chrome, Firefox, Safari, Edge
 - **Mobile Support**: Touch-friendly navigation on mobile devices
 - **Accessibility**: Keyboard navigation and screen reader support

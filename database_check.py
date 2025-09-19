@@ -17,7 +17,18 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import warnings
+
+# Suppress TensorFlow warnings and set environment variables
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore', category=UserWarning, module='sentence_transformers')
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+# Suppress TensorFlow logging
+import logging
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
+logging.getLogger('transformers').setLevel(logging.ERROR)
 
 # Database imports
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, Float, DateTime, JSON, UniqueConstraint, Index, text

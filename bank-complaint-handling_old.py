@@ -23,6 +23,10 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+
+# Suppress TensorFlow warnings and set environment variables
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from typing import Dict, List, Any, Optional
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='sentence_transformers')

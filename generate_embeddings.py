@@ -12,7 +12,18 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from datetime import datetime
 import warnings
+
+# Suppress TensorFlow warnings and set environment variables
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+# Suppress TensorFlow logging
+import logging
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
+logging.getLogger('transformers').setLevel(logging.ERROR)
 
 # Define the GroundTruth model
 Base = declarative_base()
