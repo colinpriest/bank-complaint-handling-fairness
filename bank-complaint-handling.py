@@ -1307,6 +1307,14 @@ class BankComplaintFairnessAnalyzer:
             # Extract gender bias data for Gender Bias analysis
             from extract_gender_bias_data import extract_gender_bias_data
             gender_bias_data = extract_gender_bias_data()
+            
+            # Extract ethnicity bias data for Ethnicity Bias analysis
+            from extract_ethnicity_bias_data import extract_ethnicity_bias_data
+            ethnicity_bias_data = extract_ethnicity_bias_data()
+            
+            # Extract geographic bias data for Geographic Bias analysis
+            from extract_geographic_bias_data import extract_geographic_bias_data
+            geographic_bias_data = extract_geographic_bias_data()
 
             # Prepare experiment data for dashboard
             experiment_data = {
@@ -1331,7 +1339,11 @@ class BankComplaintFairnessAnalyzer:
                     'n_shot_question_rate': question_rate_data.get('n_shot_question_rate', {}),
                     'nshot_vs_zeroshot_comparison': question_rate_data.get('nshot_vs_zeroshot_comparison', {}),
                     # Add gender bias data
-                    'gender_bias': gender_bias_data
+                    'gender_bias': gender_bias_data,
+                    # Add ethnicity bias data
+                    'ethnicity_bias': ethnicity_bias_data,
+                    # Add geographic bias data
+                    'geographic_bias': geographic_bias_data
                 }
             }
 

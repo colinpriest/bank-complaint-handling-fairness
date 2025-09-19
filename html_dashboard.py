@@ -1014,27 +1014,27 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 1: Mean Tier by Ethnicity and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments broken down by ethnicity and shot type]</div>
+                    {self._build_ethnicity_mean_tier_tables(persona_analysis.get('ethnicity_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 2: Tier Distribution by Ethnicity and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Tier distribution analysis by ethnicity and shot type]</div>
+                    {self._build_ethnicity_distribution_tables(persona_analysis.get('ethnicity_bias', {}))}
                 </div>
 
                 <div class="result-item">
-                    <div class="result-title">Result 3: Bias Distribution by Ethnicity and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Bias distribution analysis by ethnicity and shot type]</div>
+                    <div class="result-title">Result 3: Tier Bias Distribution by Ethnicity and by Zero-Shot/N-Shot</div>
+                    {self._build_ethnicity_tier_bias_table(persona_analysis.get('ethnicity_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 4: Question Rate – Persona-Injected vs. Baseline – by Ethnicity and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by ethnicity and shot type]</div>
+                    {self._build_ethnicity_question_rate_tables(persona_analysis.get('ethnicity_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 5: Disadvantage Ranking by Ethnicity and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Ranking of ethnicity disadvantage by shot type]</div>
+                    {self._build_ethnicity_disadvantage_ranking_table(persona_analysis.get('ethnicity_bias', {}))}
                 </div>
             </div>
         </div>
@@ -1045,27 +1045,27 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 1: Mean Tier by Geography and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments broken down by geography and shot type]</div>
+                    {self._build_geographic_mean_tier_tables(persona_analysis.get('geographic_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 2: Tier Distribution by Geography and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Tier distribution analysis by geography and shot type]</div>
+                    {self._build_geographic_distribution_tables(persona_analysis.get('geographic_bias', {}))}
                 </div>
 
                 <div class="result-item">
-                    <div class="result-title">Result 3: Bias Distribution by Geography and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Bias distribution analysis by geography and shot type]</div>
+                    <div class="result-title">Result 3: Tier Bias Distribution by Geography and by Zero-Shot/N-Shot</div>
+                    {self._build_geographic_tier_bias_table(persona_analysis.get('geographic_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 4: Question Rate – Persona-Injected vs. Baseline – by Geography and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by geography and shot type]</div>
+                    {self._build_geographic_question_rate_tables(persona_analysis.get('geographic_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 5: Disadvantage Ranking by Geography and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Ranking of geography disadvantage by shot type]</div>
+                    {self._build_geographic_disadvantage_ranking_table(persona_analysis.get('geographic_bias', {}))}
                 </div>
             </div>
         </div>
@@ -2204,6 +2204,1116 @@ class HTMLDashboard:
         <div class="statistical-analysis">
             <h4>Statistical Analysis</h4>
             <p><strong>Hypothesis:</strong> H0: For each gender, the within-case expected decision is the same for zero-shot and n-shot</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> F = {f_stat:.3f}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    # ===== ETHNICITY BIAS METHODS =====
+    
+    def _build_ethnicity_mean_tier_tables(self, ethnicity_data: Dict) -> str:
+        """
+        Build HTML tables for mean tier analysis by ethnicity
+        
+        Args:
+            ethnicity_data: Dictionary containing ethnicity bias data
+            
+        Returns:
+            HTML string for the mean tier tables
+        """
+        if not ethnicity_data:
+            return '<div class="result-placeholder">No ethnicity bias data available</div>'
+        
+        zero_shot_data = ethnicity_data.get('zero_shot_mean_tier', {})
+        n_shot_data = ethnicity_data.get('n_shot_mean_tier', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No ethnicity mean tier data available</div>'
+        
+        # Build Zero-Shot mean tier table
+        zero_shot_table = self._build_ethnicity_mean_tier_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot mean tier table
+        n_shot_table = self._build_ethnicity_mean_tier_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = ethnicity_data.get('zero_shot_mean_stats', {})
+        n_shot_stats = ethnicity_data.get('n_shot_mean_stats', {})
+        
+        zero_shot_stats_html = self._build_ethnicity_mean_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_ethnicity_mean_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Mean Tier by Ethnicity</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Mean Tier by Ethnicity</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_ethnicity_mean_tier_table(self, mean_data: Dict, title: str) -> str:
+        """Build a single ethnicity mean tier table"""
+        if not mean_data:
+            return '<div class="result-placeholder">No mean tier data available</div>'
+        
+        # Build header
+        header = '<th>Ethnicity</th><th>Mean Tier</th><th>Count</th><th>Std Dev</th>'
+        
+        # Build rows
+        rows = ""
+        for ethnicity in sorted(mean_data.keys()):
+            stats = mean_data[ethnicity]
+            mean_tier = stats.get('mean_tier', 0)
+            count = stats.get('count', 0)
+            std_dev = stats.get('std_dev', 0)
+            
+            rows += f'''
+            <tr>
+                <td><strong>{ethnicity.title()}</strong></td>
+                <td>{mean_tier:.3f}</td>
+                <td>{count:,}</td>
+                <td>{std_dev:.3f}</td>
+            </tr>'''
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>
+                    {header}
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_ethnicity_distribution_tables(self, ethnicity_data: Dict) -> str:
+        """
+        Build HTML tables for tier distribution analysis by ethnicity
+        
+        Args:
+            ethnicity_data: Dictionary containing ethnicity bias data
+            
+        Returns:
+            HTML string for the distribution tables
+        """
+        if not ethnicity_data:
+            return '<div class="result-placeholder">No ethnicity bias data available</div>'
+        
+        zero_shot_data = ethnicity_data.get('zero_shot_distribution', {})
+        n_shot_data = ethnicity_data.get('n_shot_distribution', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No ethnicity distribution data available</div>'
+        
+        # Build Zero-Shot distribution table
+        zero_shot_table = self._build_ethnicity_distribution_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot distribution table
+        n_shot_table = self._build_ethnicity_distribution_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = ethnicity_data.get('zero_shot_dist_stats', {})
+        n_shot_stats = ethnicity_data.get('n_shot_dist_stats', {})
+        
+        zero_shot_stats_html = self._build_ethnicity_distribution_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_ethnicity_distribution_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Tier Distribution by Ethnicity</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Tier Distribution by Ethnicity</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_ethnicity_distribution_table(self, distribution_data: Dict, title: str) -> str:
+        """Build a single ethnicity distribution table"""
+        if not distribution_data:
+            return '<div class="result-placeholder">No distribution data available</div>'
+        
+        # Get all tiers and ethnicities
+        all_tiers = sorted(set().union(*[data.keys() for data in distribution_data.values()]))
+        ethnicities = sorted(distribution_data.keys())
+        
+        # Build header
+        header = '<th>Ethnicity</th>'
+        for tier in all_tiers:
+            header += f'<th>Tier {tier}</th>'
+        
+        # Build rows
+        rows = ""
+        for ethnicity in ethnicities:
+            row = f'<td><strong>{ethnicity.title()}</strong></td>'
+            for tier in all_tiers:
+                count = distribution_data[ethnicity].get(tier, 0)
+                row += f'<td>{count:,}</td>'
+            rows += f'<tr>{row}</tr>'
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>
+                    {header}
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_ethnicity_question_rate_tables(self, ethnicity_data: Dict) -> str:
+        """
+        Build HTML tables for question rate analysis by ethnicity
+        
+        Args:
+            ethnicity_data: Dictionary containing ethnicity bias data
+            
+        Returns:
+            HTML string for the question rate tables
+        """
+        if not ethnicity_data:
+            return '<div class="result-placeholder">No ethnicity bias data available</div>'
+        
+        zero_shot_data = ethnicity_data.get('zero_shot_question_rate', {})
+        n_shot_data = ethnicity_data.get('n_shot_question_rate', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No ethnicity question rate data available</div>'
+        
+        # Build Zero-Shot question rate table
+        zero_shot_table = self._build_ethnicity_question_rate_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot question rate table
+        n_shot_table = self._build_ethnicity_question_rate_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = ethnicity_data.get('zero_shot_question_stats', {})
+        n_shot_stats = ethnicity_data.get('n_shot_question_stats', {})
+        
+        zero_shot_stats_html = self._build_ethnicity_question_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_ethnicity_question_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Question Rate by Ethnicity</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Question Rate by Ethnicity</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_ethnicity_question_rate_table(self, question_data: Dict, title: str) -> str:
+        """Build a single ethnicity question rate table"""
+        if not question_data:
+            return '<div class="result-placeholder">No question rate data available</div>'
+        
+        # Build header
+        header = '<th>Ethnicity</th><th>Questions</th><th>Total</th><th>Question Rate</th>'
+        
+        # Build rows
+        rows = ""
+        for ethnicity in sorted(question_data.keys()):
+            stats = question_data[ethnicity]
+            questions = stats.get('questions', 0)
+            total = stats.get('total_count', 0)
+            rate = stats.get('question_rate', 0)
+            
+            rows += f'''
+            <tr>
+                <td><strong>{ethnicity.title()}</strong></td>
+                <td>{int(questions):,}</td>
+                <td>{int(total):,}</td>
+                <td>{rate:.1f}%</td>
+            </tr>'''
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>
+                    {header}
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_ethnicity_mean_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of mean tier comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method} mean tier comparison</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        comparison = stats.get('comparison', 'Unknown comparison')
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        p_value = stats.get('p_value', 1)
+        
+        # Handle different test types
+        if test_type == 'One-way ANOVA':
+            f_stat = stats.get('f_statistic', 0)
+            eta_squared = stats.get('eta_squared', 0)
+            means = stats.get('means', {})
+            
+            # Format means for display
+            means_str = ", ".join([f"{ethnicity}={mean:.3f}" for ethnicity, mean in means.items()])
+            
+            # Determine implication
+            if significant:
+                implication = f"There is strong evidence that the LLM's recommended tiers differ significantly between ethnicities in {method}. Means: {means_str}"
+            else:
+                if p_value <= 0.1:
+                    implication = f"There is weak evidence that the LLM's recommended tiers differ between ethnicities in {method}. Means: {means_str}"
+                else:
+                    implication = f"There is no evidence that the LLM's recommended tiers differ between ethnicities in {method}. Means: {means_str}"
+            
+            return f'''
+            <div class="statistical-analysis">
+                <h4>Statistical Analysis</h4>
+                <p><strong>Hypothesis:</strong> H0: The mean tier is the same across all ethnicities</p>
+                <p><strong>Test:</strong> {test_type}</p>
+                <p><strong>Comparison:</strong> {comparison}</p>
+                <p><strong>Test Statistic:</strong> F = {f_stat:.3f}</p>
+                <p><strong>p-Value:</strong> {p_value:.4f}</p>
+                <p><strong>Effect Size (η²):</strong> {eta_squared:.3f}</p>
+                <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+                <p><strong>Implication:</strong> {implication}</p>
+            </div>'''
+        else:
+            # Fallback for other test types
+            t_stat = stats.get('t_statistic', 0)
+            cohens_d = stats.get('cohens_d', 0)
+            
+            # Determine implication
+            if significant:
+                implication = f"There is strong evidence that the LLM's recommended tiers differ significantly between ethnicities in {method}."
+            else:
+                if p_value <= 0.1:
+                    implication = f"There is weak evidence that the LLM's recommended tiers differ between ethnicities in {method}."
+                else:
+                    implication = f"There is no evidence that the LLM's recommended tiers differ between ethnicities in {method}."
+            
+            # Handle None values for t_stat, p_value, and cohens_d
+            t_stat_str = f"{t_stat:.3f}" if t_stat is not None else "N/A"
+            p_value_str = f"{p_value:.4f}" if p_value is not None else "N/A"
+            cohens_d_str = f"{cohens_d:.3f}" if cohens_d is not None else "N/A"
+            conclusion_str = conclusion if conclusion != 'cannot_determine' else 'cannot be determined'
+            implication_str = implication if conclusion != 'cannot_determine' else 'Raw data required for proper statistical analysis'
+            
+            return f'''
+            <div class="statistical-analysis">
+                <h4>Statistical Analysis</h4>
+                <p><strong>Hypothesis:</strong> H0: The mean tier is the same across ethnicities</p>
+                <p><strong>Test:</strong> {test_type}</p>
+                <p><strong>Comparison:</strong> {comparison}</p>
+                <p><strong>Test Statistic:</strong> t = {t_stat_str}</p>
+                <p><strong>p-Value:</strong> {p_value_str}</p>
+                <p><strong>Effect Size (Cohen's d):</strong> {cohens_d_str}</p>
+                <p><strong>Conclusion:</strong> The null hypothesis was {conclusion_str}</p>
+                <p><strong>Implication:</strong> {implication_str}</p>
+            </div>'''
+
+    def _build_ethnicity_distribution_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of distribution comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method} distribution comparison</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        chi2 = stats.get('chi2_statistic', 0)
+        dof = stats.get('degrees_of_freedom', 0)
+        p_value = stats.get('p_value', 1)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = f"There is strong evidence that the tier distribution differs significantly between ethnicities in {method}."
+        else:
+            if p_value <= 0.1:
+                implication = f"There is weak evidence that the tier distribution differs between ethnicities in {method}."
+            else:
+                implication = f"There is no evidence that the tier distribution differs between ethnicities in {method}."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: The tier distribution is the same across ethnicities</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> χ² = {chi2:.3f}</p>
+            <p><strong>Degrees of Freedom:</strong> {dof}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_ethnicity_question_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of question rate comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method} question rate comparison</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        chi2 = stats.get('chi2_statistic', 0)
+        dof = stats.get('degrees_of_freedom', 0)
+        p_value = stats.get('p_value', 1)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = f"There is strong evidence that the question rate differs significantly between ethnicities in {method}."
+        else:
+            if p_value <= 0.1:
+                implication = f"There is weak evidence that the question rate differs between ethnicities in {method}."
+            else:
+                implication = f"There is no evidence that the question rate differs between ethnicities in {method}."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: The question rate is the same across ethnicities</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> χ² = {chi2:.3f}</p>
+            <p><strong>Degrees of Freedom:</strong> {dof}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_ethnicity_tier_bias_table(self, ethnicity_data: Dict) -> str:
+        """
+        Build HTML table for tier bias analysis by ethnicity
+        
+        Args:
+            ethnicity_data: Dictionary containing ethnicity bias data
+            
+        Returns:
+            HTML string for the tier bias table
+        """
+        if not ethnicity_data:
+            return '<div class="result-placeholder">No ethnicity bias data available</div>'
+        
+        tier_bias_summary = ethnicity_data.get('tier_bias_summary', {})
+        
+        if not tier_bias_summary:
+            return '<div class="result-placeholder">No tier bias summary data available</div>'
+        
+        # Build header
+        header = '<th>Ethnicity</th><th>Count</th><th>Mean Zero-Shot Tier</th><th>Mean N-Shot Tier</th>'
+        
+        # Build rows
+        rows = ""
+        for ethnicity in sorted(tier_bias_summary.keys()):
+            methods = tier_bias_summary[ethnicity]
+            zero_shot_stats = methods.get('zero-shot', {})
+            n_shot_stats = methods.get('n-shot', {})
+            
+            # Calculate total count (assuming equal distribution between methods)
+            total_count = zero_shot_stats.get('count', 0) + n_shot_stats.get('count', 0)
+            zero_shot_mean = zero_shot_stats.get('mean_tier', 0)
+            n_shot_mean = n_shot_stats.get('mean_tier', 0)
+            
+            rows += f'''
+            <tr>
+                <td><strong>{ethnicity.title()}</strong></td>
+                <td>{int(total_count):,}</td>
+                <td>{zero_shot_mean:.3f}</td>
+                <td>{n_shot_mean:.3f}</td>
+            </tr>'''
+        
+        # Statistical analysis
+        mixed_model_stats = ethnicity_data.get('mixed_model_stats', {})
+        stats_html = self._build_ethnicity_tier_bias_statistical_analysis(mixed_model_stats)
+        
+        return f'''
+        <div class="analysis-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        {header}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="analysis-note">
+                <p><strong>Note:</strong> Mean tiers are calculated from persona-injected experiments only (excluding bias mitigation).</p>
+            </div>
+            {stats_html}
+        </div>'''
+
+    def _build_ethnicity_disadvantage_ranking_table(self, ethnicity_data: Dict) -> str:
+        """
+        Build HTML table for disadvantage ranking by ethnicity
+        
+        Args:
+            ethnicity_data: Dictionary containing ethnicity bias data
+            
+        Returns:
+            HTML string for the disadvantage ranking table
+        """
+        if not ethnicity_data:
+            return '<div class="result-placeholder">No ethnicity bias data available</div>'
+        
+        disadvantage_ranking = ethnicity_data.get('disadvantage_ranking', {})
+        
+        if not disadvantage_ranking:
+            return '<div class="result-placeholder">No disadvantage ranking data available</div>'
+        
+        # Build table rows
+        rows = ""
+        
+        # Most Advantaged row
+        zero_shot_most_adv = disadvantage_ranking.get('zero_shot', {}).get('most_advantaged', 'N/A')
+        n_shot_most_adv = disadvantage_ranking.get('n_shot', {}).get('most_advantaged', 'N/A')
+        rows += f'''
+        <tr>
+            <td><strong>Most Advantaged</strong></td>
+            <td>{zero_shot_most_adv.title() if zero_shot_most_adv != 'N/A' else 'N/A'}</td>
+            <td>{n_shot_most_adv.title() if n_shot_most_adv != 'N/A' else 'N/A'}</td>
+        </tr>'''
+        
+        # Most Disadvantaged row
+        zero_shot_most_dis = disadvantage_ranking.get('zero_shot', {}).get('most_disadvantaged', 'N/A')
+        n_shot_most_dis = disadvantage_ranking.get('n_shot', {}).get('most_disadvantaged', 'N/A')
+        rows += f'''
+        <tr>
+            <td><strong>Most Disadvantaged</strong></td>
+            <td>{zero_shot_most_dis.title() if zero_shot_most_dis != 'N/A' else 'N/A'}</td>
+            <td>{n_shot_most_dis.title() if n_shot_most_dis != 'N/A' else 'N/A'}</td>
+        </tr>'''
+        
+        return f'''
+        <div class="analysis-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Ranking</th>
+                        <th>Zero-Shot</th>
+                        <th>N-Shot</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="analysis-note">
+                <p><strong>Note:</strong> Rankings are based on mean tier assignments. Higher mean tiers indicate more advantaged outcomes.</p>
+            </div>
+        </div>'''
+
+    def _build_ethnicity_tier_bias_statistical_analysis(self, stats: Dict) -> str:
+        """Build statistical analysis HTML for tier bias mixed model"""
+        if not stats or 'error' in stats:
+            return '<div class="statistical-analysis"><p>Statistical analysis not available for tier bias analysis</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        f_stat = stats.get('f_statistic', 0)
+        p_value = stats.get('p_value', 1)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = "There is strong evidence that the LLM's recommended tiers are biased by an interaction of ethnicity and LLM prompt."
+        else:
+            if p_value <= 0.1:
+                implication = "There is weak evidence that the LLM's recommended tiers are biased by an interaction of ethnicity and LLM prompt."
+            else:
+                implication = "There is no evidence that the LLM's recommended tiers are biased by an interaction of ethnicity and LLM prompt."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: For each ethnicity, the within-case expected decision is the same for zero-shot and n-shot</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> F = {f_stat:.3f}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    # ===== GEOGRAPHIC BIAS METHODS =====
+    
+    def _build_geographic_mean_tier_tables(self, geographic_data: Dict) -> str:
+        """
+        Build HTML tables for mean tier analysis by geography
+        
+        Args:
+            geographic_data: Dictionary containing geographic bias data
+            
+        Returns:
+            HTML string for the mean tier tables
+        """
+        if not geographic_data:
+            return '<div class="result-placeholder">No geographic bias data available</div>'
+        
+        zero_shot_data = geographic_data.get('zero_shot_mean_tier', {})
+        n_shot_data = geographic_data.get('n_shot_mean_tier', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No geographic mean tier data available</div>'
+        
+        # Build Zero-Shot mean tier table
+        zero_shot_table = self._build_geographic_mean_tier_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot mean tier table
+        n_shot_table = self._build_geographic_mean_tier_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = geographic_data.get('zero_shot_mean_stats', {})
+        n_shot_stats = geographic_data.get('n_shot_mean_stats', {})
+        
+        zero_shot_stats_html = self._build_geographic_mean_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_geographic_mean_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Mean Tier by Geography</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Mean Tier by Geography</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_geographic_mean_tier_table(self, mean_data: Dict, title: str) -> str:
+        """Build a single geographic mean tier table"""
+        if not mean_data:
+            return '<div class="result-placeholder">No mean tier data available</div>'
+        
+        # Build header
+        header = '<th>Geography</th><th>Mean Tier</th><th>Count</th><th>Std Dev</th>'
+        
+        # Build rows
+        rows = ""
+        for geography in sorted(mean_data.keys()):
+            stats = mean_data[geography]
+            mean_tier = stats.get('mean_tier', 0)
+            count = stats.get('count', 0)
+            std_dev = stats.get('std_dev', 0)
+            
+            # Format geography name for display
+            geography_display = geography.replace('_', ' ').title()
+            
+            rows += f'''
+            <tr>
+                <td><strong>{geography_display}</strong></td>
+                <td>{mean_tier:.3f}</td>
+                <td>{count:,}</td>
+                <td>{std_dev:.3f}</td>
+            </tr>'''
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>
+                    {header}
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_geographic_distribution_tables(self, geographic_data: Dict) -> str:
+        """
+        Build HTML tables for tier distribution analysis by geography
+        
+        Args:
+            geographic_data: Dictionary containing geographic bias data
+            
+        Returns:
+            HTML string for the distribution tables
+        """
+        if not geographic_data:
+            return '<div class="result-placeholder">No geographic bias data available</div>'
+        
+        zero_shot_data = geographic_data.get('zero_shot_distribution', {})
+        n_shot_data = geographic_data.get('n_shot_distribution', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No geographic distribution data available</div>'
+        
+        # Build Zero-Shot distribution table
+        zero_shot_table = self._build_geographic_distribution_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot distribution table
+        n_shot_table = self._build_geographic_distribution_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = geographic_data.get('zero_shot_dist_stats', {})
+        n_shot_stats = geographic_data.get('n_shot_dist_stats', {})
+        
+        zero_shot_stats_html = self._build_geographic_distribution_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_geographic_distribution_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Tier Distribution by Geography</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Tier Distribution by Geography</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_geographic_distribution_table(self, distribution_data: Dict, title: str) -> str:
+        """Build a single geographic distribution table"""
+        if not distribution_data:
+            return '<div class="result-placeholder">No distribution data available</div>'
+        
+        # Get all tiers and geographies
+        all_tiers = sorted(set().union(*[data.keys() for data in distribution_data.values()]))
+        geographies = sorted(distribution_data.keys())
+        
+        # Build header
+        header = '<th>Geography</th>'
+        for tier in all_tiers:
+            header += f'<th>Tier {tier}</th>'
+        
+        # Build rows
+        rows = ""
+        for geography in geographies:
+            # Format geography name for display
+            geography_display = geography.replace('_', ' ').title()
+            row = f'<td><strong>{geography_display}</strong></td>'
+            for tier in all_tiers:
+                count = distribution_data[geography].get(tier, 0)
+                row += f'<td>{count:,}</td>'
+            rows += f'<tr>{row}</tr>'
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>
+                    {header}
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_geographic_question_rate_tables(self, geographic_data: Dict) -> str:
+        """
+        Build HTML tables for question rate analysis by geography
+        
+        Args:
+            geographic_data: Dictionary containing geographic bias data
+            
+        Returns:
+            HTML string for the question rate tables
+        """
+        if not geographic_data:
+            return '<div class="result-placeholder">No geographic bias data available</div>'
+        
+        zero_shot_data = geographic_data.get('zero_shot_question_rate', {})
+        n_shot_data = geographic_data.get('n_shot_question_rate', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No geographic question rate data available</div>'
+        
+        # Build Zero-Shot question rate table
+        zero_shot_table = self._build_geographic_question_rate_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot question rate table
+        n_shot_table = self._build_geographic_question_rate_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = geographic_data.get('zero_shot_question_stats', {})
+        n_shot_stats = geographic_data.get('n_shot_question_stats', {})
+        
+        zero_shot_stats_html = self._build_geographic_question_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_geographic_question_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Question Rate by Geography</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Question Rate by Geography</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_geographic_question_rate_table(self, question_data: Dict, title: str) -> str:
+        """Build a single geographic question rate table"""
+        if not question_data:
+            return '<div class="result-placeholder">No question rate data available</div>'
+        
+        # Build header
+        header = '<th>Geography</th><th>Questions</th><th>Total</th><th>Question Rate</th>'
+        
+        # Build rows
+        rows = ""
+        for geography in sorted(question_data.keys()):
+            stats = question_data[geography]
+            questions = stats.get('questions', 0)
+            total = stats.get('total_count', 0)
+            rate = stats.get('question_rate', 0)
+            
+            # Format geography name for display
+            geography_display = geography.replace('_', ' ').title()
+            
+            rows += f'''
+            <tr>
+                <td><strong>{geography_display}</strong></td>
+                <td>{int(questions):,}</td>
+                <td>{int(total):,}</td>
+                <td>{rate:.1f}%</td>
+            </tr>'''
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>
+                    {header}
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_geographic_mean_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of mean tier comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method} mean tier comparison</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        comparison = stats.get('comparison', 'Unknown comparison')
+        t_stat = stats.get('t_statistic', 0)
+        p_value = stats.get('p_value', 1)
+        cohens_d = stats.get('cohens_d', 0)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = f"There is strong evidence that the LLM's recommended tiers differ significantly between geographies in {method}."
+        else:
+            if p_value <= 0.1:
+                implication = f"There is weak evidence that the LLM's recommended tiers differ between geographies in {method}."
+            else:
+                implication = f"There is no evidence that the LLM's recommended tiers differ between geographies in {method}."
+        
+        # Handle different test types
+        if test_type == 'One-way ANOVA':
+            f_stat = stats.get('f_statistic', 0)
+            eta_squared = stats.get('eta_squared', 0)
+            means = stats.get('means', {})
+            
+            # Format means for display
+            means_str = ", ".join([f"{geography}={mean:.3f}" for geography, mean in means.items()])
+            
+            # Determine implication
+            if significant:
+                implication = f"There is strong evidence that the LLM's recommended tiers differ significantly between geographies in {method}. Means: {means_str}"
+            else:
+                if p_value <= 0.1:
+                    implication = f"There is weak evidence that the LLM's recommended tiers differ between geographies in {method}. Means: {means_str}"
+                else:
+                    implication = f"There is no evidence that the LLM's recommended tiers differ between geographies in {method}. Means: {means_str}"
+            
+            return f'''
+            <div class="statistical-analysis">
+                <h4>Statistical Analysis</h4>
+                <p><strong>Hypothesis:</strong> H0: The mean tier is the same across all geographies</p>
+                <p><strong>Test:</strong> {test_type}</p>
+                <p><strong>Comparison:</strong> {comparison}</p>
+                <p><strong>Test Statistic:</strong> F = {f_stat:.3f}</p>
+                <p><strong>p-Value:</strong> {p_value:.4f}</p>
+                <p><strong>Effect Size (η²):</strong> {eta_squared:.3f}</p>
+                <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+                <p><strong>Implication:</strong> {implication}</p>
+            </div>'''
+        else:
+            # Fallback for other test types
+            t_stat = stats.get('t_statistic', 0)
+            cohens_d = stats.get('cohens_d', 0)
+            
+            # Determine implication
+            if significant:
+                implication = f"There is strong evidence that the LLM's recommended tiers differ significantly between geographies in {method}."
+            else:
+                if p_value <= 0.1:
+                    implication = f"There is weak evidence that the LLM's recommended tiers differ between geographies in {method}."
+                else:
+                    implication = f"There is no evidence that the LLM's recommended tiers differ between geographies in {method}."
+            
+            # Handle None values for t_stat, p_value, and cohens_d
+            t_stat_str = f"{t_stat:.3f}" if t_stat is not None else "N/A"
+            p_value_str = f"{p_value:.4f}" if p_value is not None else "N/A"
+            cohens_d_str = f"{cohens_d:.3f}" if cohens_d is not None else "N/A"
+            conclusion_str = conclusion if conclusion != 'cannot_determine' else 'cannot be determined'
+            implication_str = implication if conclusion != 'cannot_determine' else 'Raw data required for proper statistical analysis'
+            
+            return f'''
+            <div class="statistical-analysis">
+                <h4>Statistical Analysis</h4>
+                <p><strong>Hypothesis:</strong> H0: The mean tier is the same across geographies</p>
+                <p><strong>Test:</strong> {test_type}</p>
+                <p><strong>Comparison:</strong> {comparison}</p>
+                <p><strong>Test Statistic:</strong> t = {t_stat_str}</p>
+                <p><strong>p-Value:</strong> {p_value_str}</p>
+                <p><strong>Effect Size (Cohen's d):</strong> {cohens_d_str}</p>
+                <p><strong>Conclusion:</strong> The null hypothesis was {conclusion_str}</p>
+                <p><strong>Implication:</strong> {implication_str}</p>
+            </div>'''
+
+    def _build_geographic_distribution_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of distribution comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method} distribution comparison</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        chi2 = stats.get('chi2_statistic', 0)
+        dof = stats.get('degrees_of_freedom', 0)
+        p_value = stats.get('p_value', 1)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = f"There is strong evidence that the tier distribution differs significantly between geographies in {method}."
+        else:
+            if p_value <= 0.1:
+                implication = f"There is weak evidence that the tier distribution differs between geographies in {method}."
+            else:
+                implication = f"There is no evidence that the tier distribution differs between geographies in {method}."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: The tier distribution is the same across geographies</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> χ² = {chi2:.3f}</p>
+            <p><strong>Degrees of Freedom:</strong> {dof}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_geographic_question_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of question rate comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method} question rate comparison</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        chi2 = stats.get('chi2_statistic', 0)
+        dof = stats.get('degrees_of_freedom', 0)
+        p_value = stats.get('p_value', 1)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = f"There is strong evidence that the question rate differs significantly between geographies in {method}."
+        else:
+            if p_value <= 0.1:
+                implication = f"There is weak evidence that the question rate differs between geographies in {method}."
+            else:
+                implication = f"There is no evidence that the question rate differs between geographies in {method}."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: The question rate is the same across geographies</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> χ² = {chi2:.3f}</p>
+            <p><strong>Degrees of Freedom:</strong> {dof}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_geographic_tier_bias_table(self, geographic_data: Dict) -> str:
+        """
+        Build HTML table for tier bias analysis by geography
+        
+        Args:
+            geographic_data: Dictionary containing geographic bias data
+            
+        Returns:
+            HTML string for the tier bias table
+        """
+        if not geographic_data:
+            return '<div class="result-placeholder">No geographic bias data available</div>'
+        
+        tier_bias_summary = geographic_data.get('tier_bias_summary', {})
+        
+        if not tier_bias_summary:
+            return '<div class="result-placeholder">No tier bias summary data available</div>'
+        
+        # Build header
+        header = '<th>Geography</th><th>Count</th><th>Mean Zero-Shot Tier</th><th>Mean N-Shot Tier</th>'
+        
+        # Build rows
+        rows = ""
+        for geography in sorted(tier_bias_summary.keys()):
+            methods = tier_bias_summary[geography]
+            zero_shot_stats = methods.get('zero-shot', {})
+            n_shot_stats = methods.get('n-shot', {})
+            
+            # Calculate total count (assuming equal distribution between methods)
+            total_count = zero_shot_stats.get('count', 0) + n_shot_stats.get('count', 0)
+            zero_shot_mean = zero_shot_stats.get('mean_tier', 0)
+            n_shot_mean = n_shot_stats.get('mean_tier', 0)
+            
+            # Format geography name for display
+            geography_display = geography.replace('_', ' ').title()
+            
+            rows += f'''
+            <tr>
+                <td><strong>{geography_display}</strong></td>
+                <td>{int(total_count):,}</td>
+                <td>{zero_shot_mean:.3f}</td>
+                <td>{n_shot_mean:.3f}</td>
+            </tr>'''
+        
+        # Statistical analysis
+        mixed_model_stats = geographic_data.get('mixed_model_stats', {})
+        stats_html = self._build_geographic_tier_bias_statistical_analysis(mixed_model_stats)
+        
+        return f'''
+        <div class="analysis-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        {header}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="analysis-note">
+                <p><strong>Note:</strong> Mean tiers are calculated from persona-injected experiments only (excluding bias mitigation).</p>
+            </div>
+            {stats_html}
+        </div>'''
+
+    def _build_geographic_disadvantage_ranking_table(self, geographic_data: Dict) -> str:
+        """
+        Build HTML table for disadvantage ranking by geography
+        
+        Args:
+            geographic_data: Dictionary containing geographic bias data
+            
+        Returns:
+            HTML string for the disadvantage ranking table
+        """
+        if not geographic_data:
+            return '<div class="result-placeholder">No geographic bias data available</div>'
+        
+        disadvantage_ranking = geographic_data.get('disadvantage_ranking', {})
+        
+        if not disadvantage_ranking:
+            return '<div class="result-placeholder">No disadvantage ranking data available</div>'
+        
+        # Build table rows
+        rows = ""
+        
+        # Most Advantaged row
+        zero_shot_most_adv = disadvantage_ranking.get('zero_shot', {}).get('most_advantaged', 'N/A')
+        n_shot_most_adv = disadvantage_ranking.get('n_shot', {}).get('most_advantaged', 'N/A')
+        
+        # Format geography names for display
+        zero_shot_adv_display = zero_shot_most_adv.replace('_', ' ').title() if zero_shot_most_adv != 'N/A' else 'N/A'
+        n_shot_adv_display = n_shot_most_adv.replace('_', ' ').title() if n_shot_most_adv != 'N/A' else 'N/A'
+        
+        rows += f'''
+        <tr>
+            <td><strong>Most Advantaged</strong></td>
+            <td>{zero_shot_adv_display}</td>
+            <td>{n_shot_adv_display}</td>
+        </tr>'''
+        
+        # Most Disadvantaged row
+        zero_shot_most_dis = disadvantage_ranking.get('zero_shot', {}).get('most_disadvantaged', 'N/A')
+        n_shot_most_dis = disadvantage_ranking.get('n_shot', {}).get('most_disadvantaged', 'N/A')
+        
+        # Format geography names for display
+        zero_shot_dis_display = zero_shot_most_dis.replace('_', ' ').title() if zero_shot_most_dis != 'N/A' else 'N/A'
+        n_shot_dis_display = n_shot_most_dis.replace('_', ' ').title() if n_shot_most_dis != 'N/A' else 'N/A'
+        
+        rows += f'''
+        <tr>
+            <td><strong>Most Disadvantaged</strong></td>
+            <td>{zero_shot_dis_display}</td>
+            <td>{n_shot_dis_display}</td>
+        </tr>'''
+        
+        return f'''
+        <div class="analysis-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Ranking</th>
+                        <th>Zero-Shot</th>
+                        <th>N-Shot</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="analysis-note">
+                <p><strong>Note:</strong> Rankings are based on mean tier assignments. Higher mean tiers indicate more advantaged outcomes.</p>
+            </div>
+        </div>'''
+
+    def _build_geographic_tier_bias_statistical_analysis(self, stats: Dict) -> str:
+        """Build statistical analysis HTML for tier bias mixed model"""
+        if not stats or 'error' in stats:
+            return '<div class="statistical-analysis"><p>Statistical analysis not available for tier bias analysis</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        f_stat = stats.get('f_statistic', 0)
+        p_value = stats.get('p_value', 1)
+        significant = stats.get('significant', False)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if significant:
+            implication = "There is strong evidence that the LLM's recommended tiers are biased by an interaction of geography and LLM prompt."
+        else:
+            if p_value <= 0.1:
+                implication = "There is weak evidence that the LLM's recommended tiers are biased by an interaction of geography and LLM prompt."
+            else:
+                implication = "There is no evidence that the LLM's recommended tiers are biased by an interaction of geography and LLM prompt."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: For each geography, the within-case expected decision is the same for zero-shot and n-shot</p>
             <p><strong>Test:</strong> {test_type}</p>
             <p><strong>Test Statistic:</strong> F = {f_stat:.3f}</p>
             <p><strong>p-Value:</strong> {p_value:.4f}</p>

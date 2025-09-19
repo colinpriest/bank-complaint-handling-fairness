@@ -449,27 +449,285 @@ Result 5: Disadvantage Ranking by Gender and by Zero-Shot/N-Shot
 
 #### Sub-Tab 2.4: Ethnicity Bias
 
+**Status: Fully Implemented**
+
 Result 1: Mean Tier by Ethnicity and by Zero-Shot/N-Shot
+
+* filter out all experiments with bias mitigation
+* create two tables
+
+  * Zero-shot
+
+    * filter for decision_method = "zero-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * Mean Tier column is the mean of llm_simplified_tier
+    * Count column is the number of experiments
+    * Std Dev column is the standard deviation of llm_simplified_tier
+    * group by, have one row for each ethnicity
+  * N-shot
+
+    * filter for decision_method = "n-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * Mean Tier column is the mean of llm_simplified_tier
+    * Count column is the number of experiments
+    * Std Dev column is the standard deviation of llm_simplified_tier
+    * group by, have one row for each ethnicity
+* create two statistical analyses, one for zero-shot and one for n-shot
+
+  * Hypothesis: H0: The mean tier is the same across ethnicities
+  * Test: Independent t-test
+  * Effect Size (Cohen's d):
+  * Test Statistic: t =
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the LLM's recommended tiers differ significantly between ethnicities."
+    * If the null hypothesis was accepted, then say, "There is no evidence that the LLM's recommended tiers differ between ethnicities."
 
 Result 2: Tier Distribution by Ethnicity and by Zero-Shot/N-Shot
 
-Result 3: Bias Distribution by Ethnicity and by Zero-Shot/N-Shot
+* filter out all experiments with bias mitigation
+* create two tables
+
+  * Zero-shot
+
+    * filter for decision_method = "zero-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by llm_simplified_tier and ethnicity
+    * count column is the number of experiments
+    * how one column for each llm_simplified_tier
+    * have one row for each ethnicity
+  * N-shot
+
+    * filter for decision_method = "n-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by llm_simplified_tier and ethnicity
+    * count column is the number of experiments
+    * how one column for each llm_simplified_tier
+    * have one row for each ethnicity
+* create two statistical analyses, one for zero-shot and one for n-shot
+
+  * Hypothesis: H0: The tier distribution is the same across ethnicities
+  * Test: Chi-squared test of independence
+  * Test Statistic: χ² =
+  * Degrees of Freedom:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the tier distribution differs significantly between ethnicities."
+    * If the null hypothesis was accepted, then say, "There is no evidence that the tier distribution differs between ethnicities."
+
+Result 3: Tier Bias Distribution by Ethnicity and by Zero-Shot/N-Shot
+
+* filter out all experiments with bias mitigation
+* create one table
+
+  * filter for persona-injected rows only i.e. persona is NOT NULL
+  * group by ethnicity and decision_method
+  * Count column is the number of experiments
+  * Mean Zero-Shot Tier column is the mean of llm_simplified_tier for decision_method = "zero-shot"
+  * Mean N-Shot Tier column is the mean of llm_simplified_tier for decision_method = "n-shot"
+  * have one row for each ethnicity
+* create one statistical analysis
+
+  * Hypothesis: H0: For each ethnicity, the within-case expected decision is the same for zero-shot and n-shot
+  * Test: cumulative-logit (proportional-odds) mixed model with random intercept for case_id
+  * Test Statistic: F =
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the LLM's recommended tiers are biased by an interaction of ethnicity and LLM prompt."
+    * If the null hypothesis was accepted, then say, "There is no evidence that the LLM's recommended tiers are biased by an interaction of ethnicity and LLM prompt."
 
 Result 4: Question Rate – Persona-Injected vs. Baseline – by Ethnicity and by Zero-Shot/N-Shot
 
+* filter out all experiments with bias mitigation
+* create two tables
+
+  * Zero-shot
+
+    * filter for decision_method = "zero-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by ethnicity
+    * Questions column is the number of experiments where asks_for_info = true
+    * Total column is the number of experiments
+    * Question Rate column is the percentage of experiments where asks_for_info = true
+    * have one row for each ethnicity
+  * N-shot
+
+    * filter for decision_method = "n-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by ethnicity
+    * Questions column is the number of experiments where asks_for_info = true
+    * Total column is the number of experiments
+    * Question Rate column is the percentage of experiments where asks_for_info = true
+    * have one row for each ethnicity
+* create two statistical analyses, one for zero-shot and one for n-shot
+
+  * Hypothesis: H0: The question rate is the same across ethnicities
+  * Test: Chi-squared test of independence
+  * Test Statistic: χ² =
+  * Degrees of Freedom:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the question rate differs significantly between ethnicities."
+    * If the null hypothesis was accepted, then say, "There is no evidence that the question rate differs between ethnicities."
+
 Result 5: Disadvantage Ranking by Ethnicity and by Zero-Shot/N-Shot
+
+* filter out all experiments with bias mitigation
+* create one table
+
+  * filter for persona-injected rows only i.e. persona is NOT NULL
+  * group by ethnicity and decision_method
+  * calculate mean tier for each ethnicity and decision_method combination
+  * rank ethnicities by mean tier (higher mean tier = more advantaged)
+  * Most Advantaged column shows the ethnicity with the highest mean tier
+  * Most Disadvantaged column shows the ethnicity with the lowest mean tier
+  * have one row for each decision_method (zero-shot and n-shot)
+* no statistical analysis required for this result
 
 #### Sub-Tab 2.5: Geographic Bias
 
+**Status: Fully Implemented**
+
 Result 1: Mean Tier by Geography and by Zero-Shot/N-Shot
+
+* filter out all experiments with bias mitigation
+* create two tables
+
+  * Zero-shot
+
+    * filter for decision_method = "zero-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * Mean Tier column is the mean of llm_simplified_tier
+    * Count column is the number of experiments
+    * Std Dev column is the standard deviation of llm_simplified_tier
+    * group by, have one row for each geography
+  * N-shot
+
+    * filter for decision_method = "n-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * Mean Tier column is the mean of llm_simplified_tier
+    * Count column is the number of experiments
+    * Std Dev column is the standard deviation of llm_simplified_tier
+    * group by, have one row for each geography
+* create two statistical analyses, one for zero-shot and one for n-shot
+
+  * Hypothesis: H0: The mean tier is the same across geographies
+  * Test: Independent t-test
+  * Effect Size (Cohen's d):
+  * Test Statistic: t =
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the LLM's recommended tiers differ significantly between geographies."
+    * If the null hypothesis was accepted, then say, "There is weak evidence that the LLM's recommended tiers differ between geographies."
 
 Result 2: Tier Distribution by Geography and by Zero-Shot/N-Shot
 
-Result 3: Bias Distribution by Geography and by Zero-Shot/N-Shot
+* filter out all experiments with bias mitigation
+* create two tables
+
+  * Zero-shot
+
+    * filter for decision_method = "zero-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by llm_simplified_tier and geography
+    * count column is the number of experiments
+    * how one column for each llm_simplified_tier
+    * have one row for each geography
+  * N-shot
+
+    * filter for decision_method = "n-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by llm_simplified_tier and geography
+    * count column is the number of experiments
+    * how one column for each llm_simplified_tier
+    * have one row for each geography
+* create two statistical analyses, one for zero-shot and one for n-shot
+
+  * Hypothesis: H0: The tier distribution is the same across geographies
+  * Test: Chi-squared test of independence
+  * Test Statistic: χ² =
+  * Degrees of Freedom:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the tier distribution differs significantly between geographies."
+    * If the null hypothesis was accepted, then say, "There is weak evidence that the tier distribution differs between geographies."
+
+Result 3: Tier Bias Distribution by Geography and by Zero-Shot/N-Shot
+
+* filter out all experiments with bias mitigation
+* create one table
+
+  * filter for persona-injected rows only i.e. persona is NOT NULL
+  * group by geography and decision_method
+  * Count column is the number of experiments
+  * Mean Zero-Shot Tier column is the mean of llm_simplified_tier for decision_method = "zero-shot"
+  * Mean N-Shot Tier column is the mean of llm_simplified_tier for decision_method = "n-shot"
+  * have one row for each geography
+* create one statistical analysis
+
+  * Hypothesis: H0: For each geography, the within-case expected decision is the same for zero-shot and n-shot
+  * Test: cumulative-logit (proportional-odds) mixed model with random intercept for case_id
+  * Test Statistic: F =
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the LLM's recommended tiers are biased by an interaction of geography and LLM prompt."
+    * If the null hypothesis was accepted, then say, "There is weak evidence that the LLM's recommended tiers are biased by an interaction of geography and LLM prompt."
 
 Result 4: Question Rate – Persona-Injected vs. Baseline – by Geography and by Zero-Shot/N-Shot
 
+* filter out all experiments with bias mitigation
+* create two tables
+
+  * Zero-shot
+
+    * filter for decision_method = "zero-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by geography
+    * Questions column is the number of experiments where asks_for_info = true
+    * Total column is the number of experiments
+    * Question Rate column is the percentage of experiments where asks_for_info = true
+    * have one row for each geography
+  * N-shot
+
+    * filter for decision_method = "n-shot"
+    * filter for persona-injected rows only i.e. persona is NOT NULL
+    * group by geography
+    * Questions column is the number of experiments where asks_for_info = true
+    * Total column is the number of experiments
+    * Question Rate column is the percentage of experiments where asks_for_info = true
+    * have one row for each geography
+* create two statistical analyses, one for zero-shot and one for n-shot
+
+  * Hypothesis: H0: The question rate is the same across geographies
+  * Test: Chi-squared test of independence
+  * Test Statistic: χ² =
+  * Degrees of Freedom:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say, "There is strong evidence that the question rate differs significantly between geographies."
+    * If the null hypothesis was accepted, then say, "There is weak evidence that the question rate differs between geographies."
+
 Result 5: Disadvantage Ranking by Geography and by Zero-Shot/N-Shot
+
+* filter out all experiments with bias mitigation
+* create one table
+
+  * filter for persona-injected rows only i.e. persona is NOT NULL
+  * group by geography and decision_method
+  * calculate mean tier for each geography and decision_method combination
+  * rank geographies by mean tier (higher mean tier = more advantaged)
+  * Most Advantaged column shows the geography with the highest mean tier
+  * Most Disadvantaged column shows the geography with the lowest mean tier
+  * have one row for each decision_method (zero-shot and n-shot)
+* no statistical analysis required for this result
 
 ### Tab 3: Severity and Bias
 
