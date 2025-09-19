@@ -1303,6 +1303,10 @@ class BankComplaintFairnessAnalyzer:
             # Extract question rate data for Process Bias analysis
             from extract_question_rate_data import extract_question_rate_data
             question_rate_data = extract_question_rate_data()
+            
+            # Extract gender bias data for Gender Bias analysis
+            from extract_gender_bias_data import extract_gender_bias_data
+            gender_bias_data = extract_gender_bias_data()
 
             # Prepare experiment data for dashboard
             experiment_data = {
@@ -1325,7 +1329,9 @@ class BankComplaintFairnessAnalyzer:
                     # Add process bias data
                     'zero_shot_question_rate': question_rate_data.get('zero_shot_question_rate', {}),
                     'n_shot_question_rate': question_rate_data.get('n_shot_question_rate', {}),
-                    'nshot_vs_zeroshot_comparison': question_rate_data.get('nshot_vs_zeroshot_comparison', {})
+                    'nshot_vs_zeroshot_comparison': question_rate_data.get('nshot_vs_zeroshot_comparison', {}),
+                    # Add gender bias data
+                    'gender_bias': gender_bias_data
                 }
             }
 

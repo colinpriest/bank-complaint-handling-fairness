@@ -983,27 +983,27 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 1: Mean Tier by Gender and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments broken down by gender and shot type]</div>
+                    {self._build_gender_mean_tier_tables(persona_analysis.get('gender_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 2: Tier Distribution by Gender and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Tier distribution analysis by gender and shot type]</div>
+                    {self._build_gender_distribution_tables(persona_analysis.get('gender_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 3: Tier Bias Distribution by Gender and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Bias distribution analysis by gender and shot type]</div>
+                    {self._build_gender_tier_bias_table(persona_analysis.get('gender_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 4: Question Rate – Persona-Injected vs. Baseline – by Gender and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by gender and shot type]</div>
+                    {self._build_gender_question_rate_tables(persona_analysis.get('gender_bias', {}))}
                 </div>
 
                 <div class="result-item">
                     <div class="result-title">Result 5: Disadvantage Ranking by Gender and by Zero-Shot/N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Ranking of gender disadvantage by shot type]</div>
+                    {self._build_gender_disadvantage_ranking_table(persona_analysis.get('gender_bias', {}))}
                 </div>
             </div>
         </div>
@@ -1693,3 +1693,520 @@ class HTMLDashboard:
             </div>
         </div>
         """
+
+    def _build_gender_mean_tier_tables(self, gender_data: Dict) -> str:
+        """
+        Build HTML tables for mean tier analysis by gender
+        
+        Args:
+            gender_data: Dictionary containing gender bias data
+            
+        Returns:
+            HTML string for the gender mean tier tables
+        """
+        if not gender_data:
+            return '<div class="result-placeholder">No gender bias data available</div>'
+        
+        zero_shot_data = gender_data.get('zero_shot_mean_tier', {})
+        n_shot_data = gender_data.get('n_shot_mean_tier', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No gender mean tier data available</div>'
+        
+        # Build Zero-Shot table
+        zero_shot_rows = ""
+        if zero_shot_data:
+            for gender, stats in zero_shot_data.items():
+                zero_shot_rows += f'''
+                <tr>
+                    <td><strong>{gender.title()}</strong></td>
+                    <td>{stats['mean_tier']:.3f}</td>
+                    <td>{int(stats['count']):,}</td>
+                    <td>{stats['std_dev']:.3f}</td>
+                </tr>'''
+        else:
+            zero_shot_rows = '<tr><td colspan="4">No zero-shot data available</td></tr>'
+        
+        # Build N-Shot table
+        n_shot_rows = ""
+        if n_shot_data:
+            for gender, stats in n_shot_data.items():
+                n_shot_rows += f'''
+                <tr>
+                    <td><strong>{gender.title()}</strong></td>
+                    <td>{stats['mean_tier']:.3f}</td>
+                    <td>{int(stats['count']):,}</td>
+                    <td>{stats['std_dev']:.3f}</td>
+                </tr>'''
+        else:
+            n_shot_rows = '<tr><td colspan="4">No n-shot data available</td></tr>'
+        
+        # Statistical analysis
+        zero_shot_stats = gender_data.get('zero_shot_mean_stats', {})
+        n_shot_stats = gender_data.get('n_shot_mean_stats', {})
+        
+        zero_shot_stats_html = self._build_gender_mean_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_gender_mean_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Mean Tier by Gender</h3>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Gender</th>
+                        <th>Mean Tier</th>
+                        <th>Count</th>
+                        <th>Std Dev</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {zero_shot_rows}
+                </tbody>
+            </table>
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Mean Tier by Gender</h3>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Gender</th>
+                        <th>Mean Tier</th>
+                        <th>Count</th>
+                        <th>Std Dev</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {n_shot_rows}
+                </tbody>
+            </table>
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_gender_distribution_tables(self, gender_data: Dict) -> str:
+        """
+        Build HTML tables for tier distribution analysis by gender
+        
+        Args:
+            gender_data: Dictionary containing gender bias data
+            
+        Returns:
+            HTML string for the gender distribution tables
+        """
+        if not gender_data:
+            return '<div class="result-placeholder">No gender bias data available</div>'
+        
+        zero_shot_data = gender_data.get('zero_shot_distribution', {})
+        n_shot_data = gender_data.get('n_shot_distribution', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No gender distribution data available</div>'
+        
+        # Build Zero-Shot distribution table
+        zero_shot_table = self._build_gender_distribution_table(zero_shot_data, "Zero-Shot")
+        
+        # Build N-Shot distribution table
+        n_shot_table = self._build_gender_distribution_table(n_shot_data, "N-Shot")
+        
+        # Statistical analysis
+        zero_shot_stats = gender_data.get('zero_shot_dist_stats', {})
+        n_shot_stats = gender_data.get('n_shot_dist_stats', {})
+        
+        zero_shot_stats_html = self._build_gender_distribution_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_gender_distribution_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Tier Distribution by Gender</h3>
+            {zero_shot_table}
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Tier Distribution by Gender</h3>
+            {n_shot_table}
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_gender_distribution_table(self, distribution_data: Dict, title: str) -> str:
+        """Build a single gender distribution table"""
+        if not distribution_data:
+            return '<div class="result-placeholder">No distribution data available</div>'
+        
+        # Get all tiers and genders
+        all_tiers = sorted(set().union(*[data.keys() for data in distribution_data.values()]))
+        genders = sorted(distribution_data.keys())
+        
+        # Build header
+        header = '<th>Gender</th>'
+        for tier in all_tiers:
+            header += f'<th>Tier {tier}</th>'
+        
+        # Build rows
+        rows = ""
+        for gender in genders:
+            row = f'<tr><td><strong>{gender.title()}</strong></td>'
+            for tier in all_tiers:
+                count = distribution_data[gender].get(tier, 0)
+                row += f'<td>{int(count):,}</td>'
+            row += '</tr>'
+            rows += row
+        
+        return f'''
+        <table class="results-table">
+            <thead>
+                <tr>{header}</tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>'''
+
+    def _build_gender_question_rate_tables(self, gender_data: Dict) -> str:
+        """
+        Build HTML tables for question rate analysis by gender
+        
+        Args:
+            gender_data: Dictionary containing gender bias data
+            
+        Returns:
+            HTML string for the gender question rate tables
+        """
+        if not gender_data:
+            return '<div class="result-placeholder">No gender bias data available</div>'
+        
+        zero_shot_data = gender_data.get('zero_shot_question_rate', {})
+        n_shot_data = gender_data.get('n_shot_question_rate', {})
+        
+        if not zero_shot_data and not n_shot_data:
+            return '<div class="result-placeholder">No gender question rate data available</div>'
+        
+        # Build Zero-Shot table
+        zero_shot_rows = ""
+        if zero_shot_data:
+            for gender, stats in zero_shot_data.items():
+                zero_shot_rows += f'''
+                <tr>
+                    <td><strong>{gender.title()}</strong></td>
+                    <td>{int(stats['total_count']):,}</td>
+                    <td>{int(stats['questions']):,}</td>
+                    <td>{stats['question_rate']:.1f}%</td>
+                </tr>'''
+        else:
+            zero_shot_rows = '<tr><td colspan="4">No zero-shot data available</td></tr>'
+        
+        # Build N-Shot table
+        n_shot_rows = ""
+        if n_shot_data:
+            for gender, stats in n_shot_data.items():
+                n_shot_rows += f'''
+                <tr>
+                    <td><strong>{gender.title()}</strong></td>
+                    <td>{int(stats['total_count']):,}</td>
+                    <td>{int(stats['questions']):,}</td>
+                    <td>{stats['question_rate']:.1f}%</td>
+                </tr>'''
+        else:
+            n_shot_rows = '<tr><td colspan="4">No n-shot data available</td></tr>'
+        
+        # Statistical analysis
+        zero_shot_stats = gender_data.get('zero_shot_question_stats', {})
+        n_shot_stats = gender_data.get('n_shot_question_stats', {})
+        
+        zero_shot_stats_html = self._build_gender_question_statistical_analysis(zero_shot_stats, "Zero-Shot")
+        n_shot_stats_html = self._build_gender_question_statistical_analysis(n_shot_stats, "N-Shot")
+        
+        return f'''
+        <div class="analysis-section">
+            <h3>Zero-Shot Question Rate by Gender</h3>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Gender</th>
+                        <th>Count</th>
+                        <th>Questions</th>
+                        <th>Question Rate %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {zero_shot_rows}
+                </tbody>
+            </table>
+            {zero_shot_stats_html}
+        </div>
+        
+        <div class="analysis-section">
+            <h3>N-Shot Question Rate by Gender</h3>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Gender</th>
+                        <th>Count</th>
+                        <th>Questions</th>
+                        <th>Question Rate %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {n_shot_rows}
+                </tbody>
+            </table>
+            {n_shot_stats_html}
+        </div>'''
+
+    def _build_gender_mean_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build statistical analysis HTML for mean tier comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method}</p></div>'
+        
+        gender1 = stats.get('gender1', 'Unknown')
+        gender2 = stats.get('gender2', 'Unknown')
+        mean1 = stats.get('mean1', 0)
+        mean2 = stats.get('mean2', 0)
+        mean_diff = stats.get('mean_difference', 0)
+        cohens_d = stats.get('cohens_d', 0)
+        t_stat = stats.get('t_statistic', 0)
+        df = stats.get('degrees_of_freedom', 0)
+        p_value = stats.get('p_value', 1)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if conclusion == 'rejected':
+            if mean_diff > 0:
+                implication = f"The LLM's mean recommended tier is biased by gender, disadvantaging {gender2}s."
+            else:
+                implication = f"The LLM's mean recommended tier is biased by gender, disadvantaging {gender1}s."
+        else:
+            if p_value <= 0.1:
+                implication = "There is weak evidence that the LLM's mean recommended tier is biased by gender."
+            else:
+                implication = "There is no evidence that the LLM's mean recommended tier is biased by gender."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - {method}</h4>
+            <p><strong>Hypothesis:</strong> H0: Persona injection does not affect mean tier assignment</p>
+            <p><strong>Test:</strong> Paired t-test</p>
+            <p><strong>Effect Size (Cohen's d):</strong> {cohens_d:.3f}</p>
+            <p><strong>Mean Difference:</strong> {mean_diff:.3f}</p>
+            <p><strong>Test Statistic:</strong> t({df:.0f}) = {t_stat:.3f}</p>
+            <p><strong>p-value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_gender_distribution_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build statistical analysis HTML for distribution comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method}</p></div>'
+        
+        chi2 = stats.get('chi2_statistic', 0)
+        p_value = stats.get('p_value', 1)
+        df = stats.get('degrees_of_freedom', 0)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if conclusion == 'rejected':
+            implication = "The LLM's recommended tiers are biased by gender."
+        else:
+            if p_value > 0.1:
+                implication = "There is no evidence that the LLM's recommended tiers are biased by gender."
+            else:
+                implication = "There is weak evidence that the LLM's recommended tiers are biased by gender."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - {method}</h4>
+            <p><strong>Hypothesis:</strong> H0: Persona injection does not affect the distribution of tier assignments</p>
+            <p><strong>Test:</strong> Chi-squared test</p>
+            <p><strong>Test Statistic:</strong> χ²({df:.0f}) = {chi2:.3f}</p>
+            <p><strong>p-value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_gender_question_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build statistical analysis HTML for question rate comparison"""
+        if not stats or 'error' in stats:
+            return f'<div class="statistical-analysis"><p>Statistical analysis not available for {method}</p></div>'
+        
+        gender1 = stats.get('gender1', 'Unknown')
+        gender2 = stats.get('gender2', 'Unknown')
+        rate1 = stats.get('rate1', 0)
+        rate2 = stats.get('rate2', 0)
+        rate_diff = stats.get('rate_difference', 0)
+        chi2 = stats.get('chi2_statistic', 0)
+        p_value = stats.get('p_value', 1)
+        df = stats.get('degrees_of_freedom', 0)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if conclusion == 'rejected':
+            if rate_diff > 0:
+                implication = f"The LLM's questioning behavior is biased by gender, with {gender1}s being asked more questions."
+            else:
+                implication = f"The LLM's questioning behavior is biased by gender, with {gender2}s being asked more questions."
+        else:
+            if p_value > 0.1:
+                implication = "There is no evidence that the LLM's questioning behavior is biased by gender."
+            else:
+                implication = "There is weak evidence that the LLM's questioning behavior is biased by gender."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - {method}</h4>
+            <p><strong>Hypothesis:</strong> H0: The question rate is the same across genders</p>
+            <p><strong>Test:</strong> Chi-squared test of independence</p>
+            <p><strong>Rate Difference:</strong> {rate_diff:.1f}%</p>
+            <p><strong>Test Statistic:</strong> χ²({df:.0f}) = {chi2:.3f}</p>
+            <p><strong>p-value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
+
+    def _build_gender_tier_bias_table(self, gender_data: Dict) -> str:
+        """
+        Build HTML table for tier bias analysis by gender
+        
+        Args:
+            gender_data: Dictionary containing gender bias data
+            
+        Returns:
+            HTML string for the tier bias table
+        """
+        if not gender_data:
+            return '<div class="result-placeholder">No gender bias data available</div>'
+        
+        tier_bias_summary = gender_data.get('tier_bias_summary', {})
+        mixed_model_stats = gender_data.get('mixed_model_stats', {})
+        
+        if not tier_bias_summary:
+            return '<div class="result-placeholder">No tier bias data available</div>'
+        
+        # Build table rows
+        rows = ""
+        for gender in sorted(tier_bias_summary.keys()):
+            methods = tier_bias_summary[gender]
+            zero_shot_mean = methods.get('zero-shot', {}).get('mean_tier', 0)
+            n_shot_mean = methods.get('n-shot', {}).get('mean_tier', 0)
+            total_count = methods.get('zero-shot', {}).get('count', 0) + methods.get('n-shot', {}).get('count', 0)
+            
+            rows += f'''
+            <tr>
+                <td><strong>{gender.title()}</strong></td>
+                <td>{int(total_count):,}</td>
+                <td>{zero_shot_mean:.3f}</td>
+                <td>{n_shot_mean:.3f}</td>
+            </tr>'''
+        
+        # Statistical analysis
+        stats_html = self._build_gender_tier_bias_statistical_analysis(mixed_model_stats)
+        
+        return f'''
+        <div class="analysis-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Gender</th>
+                        <th>Count</th>
+                        <th>Mean Zero-Shot Tier</th>
+                        <th>Mean N-Shot Tier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            {stats_html}
+        </div>'''
+
+    def _build_gender_disadvantage_ranking_table(self, gender_data: Dict) -> str:
+        """
+        Build HTML table for disadvantage ranking by gender
+        
+        Args:
+            gender_data: Dictionary containing gender bias data
+            
+        Returns:
+            HTML string for the disadvantage ranking table
+        """
+        if not gender_data:
+            return '<div class="result-placeholder">No gender bias data available</div>'
+        
+        disadvantage_ranking = gender_data.get('disadvantage_ranking', {})
+        
+        if not disadvantage_ranking:
+            return '<div class="result-placeholder">No disadvantage ranking data available</div>'
+        
+        # Build table rows
+        rows = ""
+        
+        # Most Advantaged row
+        zero_shot_most_adv = disadvantage_ranking.get('zero_shot', {}).get('most_advantaged', 'N/A')
+        n_shot_most_adv = disadvantage_ranking.get('n_shot', {}).get('most_advantaged', 'N/A')
+        rows += f'''
+        <tr>
+            <td><strong>Most Advantaged</strong></td>
+            <td>{zero_shot_most_adv.title() if zero_shot_most_adv != 'N/A' else 'N/A'}</td>
+            <td>{n_shot_most_adv.title() if n_shot_most_adv != 'N/A' else 'N/A'}</td>
+        </tr>'''
+        
+        # Most Disadvantaged row
+        zero_shot_most_dis = disadvantage_ranking.get('zero_shot', {}).get('most_disadvantaged', 'N/A')
+        n_shot_most_dis = disadvantage_ranking.get('n_shot', {}).get('most_disadvantaged', 'N/A')
+        rows += f'''
+        <tr>
+            <td><strong>Most Disadvantaged</strong></td>
+            <td>{zero_shot_most_dis.title() if zero_shot_most_dis != 'N/A' else 'N/A'}</td>
+            <td>{n_shot_most_dis.title() if n_shot_most_dis != 'N/A' else 'N/A'}</td>
+        </tr>'''
+        
+        return f'''
+        <div class="analysis-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Ranking</th>
+                        <th>Zero-Shot</th>
+                        <th>N-Shot</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+            <div class="analysis-note">
+                <p><strong>Note:</strong> Rankings are based on mean tier assignments. Higher mean tiers indicate more advantaged outcomes.</p>
+            </div>
+        </div>'''
+
+    def _build_gender_tier_bias_statistical_analysis(self, stats: Dict) -> str:
+        """Build statistical analysis HTML for tier bias mixed model"""
+        if not stats or 'error' in stats:
+            return '<div class="statistical-analysis"><p>Statistical analysis not available for tier bias analysis</p></div>'
+        
+        test_type = stats.get('test_type', 'Unknown test')
+        f_stat = stats.get('f_statistic', 0)
+        p_value = stats.get('p_value', 1)
+        conclusion = stats.get('conclusion', 'accepted')
+        
+        # Determine implication
+        if conclusion == 'rejected':
+            implication = "The LLM's recommended tiers are biased by an interaction of gender and LLM prompt."
+        else:
+            if p_value > 0.1:
+                implication = "There is no evidence that the LLM's recommended tiers are biased by an interaction of gender and LLM prompt."
+            else:
+                implication = "There is weak evidence that the LLM's recommended tiers are biased by an interaction of gender and LLM prompt."
+        
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> H0: For each gender, the within-case expected decision is the same for zero-shot and n-shot</p>
+            <p><strong>Test:</strong> {test_type}</p>
+            <p><strong>Test Statistic:</strong> F = {f_stat:.3f}</p>
+            <p><strong>p-Value:</strong> {p_value:.4f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {implication}</p>
+        </div>'''
