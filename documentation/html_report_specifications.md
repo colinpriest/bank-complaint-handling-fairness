@@ -827,7 +827,87 @@ Result 2: Tier Impact Rate – N-Shot
 
 Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot
 
-Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot
+* data
+
+  * filter for decision_method = "zero-shot"
+  * use both the baseline view and the persona-injected view (but using the baseline tier instead of the persona-injected tier)
+  * the columns to extract will be
+
+    * case_id
+    * baseline_tier = llm_simplified_tier from the baseline view
+    * experiment = either "baseline" or "persona-injected"
+    * severity (derived from llm_simplifed_tier, equals Non-Monetary when llm_simplified tier equals 0 or 1, equals "Monetary" when llm_simplified_tier equals 2
+    * asks_for_info (converted to 1 for true and 0 for false)
+  * Binary-encode the outcome (the column asks_for_info) as 0/1. Use treatment coding (e.g., `algorithm = {zero, n}`, `experiment = {baseline, persona}`).
+* show a table
+
+  * one row for Non-Monetary and one row for Monetary
+  * columns are: monetary, Count (count of rows), Baseline Question Count (sum of asks_for_info), Baseline Question Rate % (= Baseline Question Count / Count), Persona-Injected Question Count (sum of asks_for_info), Persona-Injected Question Rate % (= Baseline Question Count / Count)
+* statistical analysis
+
+  * Fit a clustered logistic model with interaction: logit P(Y=1)=β0+β1 severity+β2 experiment+β3 (severity×experiment)
+  * **Main question (marginal effect of severity, adjusted): **H0: β1=0  (OR for monetary vs non-monetary = 1).
+  * **Possible interaction: **H0: β3=0  (severity effect is the same in baseline and persona-injected).
+
+  Recommended estimator: **GEE (population-average / marginal effects, recommended for your wording)**
+
+  * Cluster by `case_id`, binomial family, logit link, exchangeable working correlation.
+  * **Tests:** robust (sandwich) Wald tests for β1\beta_1**β**1 and β3\beta_3**β**3.
+
+show the following statistical analysis outputs
+
+* Hypothesis: H0: N-Shot prompting has no marginal effect upon question rates.
+* Test:
+* Test Statistic:
+* p-value:
+* Conclusion: whether the null hypothesis was rejected or accepted
+* Implication:
+  * If the null hypothesis was rejected, then say "There is strong evidence that severity has an effect upon process bias via question rates."
+  * If the null hypothesis was accepted, then
+    * if p-value <= 0.1, then say "There is weak evidence that severity has an effect upon process bias via question rates."
+    * if p-value > 0.1 say, "There is no evidence that severity has an effect upon process bias via question rates."
+
+Result 2: Question Rate – Monetary vs. Non-Monetary – N-ShotTab 4: Bias Mitigation
+
+* data
+
+  * filter for decision_method = "n-shot"
+  * use both the baseline view and the persona-injected view (but using the baseline tier instead of the persona-injected tier)
+  * the columns to extract will be
+
+    * case_id
+    * baseline_tier = llm_simplified_tier from the baseline view
+    * experiment = either "baseline" or "persona-injected"
+    * severity (derived from llm_simplifed_tier, equals Non-Monetary when llm_simplified tier equals 0 or 1, equals "Monetary" when llm_simplified_tier equals 2
+    * asks_for_info (converted to 1 for true and 0 for false)
+  * Binary-encode the outcome (the column asks_for_info) as 0/1. Use treatment coding (e.g., `algorithm = {zero, n}`, `experiment = {baseline, persona}`).
+* show a table
+
+  * one row for Non-Monetary and one row for Monetary
+  * columns are: monetary, Count (count of rows), Baseline Question Count (sum of asks_for_info), Baseline Question Rate % (= Baseline Question Count / Count), Persona-Injected Question Count (sum of asks_for_info), Persona-Injected Question Rate % (= Baseline Question Count / Count)
+* statistical analysis
+
+  * Fit a clustered logistic model with interaction: logit P(Y=1)=β0+β1 severity+β2 experiment+β3 (severity×experiment)
+  * **Main question (marginal effect of severity, adjusted): **H0: β1=0  (OR for monetary vs non-monetary = 1).
+  * **Possible interaction: **H0: β3=0  (severity effect is the same in baseline and persona-injected).
+
+  Recommended estimator: **GEE (population-average / marginal effects, recommended for your wording)**
+
+  * Cluster by `case_id`, binomial family, logit link, exchangeable working correlation.
+  * **Tests:** robust (sandwich) Wald tests for β1\beta_1**β**1 and β3\beta_3**β**3.
+
+show the following statistical analysis outputs
+
+* Hypothesis: H0: N-Shot prompting has no marginal effect upon question rates.
+* Test:
+* Test Statistic:
+* p-value:
+* Conclusion: whether the null hypothesis was rejected or accepted
+* Implication:
+  * If the null hypothesis was rejected, then say "There is strong evidence that severity has an effect upon process bias via question rates."
+  * If the null hypothesis was accepted, then
+    * if p-value <= 0.1, then say "There is weak evidence that severity has an effect upon process bias via question rates."
+    * if p-value > 0.1 say, "There is no evidence that severity has an effect upon process bias via question rates."
 
 ### Tab 4: Bias Mitigation
 

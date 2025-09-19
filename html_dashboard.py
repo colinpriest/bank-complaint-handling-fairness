@@ -797,21 +797,9 @@ class HTMLDashboard:
         <div id="severity-process" class="sub-tab-content">
             <div class="section">
                 <h2>Process Bias</h2>
+                <p>Analysis of process bias (question rates) by complaint severity (Monetary vs Non-Monetary cases).</p>
 
-                <div class="result-item">
-                    <div class="result-title">Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in zero-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in n-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Implied Stereotyping - Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Stereotyping analysis by complaint severity type]</div>
-                </div>
+                {self._build_severity_process_bias(data.get('persona_analysis', {}).get('severity_process_bias', {}))}
             </div>
         </div>
         """
@@ -3445,5 +3433,156 @@ class HTMLDashboard:
             <p><strong>p-value:</strong> {p_value:.3f}</p>
             <p><strong>Conclusion:</strong> The null hypothesis is {stats.get("conclusion", "N/A")} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
             <p><strong>Implication:</strong> {stats.get("implication", "N/A")}</p>
+        </div>
+        """
+
+
+    def _build_severity_process_bias(self, process_bias_data: Dict) -> str:
+        """Build HTML for Sub-Tab 3.2: Process Bias"""
+        if not process_bias_data or "error" in process_bias_data:
+            return """
+            <div class="result-item">
+                <div class="result-title">Severity Process Bias Analysis</div>
+                <div class="result-placeholder">No severity process bias data available</div>
+            </div>
+            """
+        
+        html = ""
+        
+        # Result 1: Question Rate - Monetary vs Non-Monetary - Zero-Shot
+        html += """
+        <div class="result-item">
+            <div class="result-title">Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot</div>
+        """
+        
+        zero_shot_data = process_bias_data.get("zero_shot_question_rates", {})
+        if zero_shot_data:
+            html += self._build_severity_question_rate_table(zero_shot_data, "Zero-Shot")
+            
+            # Add statistical analysis
+            zero_shot_stats = process_bias_data.get("zero_shot_stats", {})
+            if "error" not in zero_shot_stats:
+                html += self._build_severity_process_statistical_analysis(zero_shot_stats, "Zero-Shot")
+            else:
+                html += f"""
+                <div class="statistical-analysis">
+                    <h4>Statistical Analysis</h4>
+                    <p><strong>Error:</strong> {zero_shot_stats["error"]}</p>
+                </div>
+                """
+        else:
+            html += "<div class=\"result-placeholder\">No zero-shot process bias data available</div>"
+        
+        html += "</div>"
+        
+        # Result 2: Question Rate - Monetary vs Non-Monetary - N-Shot
+        html += """
+        <div class="result-item">
+            <div class="result-title">Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot</div>
+        """
+        
+        n_shot_data = process_bias_data.get("n_shot_question_rates", {})
+        if n_shot_data:
+            html += self._build_severity_question_rate_table(n_shot_data, "N-Shot")
+            
+            # Add statistical analysis
+            n_shot_stats = process_bias_data.get("n_shot_stats", {})
+            if "error" not in n_shot_stats:
+                html += self._build_severity_process_statistical_analysis(n_shot_stats, "N-Shot")
+            else:
+                html += f"""
+                <div class="statistical-analysis">
+                    <h4>Statistical Analysis</h4>
+                    <p><strong>Error:</strong> {n_shot_stats["error"]}</p>
+                </div>
+                """
+        else:
+            html += "<div class=\"result-placeholder\">No N-shot process bias data available (all baseline experiments have tier -999)</div>"
+        
+        html += "</div>"
+        
+        return html
+
+    def _build_severity_question_rate_table(self, question_data: Dict, method: str) -> str:
+        """Build HTML table for question rate analysis by severity"""
+        if not question_data:
+            return "<div class=\"result-placeholder\">No data available</div>"
+        
+        # Create table rows
+        rows = ""
+        for severity in ["Non-Monetary", "Monetary"]:
+            if severity in question_data:
+                baseline_data = question_data[severity].get("baseline", {})
+                persona_data = question_data[severity].get("persona-injected", {})
+                
+                baseline_count = baseline_data.get("count", 0)
+                baseline_questions = baseline_data.get("question_count", 0)
+                baseline_rate = baseline_data.get("question_rate_percentage", 0.0)
+                
+                persona_count = persona_data.get("count", 0)
+                persona_questions = persona_data.get("question_count", 0)
+                persona_rate = persona_data.get("question_rate_percentage", 0.0)
+                
+                rows += f"""
+                <tr>
+                    <td><strong>{severity}</strong></td>
+                    <td>{baseline_count + persona_count:,}</td>
+                    <td>{baseline_questions:,}</td>
+                    <td>{baseline_rate:.1f}%</td>
+                    <td>{persona_questions:,}</td>
+                    <td>{persona_rate:.1f}%</td>
+                </tr>
+                """
+        
+        return f"""
+        <div class="table-container">
+            <h4>{method} Question Rates by Severity</h4>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Severity Category</th>
+                        <th>Count</th>
+                        <th>Baseline Question Count</th>
+                        <th>Baseline Question Rate %</th>
+                        <th>Persona-Injected Question Count</th>
+                        <th>Persona-Injected Question Rate %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+        </div>
+        """
+
+    def _build_severity_process_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of severity process bias"""
+        if "error" in stats:
+            return f"""
+            <div class="statistical-analysis">
+                <h4>Statistical Analysis - {method}</h4>
+                <p><strong>Error:</strong> {stats["error"]}</p>
+            </div>
+            """
+        
+        # Determine significance level
+        p_value = stats.get("p_value", 1.0)
+        if p_value < 0.05:
+            significance = "strong evidence"
+        elif p_value <= 0.1:
+            significance = "weak evidence"
+        else:
+            significance = "no evidence"
+        
+        return f"""
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - {method}</h4>
+            <p><strong>Hypothesis:</strong> {stats.get("hypothesis", "N/A")}</p>
+            <p><strong>Test:</strong> {stats.get("test_type", "N/A")}</p>
+            <p><strong>Test Statistic:</strong> χ² = {stats.get("chi2_statistic", 0):.3f}</p>
+            <p><strong>p-value:</strong> {p_value:.3f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis is {stats.get("conclusion", "N/A")} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {stats.get("implication", "N/A")}</p>
+             {f'<p><strong>Note:</strong> {stats.get("note", "")}</p>' if stats.get("note") else ""}
         </div>
         """

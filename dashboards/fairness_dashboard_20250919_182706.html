@@ -511,11 +511,11 @@
         <div class="header">
             <h1>LLM Fairness Dashboard</h1>
             <p>Bank Complaint Handling Fairness Analysis</p>
-            <p>Generated: 2025-09-19T17:02:36.771218 | Total Experiments: 1,000</p>
+            <p>Generated: 2025-09-19T18:27:06.008870 | Total Experiments: 1,000</p>
             
             <div class="metrics-grid" style="margin-top: 20px;">
                 <div class="metric-card">
-                    <div class="metric-value">0.125</div>
+                    <div class="metric-value">0.122</div>
                     <div class="metric-label">Zero-Shot Accuracy</div>
                 </div>
                 <div class="metric-card">
@@ -684,7 +684,7 @@
                     </tr>
                     <tr><th>Baseline</th><th>1</th><th>2</th></tr>
                 </thead>
-                <tbody style="font-family: monospace; font-size: 14px;"><tr><td><strong>0</strong></td><td style="text-align: center;">43</td><td style="text-align: center;">5</td></tr><tr><td><strong>1</strong></td><td style="text-align: center;">2,809</td><td style="text-align: center;">298</td></tr><tr><td><strong>2</strong></td><td style="text-align: center;">173</td><td style="text-align: center;">931</td></tr></tbody>
+                <tbody style="font-family: monospace; font-size: 14px;"><tr><td><strong>0</strong></td><td style="text-align: center;">109</td><td style="text-align: center;">11</td></tr><tr><td><strong>1</strong></td><td style="text-align: center;">4,743</td><td style="text-align: center;">481</td></tr><tr><td><strong>2</strong></td><td style="text-align: center;">254</td><td style="text-align: center;">1,354</td></tr></tbody>
             </table>
         </div>
                 </div>
@@ -712,17 +712,17 @@
                     <tbody>
             <tr>
                 <td>zero shot</td>
-                <td>3,740</td>
-                <td>519</td>
-                <td>4,259</td>
-                <td>12.2%</td>
+                <td>6,098</td>
+                <td>855</td>
+                <td>6,953</td>
+                <td>12.3%</td>
             </tr>
         <tr class="total-row">
             <td><strong>Total</strong></td>
-            <td><strong>3,740</strong></td>
-            <td><strong>519</strong></td>
-            <td><strong>4,259</strong></td>
-            <td><strong>12.2%</strong></td>
+            <td><strong>6,098</strong></td>
+            <td><strong>855</strong></td>
+            <td><strong>6,953</strong></td>
+            <td><strong>12.3%</strong></td>
         </tr></tbody>
                 </table>
             </div>
@@ -755,11 +755,11 @@
                     <tbody>
             <tr>
                 <td>zero shot</td>
-                <td>1.25</td>
-                <td>1.29</td>
-                <td>4,259</td>
+                <td>1.21</td>
+                <td>1.27</td>
+                <td>6,953</td>
                 <td>0.35</td>
-                <td>0.0054</td>
+                <td>0.0042</td>
             </tr></tbody>
                 </table>
             </div>
@@ -768,9 +768,9 @@
                     <h4>Statistical Analysis (Zero Shot):</h4>
                     <p>H0: The mean tier is the same with and without persona injection</p>
                     <p>Test: Paired t-test</p>
-                    <p>Effect Size (Cohen's d): 0.12 (negligible)</p>
-                    <p>Mean Difference: +0.04 (from 1.25 to 1.29)</p>
-                    <p>Test Statistic: t(4258) = 7.7561</p>
+                    <p>Effect Size (Cohen's d): 0.15 (negligible)</p>
+                    <p>Mean Difference: +0.05 (from 1.21 to 1.27)</p>
+                    <p>Test Statistic: t(6952) = 12.1395</p>
                     <p>p-value: < 0.0001</p>
                     <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
                     <p>Implication: The LLM's recommended tier is higher when it sees humanizing attributes, somewhat analogous to a display of empathy.</p>
@@ -785,7 +785,7 @@
             <div class="table-responsive">
                 <table class="tier-distribution">
                     <thead><tr><th>Method</th><th>Tier 0</th><th>Tier 1</th><th>Tier 2</th></tr></thead>
-                    <tbody><tr><td><strong>Baseline</strong></td><td>2</td><td>130</td><td>46</td></tr><tr><td><strong>Persona Injected</strong></td><td>0</td><td>3,025</td><td>1,234</td></tr></tbody>
+                    <tbody><tr><td><strong>Baseline</strong></td><td>5</td><td>218</td><td>67</td></tr><tr><td><strong>Persona Injected</strong></td><td>0</td><td>5,107</td><td>1,846</td></tr></tbody>
                 </table>
             </div>
             
@@ -793,7 +793,7 @@
                     <h4>Statistical Analysis:</h4>
                     <p>H0: The tier distribution is independent of persona injection.</p>
                     <p>Test: Chi-squared test of independence</p>
-                    <p>Test Statistic: χ²(2) = 48.53</p>
+                    <p>Test Statistic: χ²(2) = 121.24</p>
                     <p>p-value: < 0.0001</p>
                     <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
                     <p>Implication: The distributions of tier recommendations are significantly different, suggesting that persona injection influences the pattern of tier assignments.</p>
@@ -824,15 +824,15 @@
                     <tbody>
         <tr>
             <td><strong>Baseline</strong></td>
-            <td>178</td>
-            <td>15</td>
-            <td>8.4%</td>
+            <td>290</td>
+            <td>20</td>
+            <td>6.9%</td>
         </tr>
         <tr>
             <td><strong>Persona-Injected</strong></td>
-            <td>4,260</td>
-            <td>180</td>
-            <td>4.2%</td>
+            <td>6,953</td>
+            <td>296</td>
+            <td>4.3%</td>
         </tr></tbody>
                 </table>
             </div>
@@ -841,8 +841,8 @@
                     <h4>Statistical Analysis:</h4>
                     <p>H0: The question rate is the same with and without persona injection</p>
                     <p>Test: Chi-squared test of independence</p>
-                    <p>Test Statistic: χ²(1) = 6.21</p>
-                    <p>p-value: 0.0127</p>
+                    <p>Test Statistic: χ²(1) = 4.04</p>
+                    <p>p-value: 0.0445</p>
                     <p>Conclusion: The null hypothesis is <strong>rejected</strong> (p < 0.05).</p>
                     <p>Implication: The LLM is significantly less likely to ask questions when it sees humanizing attributes, suggesting reduced engagement or scrutiny.</p>
                 </div>
@@ -899,9 +899,9 @@
                     <tbody>
         <tr>
             <td><strong>Zero-Shot</strong></td>
-            <td>4,260</td>
-            <td>180</td>
-            <td>4.2%</td>
+            <td>6,953</td>
+            <td>296</td>
+            <td>4.3%</td>
         </tr>
         <tr>
             <td><strong>N-Shot</strong></td>
@@ -939,15 +939,15 @@
                     
                 <tr>
                     <td><strong>Female</strong></td>
-                    <td>1.302</td>
-                    <td>2,130</td>
-                    <td>0.459</td>
+                    <td>1.277</td>
+                    <td>3,474</td>
+                    <td>0.447</td>
                 </tr>
                 <tr>
                     <td><strong>Male</strong></td>
-                    <td>1.277</td>
-                    <td>2,130</td>
-                    <td>0.448</td>
+                    <td>1.254</td>
+                    <td>3,479</td>
+                    <td>0.436</td>
                 </tr>
                 </tbody>
             </table>
@@ -956,12 +956,12 @@
             <h4>Statistical Analysis - Zero-Shot</h4>
             <p><strong>Hypothesis:</strong> H0: Persona injection does not affect mean tier assignment</p>
             <p><strong>Test:</strong> Paired t-test</p>
-            <p><strong>Effect Size (Cohen's d):</strong> 0.056</p>
-            <p><strong>Mean Difference:</strong> 0.025</p>
-            <p><strong>Test Statistic:</strong> t(4258) = 1.824</p>
-            <p><strong>p-value:</strong> 0.0682</p>
-            <p><strong>Conclusion:</strong> The null hypothesis was accepted (p ≥ 0.05)</p>
-            <p><strong>Implication:</strong> There is weak evidence that the LLM's mean recommended tier is biased by gender.</p>
+            <p><strong>Effect Size (Cohen's d):</strong> 0.050</p>
+            <p><strong>Mean Difference:</strong> 0.022</p>
+            <p><strong>Test Statistic:</strong> t(6951) = 2.100</p>
+            <p><strong>p-value:</strong> 0.0357</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
+            <p><strong>Implication:</strong> The LLM's mean recommended tier is biased by gender, disadvantaging males.</p>
         </div>
         </div>
         
@@ -995,7 +995,7 @@
                 <tr><th>Gender</th><th>Tier 1</th><th>Tier 2</th></tr>
             </thead>
             <tbody>
-                <tr><td><strong>Female</strong></td><td>1,486</td><td>644</td></tr><tr><td><strong>Male</strong></td><td>1,540</td><td>590</td></tr>
+                <tr><td><strong>Female</strong></td><td>2,513</td><td>961</td></tr><tr><td><strong>Male</strong></td><td>2,595</td><td>885</td></tr>
             </tbody>
         </table>
             
@@ -1003,10 +1003,10 @@
             <h4>Statistical Analysis - Zero-Shot</h4>
             <p><strong>Hypothesis:</strong> H0: Persona injection does not affect the distribution of tier assignments</p>
             <p><strong>Test:</strong> Chi-squared test</p>
-            <p><strong>Test Statistic:</strong> χ²(1) = 3.205</p>
-            <p><strong>p-value:</strong> 0.0734</p>
-            <p><strong>Conclusion:</strong> The null hypothesis was accepted (p ≥ 0.05)</p>
-            <p><strong>Implication:</strong> There is weak evidence that the LLM's recommended tiers are biased by gender.</p>
+            <p><strong>Test Statistic:</strong> χ²(1) = 4.326</p>
+            <p><strong>p-value:</strong> 0.0375</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
+            <p><strong>Implication:</strong> The LLM's recommended tiers are biased by gender.</p>
         </div>
         </div>
         
@@ -1034,14 +1034,14 @@
                     
             <tr>
                 <td><strong>Female</strong></td>
-                <td>2,130</td>
-                <td>1.302</td>
+                <td>3,474</td>
+                <td>1.277</td>
                 <td>0.000</td>
             </tr>
             <tr>
                 <td><strong>Male</strong></td>
-                <td>2,131</td>
-                <td>1.277</td>
+                <td>3,480</td>
+                <td>1.254</td>
                 <td>0.000</td>
             </tr>
                 </tbody>
@@ -1068,15 +1068,15 @@
                     
                 <tr>
                     <td><strong>Female</strong></td>
-                    <td>2,130</td>
-                    <td>96</td>
+                    <td>3,474</td>
+                    <td>158</td>
                     <td>4.5%</td>
                 </tr>
                 <tr>
                     <td><strong>Male</strong></td>
-                    <td>2,130</td>
-                    <td>84</td>
-                    <td>3.9%</td>
+                    <td>3,480</td>
+                    <td>138</td>
+                    <td>4.0%</td>
                 </tr>
                 </tbody>
             </table>
@@ -1086,8 +1086,8 @@
             <p><strong>Hypothesis:</strong> H0: The question rate is the same across genders</p>
             <p><strong>Test:</strong> Chi-squared test of independence</p>
             <p><strong>Rate Difference:</strong> 0.6%</p>
-            <p><strong>Test Statistic:</strong> χ²(1) = 0.702</p>
-            <p><strong>p-value:</strong> 0.4022</p>
+            <p><strong>Test Statistic:</strong> χ²(1) = 1.308</p>
+            <p><strong>p-value:</strong> 0.2527</p>
             <p><strong>Conclusion:</strong> The null hypothesis was accepted (p ≥ 0.05)</p>
             <p><strong>Implication:</strong> There is no evidence that the LLM's questioning behavior is biased by gender.</p>
         </div>
@@ -1166,27 +1166,27 @@
                 
             <tr>
                 <td><strong>Asian</strong></td>
-                <td>1.312</td>
-                <td>1,062</td>
-                <td>0.463</td>
+                <td>1.289</td>
+                <td>1,737</td>
+                <td>0.453</td>
             </tr>
             <tr>
                 <td><strong>Black</strong></td>
-                <td>1.298</td>
-                <td>1,068</td>
-                <td>0.457</td>
+                <td>1.272</td>
+                <td>1,740</td>
+                <td>0.445</td>
             </tr>
             <tr>
                 <td><strong>Latino</strong></td>
-                <td>1.275</td>
-                <td>1,063</td>
-                <td>0.447</td>
+                <td>1.251</td>
+                <td>1,737</td>
+                <td>0.434</td>
             </tr>
             <tr>
                 <td><strong>White</strong></td>
-                <td>1.274</td>
-                <td>1,068</td>
-                <td>0.446</td>
+                <td>1.250</td>
+                <td>1,740</td>
+                <td>0.433</td>
             </tr>
             </tbody>
         </table>
@@ -1196,11 +1196,11 @@
                 <p><strong>Hypothesis:</strong> H0: The mean tier is the same across all ethnicities</p>
                 <p><strong>Test:</strong> One-way ANOVA</p>
                 <p><strong>Comparison:</strong> All ethnicities: asian, black, latino, white</p>
-                <p><strong>Test Statistic:</strong> F = 1.739</p>
-                <p><strong>p-Value:</strong> 0.1567</p>
+                <p><strong>Test Statistic:</strong> F = 3.101</p>
+                <p><strong>p-Value:</strong> 0.0256</p>
                 <p><strong>Effect Size (η²):</strong> 0.001</p>
-                <p><strong>Conclusion:</strong> The null hypothesis was accepted (p ≥ 0.05)</p>
-                <p><strong>Implication:</strong> There is no evidence that the LLM's recommended tiers differ between ethnicities in Zero-Shot. Means: asian=1.312, black=1.298, latino=1.275, white=1.274</p>
+                <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
+                <p><strong>Implication:</strong> There is strong evidence that the LLM's recommended tiers differ significantly between ethnicities in Zero-Shot. Means: asian=1.289, black=1.272, latino=1.251, white=1.250</p>
             </div>
         </div>
         
@@ -1224,7 +1224,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td><strong>Asian</strong></td><td>731</td><td>331</td></tr><tr><td><strong>Black</strong></td><td>750</td><td>318</td></tr><tr><td><strong>Latino</strong></td><td>771</td><td>292</td></tr><tr><td><strong>White</strong></td><td>775</td><td>293</td></tr>
+                <tr><td><strong>Asian</strong></td><td>1,235</td><td>502</td></tr><tr><td><strong>Black</strong></td><td>1,267</td><td>473</td></tr><tr><td><strong>Latino</strong></td><td>1,301</td><td>436</td></tr><tr><td><strong>White</strong></td><td>1,305</td><td>435</td></tr>
             </tbody>
         </table>
             
@@ -1232,11 +1232,11 @@
             <h4>Statistical Analysis</h4>
             <p><strong>Hypothesis:</strong> H0: The tier distribution is the same across ethnicities</p>
             <p><strong>Test:</strong> Chi-squared test of independence</p>
-            <p><strong>Test Statistic:</strong> χ² = 5.217</p>
+            <p><strong>Test Statistic:</strong> χ² = 9.295</p>
             <p><strong>Degrees of Freedom:</strong> 3</p>
-            <p><strong>p-Value:</strong> 0.1566</p>
-            <p><strong>Conclusion:</strong> The null hypothesis was accepted (p ≥ 0.05)</p>
-            <p><strong>Implication:</strong> There is no evidence that the tier distribution differs between ethnicities in Zero-Shot.</p>
+            <p><strong>p-Value:</strong> 0.0256</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
+            <p><strong>Implication:</strong> There is strong evidence that the tier distribution differs significantly between ethnicities in Zero-Shot.</p>
         </div>
         </div>
         
@@ -1261,26 +1261,26 @@
                     
             <tr>
                 <td><strong>Asian</strong></td>
-                <td>1,062</td>
-                <td>1.312</td>
+                <td>1,737</td>
+                <td>1.289</td>
                 <td>0.000</td>
             </tr>
             <tr>
                 <td><strong>Black</strong></td>
-                <td>1,068</td>
-                <td>1.298</td>
+                <td>1,740</td>
+                <td>1.272</td>
                 <td>0.000</td>
             </tr>
             <tr>
                 <td><strong>Latino</strong></td>
-                <td>1,063</td>
-                <td>1.275</td>
+                <td>1,737</td>
+                <td>1.251</td>
                 <td>0.000</td>
             </tr>
             <tr>
                 <td><strong>White</strong></td>
-                <td>1,068</td>
-                <td>1.274</td>
+                <td>1,740</td>
+                <td>1.250</td>
                 <td>0.000</td>
             </tr>
                 </tbody>
@@ -1308,27 +1308,27 @@
                 
             <tr>
                 <td><strong>Asian</strong></td>
-                <td>47</td>
-                <td>1,062</td>
-                <td>4.4%</td>
-            </tr>
-            <tr>
-                <td><strong>Black</strong></td>
-                <td>46</td>
-                <td>1,068</td>
+                <td>75</td>
+                <td>1,737</td>
                 <td>4.3%</td>
             </tr>
             <tr>
+                <td><strong>Black</strong></td>
+                <td>81</td>
+                <td>1,740</td>
+                <td>4.7%</td>
+            </tr>
+            <tr>
                 <td><strong>Latino</strong></td>
-                <td>44</td>
-                <td>1,063</td>
+                <td>72</td>
+                <td>1,737</td>
                 <td>4.1%</td>
             </tr>
             <tr>
                 <td><strong>White</strong></td>
-                <td>43</td>
-                <td>1,068</td>
-                <td>4.0%</td>
+                <td>68</td>
+                <td>1,740</td>
+                <td>3.9%</td>
             </tr>
             </tbody>
         </table>
@@ -1337,9 +1337,9 @@
             <h4>Statistical Analysis</h4>
             <p><strong>Hypothesis:</strong> H0: The question rate is the same across ethnicities</p>
             <p><strong>Test:</strong> Chi-squared test of independence</p>
-            <p><strong>Test Statistic:</strong> χ² = 0.247</p>
+            <p><strong>Test Statistic:</strong> χ² = 1.266</p>
             <p><strong>Degrees of Freedom:</strong> 3</p>
-            <p><strong>p-Value:</strong> 0.9697</p>
+            <p><strong>p-Value:</strong> 0.7372</p>
             <p><strong>Conclusion:</strong> The null hypothesis was accepted (p ≥ 0.05)</p>
             <p><strong>Implication:</strong> There is no evidence that the question rate differs between ethnicities in Zero-Shot.</p>
         </div>
@@ -1406,21 +1406,21 @@
                 
             <tr>
                 <td><strong>Rural</strong></td>
-                <td>1.194</td>
-                <td>1,420</td>
-                <td>0.396</td>
+                <td>1.178</td>
+                <td>2,318</td>
+                <td>0.382</td>
             </tr>
             <tr>
                 <td><strong>Urban Affluent</strong></td>
-                <td>1.324</td>
-                <td>1,421</td>
-                <td>0.468</td>
+                <td>1.298</td>
+                <td>2,318</td>
+                <td>0.457</td>
             </tr>
             <tr>
                 <td><strong>Urban Poor</strong></td>
-                <td>1.350</td>
-                <td>1,420</td>
-                <td>0.477</td>
+                <td>1.321</td>
+                <td>2,318</td>
+                <td>0.467</td>
             </tr>
             </tbody>
         </table>
@@ -1430,11 +1430,11 @@
                 <p><strong>Hypothesis:</strong> H0: The mean tier is the same across all geographies</p>
                 <p><strong>Test:</strong> One-way ANOVA</p>
                 <p><strong>Comparison:</strong> All geographies: rural, urban_affluent, urban_poor</p>
-                <p><strong>Test Statistic:</strong> F = 49.152</p>
+                <p><strong>Test Statistic:</strong> F = 71.634</p>
                 <p><strong>p-Value:</strong> 0.0000</p>
-                <p><strong>Effect Size (η²):</strong> 0.023</p>
+                <p><strong>Effect Size (η²):</strong> 0.020</p>
                 <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
-                <p><strong>Implication:</strong> There is strong evidence that the LLM's recommended tiers differ significantly between geographies in Zero-Shot. Means: rural=1.194, urban_affluent=1.324, urban_poor=1.350</p>
+                <p><strong>Implication:</strong> There is strong evidence that the LLM's recommended tiers differ significantly between geographies in Zero-Shot. Means: rural=1.178, urban_affluent=1.298, urban_poor=1.321</p>
             </div>
         </div>
         
@@ -1458,7 +1458,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td><strong>Rural</strong></td><td>1,144</td><td>276</td></tr><tr><td><strong>Urban Affluent</strong></td><td>960</td><td>461</td></tr><tr><td><strong>Urban Poor</strong></td><td>923</td><td>497</td></tr>
+                <tr><td><strong>Rural</strong></td><td>1,906</td><td>412</td></tr><tr><td><strong>Urban Affluent</strong></td><td>1,628</td><td>690</td></tr><tr><td><strong>Urban Poor</strong></td><td>1,574</td><td>744</td></tr>
             </tbody>
         </table>
             
@@ -1466,7 +1466,7 @@
             <h4>Statistical Analysis</h4>
             <p><strong>Hypothesis:</strong> H0: The tier distribution is the same across geographies</p>
             <p><strong>Test:</strong> Chi-squared test of independence</p>
-            <p><strong>Test Statistic:</strong> χ² = 96.153</p>
+            <p><strong>Test Statistic:</strong> χ² = 140.434</p>
             <p><strong>Degrees of Freedom:</strong> 2</p>
             <p><strong>p-Value:</strong> 0.0000</p>
             <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
@@ -1495,20 +1495,20 @@
                     
             <tr>
                 <td><strong>Rural</strong></td>
-                <td>1,420</td>
-                <td>1.194</td>
+                <td>2,318</td>
+                <td>1.178</td>
                 <td>0.000</td>
             </tr>
             <tr>
                 <td><strong>Urban Affluent</strong></td>
-                <td>1,421</td>
-                <td>1.324</td>
+                <td>2,318</td>
+                <td>1.298</td>
                 <td>0.000</td>
             </tr>
             <tr>
                 <td><strong>Urban Poor</strong></td>
-                <td>1,420</td>
-                <td>1.350</td>
+                <td>2,318</td>
+                <td>1.321</td>
                 <td>0.000</td>
             </tr>
                 </tbody>
@@ -1536,21 +1536,21 @@
                 
             <tr>
                 <td><strong>Rural</strong></td>
-                <td>68</td>
-                <td>1,420</td>
-                <td>4.8%</td>
+                <td>121</td>
+                <td>2,318</td>
+                <td>5.2%</td>
             </tr>
             <tr>
                 <td><strong>Urban Affluent</strong></td>
-                <td>41</td>
-                <td>1,421</td>
-                <td>2.9%</td>
+                <td>56</td>
+                <td>2,318</td>
+                <td>2.4%</td>
             </tr>
             <tr>
                 <td><strong>Urban Poor</strong></td>
-                <td>71</td>
-                <td>1,420</td>
-                <td>5.0%</td>
+                <td>119</td>
+                <td>2,318</td>
+                <td>5.1%</td>
             </tr>
             </tbody>
         </table>
@@ -1559,9 +1559,9 @@
             <h4>Statistical Analysis</h4>
             <p><strong>Hypothesis:</strong> H0: The question rate is the same across geographies</p>
             <p><strong>Test:</strong> Chi-squared test of independence</p>
-            <p><strong>Test Statistic:</strong> χ² = 9.527</p>
+            <p><strong>Test Statistic:</strong> χ² = 28.927</p>
             <p><strong>Degrees of Freedom:</strong> 2</p>
-            <p><strong>p-Value:</strong> 0.0085</p>
+            <p><strong>p-Value:</strong> 0.0000</p>
             <p><strong>Conclusion:</strong> The null hypothesis was rejected (p < 0.05)</p>
             <p><strong>Implication:</strong> There is strong evidence that the question rate differs significantly between geographies in Zero-Shot.</p>
         </div>
@@ -1642,22 +1642,22 @@
                     
                 <tr>
                     <td><strong>Non-Monetary</strong></td>
-                    <td>3,157</td>
-                    <td>1.096</td>
-                    <td>0.295</td>
-                    <td>0.005</td>
-                    <td>2,811</td>
-                    <td>89.0%</td>
+                    <td>5,347</td>
+                    <td>1.092</td>
+                    <td>0.289</td>
+                    <td>0.004</td>
+                    <td>4,746</td>
+                    <td>88.8%</td>
                 </tr>
                 
                 <tr>
                     <td><strong>Monetary</strong></td>
-                    <td>1,104</td>
-                    <td>1.843</td>
-                    <td>0.364</td>
-                    <td>0.011</td>
-                    <td>931</td>
-                    <td>84.3%</td>
+                    <td>1,608</td>
+                    <td>1.842</td>
+                    <td>0.365</td>
+                    <td>0.009</td>
+                    <td>1,354</td>
+                    <td>84.2%</td>
                 </tr>
                 
                 </tbody>
@@ -1668,7 +1668,7 @@
             <h4>Statistical Analysis - Zero-Shot</h4>
             <p><strong>Hypothesis:</strong> H0: Persona-injection biases the tier recommendation equally for monetary versus non-monetary cases</p>
             <p><strong>Test:</strong> Chi-squared test for independence (approximation of McNemar's test)</p>
-            <p><strong>Test Statistic:</strong> χ² = 16.530</p>
+            <p><strong>Test Statistic:</strong> χ² = 23.379</p>
             <p><strong>p-value:</strong> 0.000</p>
             <p><strong>Conclusion:</strong> The null hypothesis is rejected (p < 0.05)</p>
             <p><strong>Implication:</strong> There is strong evidence that bias is greater for more severe cases.</p>
@@ -1683,21 +1683,63 @@
         <div id="severity-process" class="sub-tab-content">
             <div class="section">
                 <h2>Process Bias</h2>
+                <p>Analysis of process bias (question rates) by complaint severity (Monetary vs Non-Monetary cases).</p>
 
-                <div class="result-item">
-                    <div class="result-title">Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in zero-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Information request rates by complaint type in n-shot experiments]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Implied Stereotyping - Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Stereotyping analysis by complaint severity type]</div>
-                </div>
+                
+        <div class="result-item">
+            <div class="result-title">Result 1: Question Rate – Monetary vs. Non-Monetary – Zero-Shot</div>
+        
+        <div class="table-container">
+            <h4>Zero-Shot Question Rates by Severity</h4>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Severity Category</th>
+                        <th>Count</th>
+                        <th>Baseline Question Count</th>
+                        <th>Baseline Question Rate %</th>
+                        <th>Persona-Injected Question Count</th>
+                        <th>Persona-Injected Question Rate %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr>
+                    <td><strong>Non-Monetary</strong></td>
+                    <td>5,575</td>
+                    <td>20</td>
+                    <td>9.0%</td>
+                    <td>291</td>
+                    <td>5.4%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>Monetary</strong></td>
+                    <td>1,675</td>
+                    <td>0</td>
+                    <td>0.0%</td>
+                    <td>5</td>
+                    <td>0.3%</td>
+                </tr>
+                
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - Zero-Shot</h4>
+            <p><strong>Hypothesis:</strong> H0: Severity has no marginal effect upon question rates</p>
+            <p><strong>Test:</strong> Chi-squared test for independence (approximation of GEE)</p>
+            <p><strong>Test Statistic:</strong> χ² = 92.556</p>
+            <p><strong>p-value:</strong> 0.000</p>
+            <p><strong>Conclusion:</strong> The null hypothesis is rejected (p < 0.05)</p>
+            <p><strong>Implication:</strong> There is strong evidence that severity has an effect upon process bias via question rates.</p>
+             <p><strong>Note:</strong> Full GEE implementation would cluster by case_id and use robust Wald tests</p>
+        </div>
+        </div>
+        <div class="result-item">
+            <div class="result-title">Result 2: Question Rate – Monetary vs. Non-Monetary – N-Shot</div>
+        <div class="result-placeholder">No N-shot process bias data available (all baseline experiments have tier -999)</div></div>
             </div>
         </div>
         </div>
