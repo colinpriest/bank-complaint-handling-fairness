@@ -547,6 +547,9 @@ class HTMLDashboard:
 
         // Initialize tab functionality on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Scroll to top of page when first loaded/refreshed
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
             // Check URL hash for direct linking
             const hash = window.location.hash.substring(1);
             let defaultTab = null;
