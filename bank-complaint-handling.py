@@ -1316,6 +1316,10 @@ class BankComplaintFairnessAnalyzer:
             from extract_geographic_bias_data import extract_geographic_bias_data
             geographic_bias_data = extract_geographic_bias_data()
 
+            # Extract severity bias data for Severity and Bias analysis
+            from extract_severity_bias_data import extract_severity_bias_data
+            severity_bias_data = extract_severity_bias_data()
+
             # Prepare experiment data for dashboard
             experiment_data = {
                 'timestamp': datetime.now().isoformat(),
@@ -1343,7 +1347,9 @@ class BankComplaintFairnessAnalyzer:
                     # Add ethnicity bias data
                     'ethnicity_bias': ethnicity_bias_data,
                     # Add geographic bias data
-                    'geographic_bias': geographic_bias_data
+                    'geographic_bias': geographic_bias_data,
+                    # Add severity bias data
+                    'severity_bias': severity_bias_data
                 }
             }
 

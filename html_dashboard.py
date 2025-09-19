@@ -788,26 +788,9 @@ class HTMLDashboard:
         <div id="severity-tier" class="sub-tab-content active">
             <div class="section">
                 <h2>Tier Recommendations</h2>
+                <p>Analysis of tier recommendations by complaint severity (Monetary vs Non-Monetary cases).</p>
 
-                <div class="result-item">
-                    <div class="result-title">Result 1: Confusion Matrix – Zero Shot</div>
-                    <div class="result-placeholder">[Placeholder: Confusion matrix for zero-shot tier predictions by complaint severity]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Confusion Matrix – N-Shot</div>
-                    <div class="result-placeholder">[Placeholder: Confusion matrix for n-shot tier predictions by complaint severity]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Tier Impact Rate – Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Comparison of tier assignment rates for monetary vs non-monetary complaints]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 4: Mean Tier Impact– Monetary vs. Non-Monetary</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments for monetary vs non-monetary complaints]</div>
-                </div>
+                {self._build_severity_tier_recommendations(data.get('persona_analysis', {}).get('severity_bias', {}))}
             </div>
         </div>
 
@@ -3323,3 +3306,144 @@ class HTMLDashboard:
             <p><strong>Conclusion:</strong> The null hypothesis was {conclusion} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
             <p><strong>Implication:</strong> {implication}</p>
         </div>'''
+
+    def _build_severity_tier_recommendations(self, severity_data: Dict) -> str:
+        """Build HTML for Sub-Tab 3.1: Tier Recommendations"""
+        if not severity_data or "error" in severity_data:
+            return """
+            <div class="result-item">
+                <div class="result-title">Severity Bias Analysis</div>
+                <div class="result-placeholder">No severity bias data available</div>
+            </div>
+            """
+        
+        html = ""
+        
+        # Result 1: Tier Impact Rate - Zero Shot
+        html += """
+        <div class="result-item">
+            <div class="result-title">Result 1: Tier Impact Rate – Zero Shot</div>
+        """
+        
+        zero_shot_data = severity_data.get("zero_shot_tier_impact", {})
+        if zero_shot_data:
+            html += self._build_severity_tier_impact_table(zero_shot_data, "Zero-Shot")
+            
+            # Add statistical analysis
+            zero_shot_stats = severity_data.get("zero_shot_stats", {})
+            if "error" not in zero_shot_stats:
+                html += self._build_severity_statistical_analysis(zero_shot_stats, "Zero-Shot")
+            else:
+                html += f"""
+                <div class="statistical-analysis">
+                    <h4>Statistical Analysis</h4>
+                    <p><strong>Error:</strong> {zero_shot_stats["error"]}</p>
+                </div>
+                """
+        else:
+            html += "<div class=\"result-placeholder\">No zero-shot severity data available</div>"
+        
+        html += "</div>"
+        
+        # Result 2: Tier Impact Rate - N Shot
+        html += """
+        <div class="result-item">
+            <div class="result-title">Result 2: Tier Impact Rate – N-Shot</div>
+        """
+        
+        n_shot_data = severity_data.get("n_shot_tier_impact", {})
+        if n_shot_data:
+            html += self._build_severity_tier_impact_table(n_shot_data, "N-Shot")
+            
+            # Add statistical analysis
+            n_shot_stats = severity_data.get("n_shot_stats", {})
+            if "error" not in n_shot_stats:
+                html += self._build_severity_statistical_analysis(n_shot_stats, "N-Shot")
+            else:
+                html += f"""
+                <div class="statistical-analysis">
+                    <h4>Statistical Analysis</h4>
+                    <p><strong>Error:</strong> {n_shot_stats["error"]}</p>
+                </div>
+                """
+        else:
+            html += "<div class=\"result-placeholder\">No N-shot severity data available (all baseline experiments have tier -999)</div>"
+        
+        html += "</div>"
+        
+        return html
+
+    def _build_severity_tier_impact_table(self, tier_data: Dict, method: str) -> str:
+        """Build HTML table for tier impact analysis by severity"""
+        if not tier_data:
+            return "<div class=\"result-placeholder\">No data available</div>"
+        
+        # Create table rows
+        rows = ""
+        for category in ["Non-Monetary", "Monetary"]:
+            if category in tier_data:
+                data = tier_data[category]
+                rows += f"""
+                <tr>
+                    <td><strong>{category}</strong></td>
+                    <td>{data["count"]:,}</td>
+                    <td>{data["avg_tier"]:.3f}</td>
+                    <td>{data["std_dev"]:.3f}</td>
+                    <td>{data["sem"]:.3f}</td>
+                    <td>{data["unchanged_count"]:,}</td>
+                    <td>{data["unchanged_percentage"]:.1f}%</td>
+                </tr>
+                """
+        
+        return f"""
+        <div class="table-container">
+            <h4>{method} Tier Impact by Severity</h4>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Severity Category</th>
+                        <th>Count</th>
+                        <th>Average Tier</th>
+                        <th>Std Dev</th>
+                        <th>SEM</th>
+                        <th>Unchanged Count</th>
+                        <th>Unchanged %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+        </div>
+        """
+
+    def _build_severity_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of severity bias"""
+        if "error" in stats:
+            return f"""
+            <div class="statistical-analysis">
+                <h4>Statistical Analysis - {method}</h4>
+                <p><strong>Error:</strong> {stats["error"]}</p>
+            </div>
+            """
+        
+        # Determine significance level
+        p_value = stats.get("p_value", 1.0)
+        if p_value < 0.05:
+            significance = "strong evidence"
+        elif p_value <= 0.1:
+            significance = "weak evidence"
+        else:
+            significance = "no evidence"
+        
+        return f"""
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - {method}</h4>
+            <p><strong>Hypothesis:</strong> {stats.get("hypothesis", "N/A")}</p>
+            <p><strong>Test:</strong> {stats.get("test_type", "N/A")}</p>
+            <p><strong>Test Statistic:</strong> χ² = {stats.get("chi2_statistic", 0):.3f}</p>
+            <p><strong>p-value:</strong> {p_value:.3f}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis is {stats.get("conclusion", "N/A")} (p {"<" if p_value < 0.05 else "≥"} 0.05)</p>
+            <p><strong>Implication:</strong> {stats.get("implication", "N/A")}</p>
+        </div>
+        """
