@@ -815,26 +815,9 @@ class HTMLDashboard:
         <div id="mitigation-tier" class="sub-tab-content active">
             <div class="section">
                 <h2>Tier Recommendations</h2>
+                <p>Analysis of how bias mitigation strategies affect tier recommendations in LLM decision-making.</p>
 
-                <div class="result-item">
-                    <div class="result-title">Result 1: Confusion Matrix – With and Without Mitigation</div>
-                    <div class="result-placeholder">[Placeholder: Confusion matrix comparing tier predictions with and without bias mitigation]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 2: Tier Impact Rate – With and Without Mitigation</div>
-                    <div class="result-placeholder">[Placeholder: Tier assignment rate comparison with and without bias mitigation]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Mean Tier Impact – With and Without Mitigation</div>
-                    <div class="result-placeholder">[Placeholder: Average tier assignments with and without bias mitigation]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 4: Bias Mitigation Rankings</div>
-                    <div class="result-placeholder">[Placeholder: Ranking of bias mitigation strategies by effectiveness]</div>
-                </div>
+                {self._build_bias_mitigation_tier_recommendations(data.get('persona_analysis', {}).get('bias_mitigation_tier', {}))}
             </div>
         </div>
 
@@ -3586,3 +3569,215 @@ class HTMLDashboard:
              {f'<p><strong>Note:</strong> {stats.get("note", "")}</p>' if stats.get("note") else ""}
         </div>
         """
+
+    def _build_bias_mitigation_tier_recommendations(self, bias_mitigation_data: Dict) -> str:
+        """Build HTML for bias mitigation tier recommendations analysis"""
+        if 'error' in bias_mitigation_data:
+            return f'<div class="result-item"><div class="result-title">Error</div><div class="result-content"><p>Error loading bias mitigation data: {bias_mitigation_data["error"]}</p></div></div>'
+        
+        html = ""
+        
+        # Result 1: Confusion Matrix - Zero Shot
+        html += self._build_confusion_matrix_result(bias_mitigation_data.get('zero_shot_confusion_matrix', {}), 'Zero-Shot')
+        
+        # Result 2: Confusion Matrix - N-Shot
+        html += self._build_confusion_matrix_result(bias_mitigation_data.get('n_shot_confusion_matrix', {}), 'N-Shot')
+        
+        # Result 3: Tier Impact Rate
+        html += self._build_tier_impact_rate_result(bias_mitigation_data.get('tier_impact_rates', {}), bias_mitigation_data.get('tier_impact_stats', {}))
+        
+        # Result 4: Bias Mitigation Rankings - Zero Shot
+        html += self._build_mitigation_rankings_result(bias_mitigation_data.get('zero_shot_rankings', {}), bias_mitigation_data.get('zero_shot_rankings_stats', {}), 'Zero-Shot')
+        
+        # Result 5: Bias Mitigation Rankings - N-Shot
+        html += self._build_mitigation_rankings_result(bias_mitigation_data.get('n_shot_rankings', {}), bias_mitigation_data.get('n_shot_rankings_stats', {}), 'N-Shot')
+        
+        return html
+
+    def _build_confusion_matrix_result(self, confusion_matrix: Dict, method: str) -> str:
+        """Build HTML for confusion matrix result"""
+        if not confusion_matrix:
+            return f'''
+            <div class="result-item">
+                <div class="result-title">Result: Confusion Matrix – With Mitigation - {method}</div>
+                <div class="result-content">
+                    <p>No confusion matrix data available for {method}.</p>
+                </div>
+            </div>
+            '''
+        
+        # Get all unique tiers
+        all_baseline_tiers = sorted(confusion_matrix.keys())
+        all_mitigation_tiers = set()
+        for baseline_tier, mitigation_tiers in confusion_matrix.items():
+            all_mitigation_tiers.update(mitigation_tiers.keys())
+        all_mitigation_tiers = sorted(all_mitigation_tiers)
+        
+        # Build table header
+        table_html = f'''
+        <div class="result-item">
+            <div class="result-title">Result: Confusion Matrix – With Mitigation - {method}</div>
+            <div class="result-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Baseline Tier</th>
+        '''
+        for mitigation_tier in all_mitigation_tiers:
+            table_html += f'<th>Mitigation Tier {mitigation_tier}</th>'
+        table_html += '</tr></thead><tbody>'
+        
+        # Build table rows
+        for baseline_tier in all_baseline_tiers:
+            table_html += f'<tr><td><strong>Tier {baseline_tier}</strong></td>'
+            for mitigation_tier in all_mitigation_tiers:
+                count = confusion_matrix.get(baseline_tier, {}).get(mitigation_tier, 0)
+                table_html += f'<td>{count:,}</td>'
+            table_html += '</tr>'
+        
+        table_html += '</tbody></table></div></div>'
+        return table_html
+
+    def _build_tier_impact_rate_result(self, tier_impact_data: Dict, stats: Dict) -> str:
+        """Build HTML for tier impact rate result"""
+        if not tier_impact_data:
+            return '''
+            <div class="result-item">
+                <div class="result-title">Result: Tier Impact Rate – With and Without Mitigation</div>
+                <div class="result-content">
+                    <p>No tier impact rate data available.</p>
+                </div>
+            </div>
+            '''
+        
+        # Build table
+        table_html = '''
+        <div class="result-item">
+            <div class="result-title">Result: Tier Impact Rate – With and Without Mitigation</div>
+            <div class="result-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Decision Method</th>
+                            <th>Persona Matches</th>
+                            <th>Persona Non-Matches</th>
+                            <th>Persona Tier Changed %</th>
+                            <th>Mitigation Matches</th>
+                            <th>Mitigation Non-Matches</th>
+                            <th>Mitigation Tier Changed %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        '''
+        
+        for method, data in tier_impact_data.items():
+            table_html += f'''
+            <tr>
+                <td>{method}</td>
+                <td>{data.get('persona_matches', 0):,}</td>
+                <td>{data.get('persona_non_matches', 0):,}</td>
+                <td>{data.get('persona_tier_changed_percentage', 0):.1f}%</td>
+                <td>{data.get('mitigation_matches', 0):,}</td>
+                <td>{data.get('mitigation_non_matches', 0):,}</td>
+                <td>{data.get('mitigation_tier_changed_percentage', 0):.1f}%</td>
+            </tr>
+            '''
+        
+        table_html += '</tbody></table>'
+        
+        # Add statistical analysis
+        if 'error' not in stats:
+            table_html += self._build_tier_impact_statistical_analysis(stats)
+        
+        table_html += '</div></div>'
+        return table_html
+
+    def _build_mitigation_rankings_result(self, rankings_data: Dict, stats: Dict, method: str) -> str:
+        """Build HTML for bias mitigation rankings result"""
+        if not rankings_data:
+            return f'''
+            <div class="result-item">
+                <div class="result-title">Result: Bias Mitigation Rankings - {method}</div>
+                <div class="result-content">
+                    <p>No bias mitigation rankings data available for {method}.</p>
+                </div>
+            </div>
+            '''
+        
+        # Build table
+        table_html = f'''
+        <div class="result-item">
+            <div class="result-title">Result: Bias Mitigation Rankings - {method}</div>
+            <div class="result-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Risk Mitigation Strategy</th>
+                            <th>Sample Size</th>
+                            <th>Mean Baseline</th>
+                            <th>Mean Persona</th>
+                            <th>Mean Mitigation</th>
+                            <th>Residual Bias %</th>
+                            <th>Std Dev</th>
+                            <th>SEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        '''
+        
+        # Sort by residual bias percentage (effectiveness_percentage) in ascending order
+        sorted_rankings = sorted(rankings_data.items(), key=lambda x: x[1].get('effectiveness_percentage', 0))
+        
+        for strategy, data in sorted_rankings:
+            table_html += f'''
+            <tr>
+                <td>{strategy.replace('_', ' ').title()}</td>
+                <td>{data.get('sample_size', 0):,}</td>
+                <td>{data.get('mean_baseline', 0):.3f}</td>
+                <td>{data.get('mean_persona', 0):.3f}</td>
+                <td>{data.get('mean_mitigation', 0):.3f}</td>
+                <td>{data.get('effectiveness_percentage', 0):.1f}%</td>
+                <td>{data.get('std_dev', 0):.3f}</td>
+                <td>{data.get('sem', 0):.3f}</td>
+            </tr>
+            '''
+        
+        table_html += '</tbody></table>'
+        
+        # Add statistical analysis
+        if 'error' not in stats:
+            table_html += self._build_mitigation_rankings_statistical_analysis(stats, method)
+        
+        table_html += '</div></div>'
+        return table_html
+
+    def _build_tier_impact_statistical_analysis(self, stats: Dict) -> str:
+        """Build HTML for statistical analysis of tier impact rates"""
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis</h4>
+            <p><strong>Hypothesis:</strong> {stats.get("hypothesis", "N/A")}</p>
+            <p><strong>Test:</strong> {stats.get("test_type", "N/A")}</p>
+            <p><strong>Test Statistic:</strong> χ² = {stats.get("chi2_statistic", "N/A")}</p>
+            <p><strong>p-value:</strong> {stats.get("p_value", "N/A")}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {stats.get("conclusion", "N/A")} (p {stats.get("p_value", 0):.3f})</p>
+            <p><strong>Implication:</strong> {stats.get("implication", "N/A")}</p>
+        </div>
+        '''
+
+    def _build_mitigation_rankings_statistical_analysis(self, stats: Dict, method: str) -> str:
+        """Build HTML for statistical analysis of bias mitigation rankings"""
+        return f'''
+        <div class="statistical-analysis">
+            <h4>Statistical Analysis - {method}</h4>
+            <p><strong>Hypothesis:</strong> {stats.get("hypothesis", "N/A")}</p>
+            <p><strong>Model:</strong> {stats.get("test_type", "N/A")}</p>
+            <p><strong>Test:</strong> {stats.get("test_method", "N/A")}</p>
+            <p><strong>Test Statistic:</strong> F = {stats.get("f_statistic", "N/A")}</p>
+            <p><strong>p-value:</strong> {stats.get("p_value", "N/A")}</p>
+            <p><strong>Effect Size (η²):</strong> {stats.get("eta_squared", "N/A")}</p>
+            <p><strong>Conclusion:</strong> The null hypothesis was {stats.get("conclusion", "N/A")} (p {stats.get("p_value", 0):.3f})</p>
+            <p><strong>Implication:</strong> {stats.get("implication", "N/A")}</p>
+            {f'<p><strong>Note:</strong> {stats.get("note", "")}</p>' if stats.get("note") else ''}
+        </div>
+        '''

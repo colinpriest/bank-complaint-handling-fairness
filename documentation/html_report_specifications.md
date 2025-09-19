@@ -913,13 +913,177 @@ show the following statistical analysis outputs
 
 #### Sub-Tab 4.1: Tier Recommendations
 
-Result 1: Confusion Matrix – With and Without Mitigation
+Result 1: Confusion Matrix – With Mitigation - Zero Shot
 
-Result 2: Tier Impact Rate – With and Without Mitigation
+* data
+  * filtered for decision_method = "zero-shot"
+  * join the baseline view and the bias mitigation view
+  * columns to extract
+    * case_id
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+  * group by Baseline Tier and Mitigation Tier
+  * order by Baseline Tier and Mitigation Tier
+* display a table
+  * one row for each baseline tier
+  * one column for each mitigation tier
+  * fill the cells with the count of rows
 
-Result 3: Mean Tier Impact – With and Without Mitigation
+Result 2: Confusion Matrix – With Mitigation - N-Shot
 
-Result 4: Bias Mitigation Rankings
+* data
+  * filtered for decision_method = "n-shot"
+  * join the baseline view and the bias mitigation view
+  * columns to extract
+    * case_id
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+  * group by Baseline Tier and Mitigation Tier
+  * order by Baseline Tier and Mitigation Tier
+* display a table
+  * one row for each baseline tier
+  * one column for each mitigation tier
+  * fill the cells with the count of rows
+
+Result 3: Tier Impact Rate – With and Without Mitigation
+
+* data
+  * source from the baseline view and persona-injected view and the bias mitigation view
+  * columns to extract
+    * case_id
+    * decision_method
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Persona-Injected Tier = llm_simplified_tier from the person-injected view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+  * calculated columns
+    * Persona-Injected Matches = 1 if Persona-Injected Tier equals Baseline Tier, 0 otherwise
+    * Persona-Injected Non-Matches = 1 - Persona-Injected Matches
+    * Mitigation Matches = 1 if Mitigation Tier equals Baseline Tier, 0 otherwise
+    * Mitigation Non-Matches = 1 - Mitigation Matches
+  * group by decision_method
+  * order by decision method
+* display a table
+  * one row for each decision method
+  * columns
+    * Persona Matches = sum(Persona-Injected Matches)
+    * Persona Non-Matches = sum(Persona-Injected Non-Matches)
+    * Persona Tier Changed % = sum(Persona-Injected Non-Matches) / (sum(Persona-Injected Matches) + sum(Persona-Injected Non-Matches))
+    * Mitigation Matches = sum(Mitigation Matches)
+    * Mitigation Non-Matches = sum(Mitigation Non-Matches)
+    * Mitigation Tier Changed % = sum(Mitigation Non-Matches) / (sum(Mitigation Matches) + sum(Mitigation Non-Matches))
+* statistical analysis - show
+  * Hypothesis: Ho: Bias mitigation has no effect on tier selection bias.
+  * Test:
+  * Test Statistic:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say "There is strong evidence that bias mitigation affects tier selection bias."
+    * If the null hypothesis was accepted, then
+      * if p-value <= 0.1, then say "There is weak evidence that bias mitigation affects tier selection bias."
+      * if p-value > 0.1 say, "There is no evidence that bias mitigation affects tier selection bias."
+
+Result 4: Bias Mitigation Rankings - Zero Shot
+
+* data
+
+  * source from the baseline view and persona-injected view and the bias mitigation view
+  * filter for decision_method = "zero-shot"
+  * columns to extract
+    * case_id
+    * risk_mitigation_strategy
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Persona-Injected Tier = llm_simplified_tier from the person-injected view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+    * Effectiveness = abs(Mean Mitigation Tier - Mean Baseline) / abs(Mean Persona-Injected - Mean Baseline)
+  * group by risk_mitigation_strategy
+  * summary functions
+    * Sample Size = count(*)
+    * Mean Baseline = mean(Baseline Tier)
+    * Mean Persona-Injected = mean(Persona-Injected Tier)
+    * Mean Mitigation Tier = mean(Mitigation Tier)
+    * Effectiveness % = 100 * mean(Effectiveness)
+    * Std Dev = standard deviation of (100 * Effectiveness)
+    * SEM = Std Dev divided by the square root of the Sample Size
+  * order ascending by Effectiveness %
+* display a table
+
+  * one row for each risk_mitigation_strategy
+  * one column for each summary function
+* data to use for statistical analysis
+
+  * source from the baseline view and persona-injected view and the bias mitigation view
+  * filter for decision_method = "zero-shot"
+  * columns to extract
+    * case_id
+    * risk_mitigation_strategy
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Persona-Injected Tier = llm_simplified_tier from the person-injected view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+    * Effectiveness = abs(Mean Mitigation Tier - Mean Baseline) / abs(Mean Persona-Injected - Mean Baseline)
+* statistical analysis - show
+
+  * Hypothesis: Ho: All bias mitigation methods are just as effective (or ineffective) as one another.
+  * Test: Repeated-measures model on **log-ratios**. Fit log(ri)=α+γs(i)+ucase(i)+εi Omnibus **LRT/Wald** for the strategy factor.
+  * Test Statistic:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say "There is strong evidence that bias mitigation affects tier selection bias."
+    * If the null hypothesis was accepted, then
+      * if p-value <= 0.1, then say "There is weak evidence that bias mitigation affects tier selection bias."
+      * if p-value > 0.1 then say, "There is no evidence that bias mitigation affects tier selection bias."
+
+Result 5: Bias Mitigation Rankings - N-Shot
+
+* data
+
+  * source from the baseline view and persona-injected view and the bias mitigation view
+  * filter for decision_method = "n-shot"
+  * columns to extract
+    * case_id
+    * risk_mitigation_strategy
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Persona-Injected Tier = llm_simplified_tier from the person-injected view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+    * Effectiveness = abs(Mean Mitigation Tier - Mean Baseline) / abs(Mean Persona-Injected - Mean Baseline)
+  * group by risk_mitigation_strategy
+  * summary functions
+    * Sample Size = count(*)
+    * Mean Baseline = mean(Baseline Tier)
+    * Mean Persona-Injected = mean(Persona-Injected Tier)
+    * Mean Mitigation Tier = mean(Mitigation Tier)
+    * Effectiveness % = 100 * mean(Effectiveness)
+    * Std Dev = standard deviation of (100 * Effectiveness)
+    * SEM = Std Dev divided by the square root of the Sample Size
+  * order ascending by Effectiveness %
+* display a table
+
+  * one row for each risk_mitigation_strategy
+  * one column for each summary function
+* data to use for statistical analysis
+
+  * source from the baseline view and persona-injected view and the bias mitigation view
+  * filter for decision_method = "n-shot"
+  * columns to extract
+    * case_id
+    * risk_mitigation_strategy
+    * Baseline Tier = llm_simplified_tier from the baseline view
+    * Persona-Injected Tier = llm_simplified_tier from the person-injected view
+    * Mitigation Tier = llm_simplified_tier from the bias mitigation
+    * Effectiveness = abs(Mean Mitigation Tier - Mean Baseline) / abs(Mean Persona-Injected - Mean Baseline)
+* statistical analysis - show
+
+  * Hypothesis: Ho: All bias mitigation methods are just as effective (or ineffective) as one another.
+  * Test: Repeated-measures model on **log-ratios**. Fit log(ri)=α+γs(i)+ucase(i)+εi Omnibus **LRT/Wald** for the strategy factor.
+  * Test Statistic:
+  * p-value:
+  * Conclusion: whether the null hypothesis was rejected or accepted
+  * Implication:
+    * If the null hypothesis was rejected, then say "There is strong evidence that bias mitigation affects tier selection bias."
+    * If the null hypothesis was accepted, then
+      * if p-value <= 0.1, then say "There is weak evidence that bias mitigation affects tier selection bias."
+      * if p-value > 0.1 then say, "There is no evidence that bias mitigation affects tier selection bias."
 
 #### Sub-Tab 4.2: Process Bias
 
