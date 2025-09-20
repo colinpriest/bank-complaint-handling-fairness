@@ -196,6 +196,42 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         ORDER BY e.case_id, e.geography, e.decision_method;
         """
         
+        # Query 9: Tier 0 Rate by Geography - Zero-Shot (Result 6)
+        zero_shot_tier0_query = """
+        SELECT 
+            e.geography,
+            COUNT(*) as sample_size,
+            SUM(CASE WHEN e.llm_simplified_tier = 0 THEN 1 ELSE 0 END) as zero_tier_count,
+            AVG(CASE WHEN e.llm_simplified_tier = 0 THEN 1.0 ELSE 0.0 END) as proportion_zero
+        FROM experiments e
+        WHERE e.decision_method = 'zero-shot'
+            AND e.persona IS NOT NULL
+            AND e.risk_mitigation_strategy IS NULL
+            AND e.llm_simplified_tier != -999
+            AND e.geography IS NOT NULL
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+        GROUP BY e.geography
+        ORDER BY e.geography;
+        """
+        
+        # Query 10: Tier 0 Rate by Geography - N-Shot (Result 7)
+        n_shot_tier0_query = """
+        SELECT 
+            e.geography,
+            COUNT(*) as sample_size,
+            SUM(CASE WHEN e.llm_simplified_tier = 0 THEN 1 ELSE 0 END) as zero_tier_count,
+            AVG(CASE WHEN e.llm_simplified_tier = 0 THEN 1.0 ELSE 0.0 END) as proportion_zero
+        FROM experiments e
+        WHERE e.decision_method = 'n-shot'
+            AND e.persona IS NOT NULL
+            AND e.risk_mitigation_strategy IS NULL
+            AND e.llm_simplified_tier != -999
+            AND e.geography IS NOT NULL
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+        GROUP BY e.geography
+        ORDER BY e.geography;
+        """
+        
         # Execute queries and process data
         cursor = connection.cursor()
         
@@ -317,6 +353,13 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         cursor.execute(detailed_tier_bias_query)
         detailed_tier_bias_data = cursor.fetchall()
         
+        # Execute tier 0 rate queries
+        cursor.execute(zero_shot_tier0_query)
+        zero_shot_tier0_data = cursor.fetchall()
+        
+        cursor.execute(n_shot_tier0_query)
+        n_shot_tier0_data = cursor.fetchall()
+        
         # Process detailed data for mixed model
         detailed_data = []
         for row in detailed_tier_bias_data:
@@ -328,6 +371,26 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
                 'tier': int(tier)
             })
         
+        # Process tier 0 rate data (Result 6 - Zero-Shot)
+        zero_shot_tier0_rate = {}
+        for row in zero_shot_tier0_data:
+            geography, sample_size, zero_tier_count, proportion_zero = row
+            zero_shot_tier0_rate[geography] = {
+                'sample_size': int(sample_size),
+                'zero_tier_count': int(zero_tier_count),
+                'proportion_zero': round(float(proportion_zero), 3) if proportion_zero is not None else 0.0
+            }
+        
+        # Process tier 0 rate data (Result 7 - N-Shot)
+        n_shot_tier0_rate = {}
+        for row in n_shot_tier0_data:
+            geography, sample_size, zero_tier_count, proportion_zero = row
+            n_shot_tier0_rate[geography] = {
+                'sample_size': int(sample_size),
+                'zero_tier_count': int(zero_tier_count),
+                'proportion_zero': round(float(proportion_zero), 3) if proportion_zero is not None else 0.0
+            }
+        
         # Perform statistical analyses
         zero_shot_stats = perform_mean_tier_statistical_analysis(zero_shot_raw)
         n_shot_stats = perform_mean_tier_statistical_analysis(n_shot_raw)
@@ -338,6 +401,10 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         
         # Perform mixed model analysis for tier bias
         mixed_model_stats = perform_mixed_model_analysis(detailed_data)
+        
+        # Perform statistical analysis for tier 0 rate comparison
+        zero_shot_tier0_stats = perform_tier0_rate_statistical_analysis(zero_shot_tier0_rate)
+        n_shot_tier0_stats = perform_tier0_rate_statistical_analysis(n_shot_tier0_rate)
         
         # Calculate disadvantage ranking
         disadvantage_ranking = calculate_disadvantage_ranking(zero_shot_mean, n_shot_mean)
@@ -357,7 +424,11 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             'n_shot_question_stats': n_shot_question_stats,
             'tier_bias_summary': tier_bias_summary,
             'mixed_model_stats': mixed_model_stats,
-            'disadvantage_ranking': disadvantage_ranking
+            'disadvantage_ranking': disadvantage_ranking,
+            'zero_shot_tier0_rate': zero_shot_tier0_rate,
+            'n_shot_tier0_rate': n_shot_tier0_rate,
+            'zero_shot_tier0_stats': zero_shot_tier0_stats,
+            'n_shot_tier0_stats': n_shot_tier0_stats
         }
         
         return result
@@ -567,6 +638,42 @@ def perform_mixed_model_analysis(detailed_data):
     except Exception as e:
         return {'error': f'Mixed model analysis failed: {e}'}
 
+def perform_tier0_rate_statistical_analysis(tier0_data):
+    """Perform chi-squared test for tier 0 rate comparison by geography"""
+    if len(tier0_data) < 2:
+        return {'error': 'Insufficient data for statistical analysis'}
+    
+    geographies = list(tier0_data.keys())
+    if len(geographies) < 2:
+        return {'error': 'Expected at least 2 geographies for comparison'}
+    
+    # Create contingency table for chi-squared test
+    # [zero_tier_count, non_zero_tier_count] for each geography
+    contingency_table = []
+    for geography in geographies:
+        data = tier0_data[geography]
+        zero_count = data['zero_tier_count']
+        non_zero_count = data['sample_size'] - zero_count
+        contingency_table.append([zero_count, non_zero_count])
+    
+    try:
+        chi2, p_value, dof, expected = chi2_contingency(contingency_table)
+        
+        # Find geography with highest proportion of zero-tier cases
+        highest_prop_geography = max(geographies, key=lambda g: tier0_data[g]['proportion_zero'])
+        
+        return {
+            'geographies': geographies,
+            'chi2_statistic': chi2,
+            'p_value': p_value,
+            'degrees_of_freedom': dof,
+            'significant': p_value < 0.05,
+            'conclusion': 'rejected' if p_value < 0.05 else 'accepted',
+            'highest_proportion_geography': highest_prop_geography
+        }
+    except Exception as e:
+        return {'error': f'Tier 0 rate statistical analysis failed: {e}'}
+
 def calculate_disadvantage_ranking(zero_shot_mean, n_shot_mean):
     """
     Calculate disadvantage ranking based on mean tiers
@@ -623,6 +730,14 @@ if __name__ == "__main__":
         print(f"  {geography}:")
         for method, stats in methods.items():
             print(f"    {method}: Mean={stats['mean_tier']:.3f}, Count={stats['count']}")
+    
+    print("\nZero-Shot Tier 0 Rate by Geography (Result 6):")
+    for geography, stats in data.get('zero_shot_tier0_rate', {}).items():
+        print(f"  {geography}: Sample Size={stats['sample_size']}, Zero Tier={stats['zero_tier_count']}, Proportion Zero={stats['proportion_zero']:.3f}")
+    
+    print("\nN-Shot Tier 0 Rate by Geography (Result 7):")
+    for geography, stats in data.get('n_shot_tier0_rate', {}).items():
+        print(f"  {geography}: Sample Size={stats['sample_size']}, Zero Tier={stats['zero_tier_count']}, Proportion Zero={stats['proportion_zero']:.3f}")
     
     print("\nDisadvantage Ranking:")
     ranking = data.get('disadvantage_ranking', {})

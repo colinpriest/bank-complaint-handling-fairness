@@ -416,6 +416,84 @@ class HTMLDashboard:
             background-color: #e3f2fd;
         }
 
+        .gender-tier0-rate {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .gender-tier0-rate th, .gender-tier0-rate td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .gender-tier0-rate th {
+            background-color: #e9ecef;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .gender-tier0-rate tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .gender-tier0-rate tbody tr:hover {
+            background-color: #e3f2fd;
+        }
+
+        .statistical-analysis {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .statistical-analysis h4 {
+            margin-top: 0;
+            color: #007bff;
+        }
+
+        .statistical-analysis p {
+            margin: 8px 0;
+        }
+
+        .ethnicity-tier0-rate,
+        .geographic-tier0-rate {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .ethnicity-tier0-rate th, .ethnicity-tier0-rate td,
+        .geographic-tier0-rate th, .geographic-tier0-rate td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .ethnicity-tier0-rate th,
+        .geographic-tier0-rate th {
+            background-color: #e9ecef;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .ethnicity-tier0-rate tbody tr:nth-child(even),
+        .geographic-tier0-rate tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .ethnicity-tier0-rate tbody tr:hover,
+        .geographic-tier0-rate tbody tr:hover {
+            background-color: #e3f2fd;
+        }
+
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1238,6 +1316,16 @@ class HTMLDashboard:
                     <div class="result-title">Result 5: Disadvantage Ranking by Gender and by Zero-Shot/N-Shot</div>
                     {self._build_gender_disadvantage_ranking_table(persona_analysis.get('gender_bias', {}))}
                 </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 6: Tier 0 Rate by Gender - Zero Shot</div>
+                    {self._build_gender_tier0_rate_table(persona_analysis.get('gender_bias', {}), 'zero_shot')}
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 7: Tier 0 Rate by Gender - N-Shot</div>
+                    {self._build_gender_tier0_rate_table(persona_analysis.get('gender_bias', {}), 'n_shot')}
+                </div>
             </div>
         </div>
 
@@ -1269,6 +1357,16 @@ class HTMLDashboard:
                     <div class="result-title">Result 5: Disadvantage Ranking by Ethnicity and by Zero-Shot/N-Shot</div>
                     {self._build_ethnicity_disadvantage_ranking_table(persona_analysis.get('ethnicity_bias', {}))}
                 </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 6: Tier 0 Rate by Ethnicity - Zero Shot</div>
+                    {self._build_ethnicity_tier0_rate_table(persona_analysis.get('ethnicity_bias', {}), 'zero_shot')}
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 7: Tier 0 Rate by Ethnicity - N-Shot</div>
+                    {self._build_ethnicity_tier0_rate_table(persona_analysis.get('ethnicity_bias', {}), 'n_shot')}
+                </div>
             </div>
         </div>
 
@@ -1299,6 +1397,16 @@ class HTMLDashboard:
                 <div class="result-item">
                     <div class="result-title">Result 5: Disadvantage Ranking by Geography and by Zero-Shot/N-Shot</div>
                     {self._build_geographic_disadvantage_ranking_table(persona_analysis.get('geographic_bias', {}))}
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 6: Tier 0 Rate by Geography - Zero Shot</div>
+                    {self._build_geographic_tier0_rate_table(persona_analysis.get('geographic_bias', {}), 'zero_shot')}
+                </div>
+
+                <div class="result-item">
+                    <div class="result-title">Result 7: Tier 0 Rate by Geography - N-Shot</div>
+                    {self._build_geographic_tier0_rate_table(persona_analysis.get('geographic_bias', {}), 'n_shot')}
                 </div>
             </div>
         </div>
@@ -2063,6 +2171,239 @@ class HTMLDashboard:
         
         html += '  </tbody>\n'
         html += '</table>\n'
+        
+        return html
+
+    def _build_gender_tier0_rate_table(self, gender_data: Dict, method: str) -> str:
+        """
+        Build HTML table for tier 0 rate by gender analysis
+        
+        Args:
+            gender_data: Dictionary containing gender bias data
+            method: Either 'zero_shot' or 'n_shot'
+            
+        Returns:
+            HTML string for the tier 0 rate table
+        """
+        if not gender_data:
+            return '<div class="result-placeholder">No gender bias data available</div>'
+        
+        # Get the tier 0 rate data
+        tier0_data_key = f'{method}_tier0_rate'
+        tier0_stats_key = f'{method}_tier0_stats'
+        
+        tier0_data = gender_data.get(tier0_data_key, {})
+        tier0_stats = gender_data.get(tier0_stats_key, {})
+        
+        if not tier0_data:
+            return '<div class="result-placeholder">No tier 0 rate data available</div>'
+        
+        # Build the table
+        html = '<table class="gender-tier0-rate">\n'
+        html += '  <thead>\n'
+        html += '    <tr>\n'
+        html += '      <th>Gender</th>\n'
+        html += '      <th>Sample Size</th>\n'
+        html += '      <th>Zero Tier</th>\n'
+        html += '      <th>Proportion Zero</th>\n'
+        html += '    </tr>\n'
+        html += '  </thead>\n'
+        html += '  <tbody>\n'
+        
+        for gender, data in tier0_data.items():
+            html += '    <tr>\n'
+            html += f'      <td>{gender.title()}</td>\n'
+            html += f'      <td>{data["sample_size"]:,}</td>\n'
+            html += f'      <td>{data["zero_tier_count"]:,}</td>\n'
+            html += f'      <td>{data["proportion_zero"]:.3f}</td>\n'
+            html += '    </tr>\n'
+        
+        html += '  </tbody>\n'
+        html += '</table>\n'
+        
+        # Add statistical analysis
+        if tier0_stats and 'error' not in tier0_stats:
+            html += '<div class="statistical-analysis">\n'
+            html += '  <h4>Statistical Analysis</h4>\n'
+            html += f'  <p><strong>Hypothesis:</strong> H0: The proportion of zero-tier cases is the same for all genders</p>\n'
+            html += '  <p><strong>Test:</strong> Chi-squared test on counts</p>\n'
+            html += f'  <p><strong>Test Statistic:</strong> χ² = {tier0_stats.get("chi2_statistic", "N/A"):.3f}</p>\n'
+            html += f'  <p><strong>p-Value:</strong> {tier0_stats.get("p_value", "N/A"):.3f}</p>\n'
+            html += f'  <p><strong>Conclusion:</strong> The null hypothesis was {tier0_stats.get("conclusion", "N/A")}</p>\n'
+            
+            # Add implication based on the specifications
+            if tier0_stats.get('conclusion') == 'rejected':
+                higher_gender = tier0_stats.get('higher_proportion_gender', 'N/A')
+                if higher_gender == 'male':
+                    html += '  <p><strong>Implication:</strong> The proportion of zero-tier cases is higher for males.</p>\n'
+                elif higher_gender == 'female':
+                    html += '  <p><strong>Implication:</strong> The proportion of zero-tier cases is higher for females.</p>\n'
+                else:
+                    html += '  <p><strong>Implication:</strong> The proportion of zero-tier cases differs significantly between genders.</p>\n'
+            else:
+                p_value = tier0_stats.get('p_value', 1.0)
+                if p_value <= 0.1:
+                    html += '  <p><strong>Implication:</strong> There is weak evidence that the proportion of zero-tier cases varies with gender.</p>\n'
+                else:
+                    html += '  <p><strong>Implication:</strong> There is no evidence that the proportion of zero-tier cases varies with gender.</p>\n'
+            
+            html += '</div>\n'
+        elif tier0_stats and 'error' in tier0_stats:
+            html += f'<div class="result-placeholder">Statistical analysis error: {tier0_stats["error"]}</div>\n'
+        else:
+            html += '<div class="result-placeholder">No statistical analysis available</div>\n'
+        
+        return html
+
+    def _build_ethnicity_tier0_rate_table(self, ethnicity_data: Dict, method: str) -> str:
+        """
+        Build HTML table for tier 0 rate by ethnicity analysis
+        
+        Args:
+            ethnicity_data: Dictionary containing ethnicity bias data
+            method: Either 'zero_shot' or 'n_shot'
+            
+        Returns:
+            HTML string for the tier 0 rate table
+        """
+        if not ethnicity_data:
+            return '<div class="result-placeholder">No ethnicity bias data available</div>'
+        
+        # Get the tier 0 rate data
+        tier0_data_key = f'{method}_tier0_rate'
+        tier0_stats_key = f'{method}_tier0_stats'
+        
+        tier0_data = ethnicity_data.get(tier0_data_key, {})
+        tier0_stats = ethnicity_data.get(tier0_stats_key, {})
+        
+        if not tier0_data:
+            return '<div class="result-placeholder">No tier 0 rate data available</div>'
+        
+        # Build the table
+        html = '<table class="ethnicity-tier0-rate">\n'
+        html += '  <thead>\n'
+        html += '    <tr>\n'
+        html += '      <th>Ethnicity</th>\n'
+        html += '      <th>Sample Size</th>\n'
+        html += '      <th>Zero Tier</th>\n'
+        html += '      <th>Proportion Zero</th>\n'
+        html += '    </tr>\n'
+        html += '  </thead>\n'
+        html += '  <tbody>\n'
+        
+        for ethnicity, data in tier0_data.items():
+            html += '    <tr>\n'
+            html += f'      <td>{ethnicity.title()}</td>\n'
+            html += f'      <td>{data["sample_size"]:,}</td>\n'
+            html += f'      <td>{data["zero_tier_count"]:,}</td>\n'
+            html += f'      <td>{data["proportion_zero"]:.3f}</td>\n'
+            html += '    </tr>\n'
+        
+        html += '  </tbody>\n'
+        html += '</table>\n'
+        
+        # Add statistical analysis
+        if tier0_stats and 'error' not in tier0_stats:
+            html += '<div class="statistical-analysis">\n'
+            html += '  <h4>Statistical Analysis</h4>\n'
+            html += f'  <p><strong>Hypothesis:</strong> H0: The proportion of zero-tier cases is the same for all ethnicities</p>\n'
+            html += '  <p><strong>Test:</strong> Chi-squared test on counts</p>\n'
+            html += f'  <p><strong>Test Statistic:</strong> χ² = {tier0_stats.get("chi2_statistic", "N/A"):.3f}</p>\n'
+            html += f'  <p><strong>p-Value:</strong> {tier0_stats.get("p_value", "N/A"):.3f}</p>\n'
+            html += f'  <p><strong>Conclusion:</strong> The null hypothesis was {tier0_stats.get("conclusion", "N/A")}</p>\n'
+            
+            # Add implication based on the specifications
+            if tier0_stats.get('conclusion') == 'rejected':
+                highest_ethnicity = tier0_stats.get('highest_proportion_ethnicity', 'N/A')
+                html += f'  <p><strong>Implication:</strong> The proportion of zero-tier cases differs significantly between ethnicities, with {highest_ethnicity} having the highest proportion.</p>\n'
+            else:
+                p_value = tier0_stats.get('p_value', 1.0)
+                if p_value <= 0.1:
+                    html += '  <p><strong>Implication:</strong> There is weak evidence that the proportion of zero-tier cases varies with ethnicity.</p>\n'
+                else:
+                    html += '  <p><strong>Implication:</strong> There is no evidence that the proportion of zero-tier cases varies with ethnicity.</p>\n'
+            
+            html += '</div>\n'
+        elif tier0_stats and 'error' in tier0_stats:
+            html += f'<div class="result-placeholder">Statistical analysis error: {tier0_stats["error"]}</div>\n'
+        else:
+            html += '<div class="result-placeholder">No statistical analysis available</div>\n'
+        
+        return html
+
+    def _build_geographic_tier0_rate_table(self, geographic_data: Dict, method: str) -> str:
+        """
+        Build HTML table for tier 0 rate by geography analysis
+        
+        Args:
+            geographic_data: Dictionary containing geographic bias data
+            method: Either 'zero_shot' or 'n_shot'
+            
+        Returns:
+            HTML string for the tier 0 rate table
+        """
+        if not geographic_data:
+            return '<div class="result-placeholder">No geographic bias data available</div>'
+        
+        # Get the tier 0 rate data
+        tier0_data_key = f'{method}_tier0_rate'
+        tier0_stats_key = f'{method}_tier0_stats'
+        
+        tier0_data = geographic_data.get(tier0_data_key, {})
+        tier0_stats = geographic_data.get(tier0_stats_key, {})
+        
+        if not tier0_data:
+            return '<div class="result-placeholder">No tier 0 rate data available</div>'
+        
+        # Build the table
+        html = '<table class="geographic-tier0-rate">\n'
+        html += '  <thead>\n'
+        html += '    <tr>\n'
+        html += '      <th>Geography</th>\n'
+        html += '      <th>Sample Size</th>\n'
+        html += '      <th>Zero Tier</th>\n'
+        html += '      <th>Proportion Zero</th>\n'
+        html += '    </tr>\n'
+        html += '  </thead>\n'
+        html += '  <tbody>\n'
+        
+        for geography, data in tier0_data.items():
+            html += '    <tr>\n'
+            html += f'      <td>{geography.replace("_", " ").title()}</td>\n'
+            html += f'      <td>{data["sample_size"]:,}</td>\n'
+            html += f'      <td>{data["zero_tier_count"]:,}</td>\n'
+            html += f'      <td>{data["proportion_zero"]:.3f}</td>\n'
+            html += '    </tr>\n'
+        
+        html += '  </tbody>\n'
+        html += '</table>\n'
+        
+        # Add statistical analysis
+        if tier0_stats and 'error' not in tier0_stats:
+            html += '<div class="statistical-analysis">\n'
+            html += '  <h4>Statistical Analysis</h4>\n'
+            html += f'  <p><strong>Hypothesis:</strong> H0: The proportion of zero-tier cases is the same for all geographies</p>\n'
+            html += '  <p><strong>Test:</strong> Chi-squared test on counts</p>\n'
+            html += f'  <p><strong>Test Statistic:</strong> χ² = {tier0_stats.get("chi2_statistic", "N/A"):.3f}</p>\n'
+            html += f'  <p><strong>p-Value:</strong> {tier0_stats.get("p_value", "N/A"):.3f}</p>\n'
+            html += f'  <p><strong>Conclusion:</strong> The null hypothesis was {tier0_stats.get("conclusion", "N/A")}</p>\n'
+            
+            # Add implication based on the specifications
+            if tier0_stats.get('conclusion') == 'rejected':
+                highest_geography = tier0_stats.get('highest_proportion_geography', 'N/A')
+                html += f'  <p><strong>Implication:</strong> The proportion of zero-tier cases differs significantly between geographies, with {highest_geography.replace("_", " ")} having the highest proportion.</p>\n'
+            else:
+                p_value = tier0_stats.get('p_value', 1.0)
+                if p_value <= 0.1:
+                    html += '  <p><strong>Implication:</strong> There is weak evidence that the proportion of zero-tier cases varies with geography.</p>\n'
+                else:
+                    html += '  <p><strong>Implication:</strong> There is no evidence that the proportion of zero-tier cases varies with geography.</p>\n'
+            
+            html += '</div>\n'
+        elif tier0_stats and 'error' in tier0_stats:
+            html += f'<div class="result-placeholder">Statistical analysis error: {tier0_stats["error"]}</div>\n'
+        else:
+            html += '<div class="result-placeholder">No statistical analysis available</div>\n'
         
         return html
 

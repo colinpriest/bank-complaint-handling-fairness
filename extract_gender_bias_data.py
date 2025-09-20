@@ -175,6 +175,42 @@ def extract_gender_bias_data():
         ORDER BY e.case_id, e.gender, e.decision_method;
         """
         
+        # Query 9: Tier 0 Rate by Gender - Zero-Shot (Result 6)
+        zero_shot_tier0_query = """
+        SELECT 
+            e.gender,
+            COUNT(*) as sample_size,
+            SUM(CASE WHEN e.llm_simplified_tier = 0 THEN 1 ELSE 0 END) as zero_tier_count,
+            AVG(CASE WHEN e.llm_simplified_tier = 0 THEN 1.0 ELSE 0.0 END) as proportion_zero
+        FROM experiments e
+        WHERE e.decision_method = 'zero-shot'
+            AND e.persona IS NOT NULL
+            AND e.risk_mitigation_strategy IS NULL
+            AND e.llm_simplified_tier != -999
+            AND e.gender IS NOT NULL
+            AND (e.gender = 'male' OR e.gender = 'female')
+        GROUP BY e.gender
+        ORDER BY e.gender;
+        """
+        
+        # Query 10: Tier 0 Rate by Gender - N-Shot (Result 7)
+        n_shot_tier0_query = """
+        SELECT 
+            e.gender,
+            COUNT(*) as sample_size,
+            SUM(CASE WHEN e.llm_simplified_tier = 0 THEN 1 ELSE 0 END) as zero_tier_count,
+            AVG(CASE WHEN e.llm_simplified_tier = 0 THEN 1.0 ELSE 0.0 END) as proportion_zero
+        FROM experiments e
+        WHERE e.decision_method = 'n-shot'
+            AND e.persona IS NOT NULL
+            AND e.risk_mitigation_strategy IS NULL
+            AND e.llm_simplified_tier != -999
+            AND e.gender IS NOT NULL
+            AND (e.gender = 'male' OR e.gender = 'female')
+        GROUP BY e.gender
+        ORDER BY e.gender;
+        """
+        
         # Execute queries
         cursor = connection.cursor()
         
@@ -209,6 +245,14 @@ def extract_gender_bias_data():
         # Detailed tier bias data for mixed model
         cursor.execute(detailed_tier_bias_query)
         detailed_tier_bias_data = cursor.fetchall()
+        
+        # Zero-shot tier 0 rate data (Result 6)
+        cursor.execute(zero_shot_tier0_query)
+        zero_shot_tier0_data = cursor.fetchall()
+        
+        # N-shot tier 0 rate data (Result 7)
+        cursor.execute(n_shot_tier0_query)
+        n_shot_tier0_data = cursor.fetchall()
         
         # Process mean tier data
         zero_shot_mean = {}
@@ -297,8 +341,32 @@ def extract_gender_bias_data():
                 'tier': int(tier)
             })
         
+        # Process tier 0 rate data (Result 6 - Zero-Shot)
+        zero_shot_tier0_rate = {}
+        for row in zero_shot_tier0_data:
+            gender, sample_size, zero_tier_count, proportion_zero = row
+            zero_shot_tier0_rate[gender] = {
+                'sample_size': int(sample_size),
+                'zero_tier_count': int(zero_tier_count),
+                'proportion_zero': round(float(proportion_zero), 3) if proportion_zero is not None else 0.0
+            }
+        
+        # Process tier 0 rate data (Result 7 - N-Shot)
+        n_shot_tier0_rate = {}
+        for row in n_shot_tier0_data:
+            gender, sample_size, zero_tier_count, proportion_zero = row
+            n_shot_tier0_rate[gender] = {
+                'sample_size': int(sample_size),
+                'zero_tier_count': int(zero_tier_count),
+                'proportion_zero': round(float(proportion_zero), 3) if proportion_zero is not None else 0.0
+            }
+        
         # Perform mixed model analysis
         mixed_model_stats = perform_mixed_model_analysis(detailed_data)
+        
+        # Perform statistical analysis for tier 0 rate comparison
+        zero_shot_tier0_stats = perform_tier0_rate_statistical_analysis(zero_shot_tier0_rate)
+        n_shot_tier0_stats = perform_tier0_rate_statistical_analysis(n_shot_tier0_rate)
         
         # Calculate disadvantage ranking
         disadvantage_ranking = calculate_disadvantage_ranking(zero_shot_mean, n_shot_mean)
@@ -318,7 +386,11 @@ def extract_gender_bias_data():
             'n_shot_question_stats': n_shot_question_stats,
             'tier_bias_summary': tier_bias_summary,
             'mixed_model_stats': mixed_model_stats,
-            'disadvantage_ranking': disadvantage_ranking
+            'disadvantage_ranking': disadvantage_ranking,
+            'zero_shot_tier0_rate': zero_shot_tier0_rate,
+            'n_shot_tier0_rate': n_shot_tier0_rate,
+            'zero_shot_tier0_stats': zero_shot_tier0_stats,
+            'n_shot_tier0_stats': n_shot_tier0_stats
         }
         
         return result
@@ -517,6 +589,54 @@ def perform_mixed_model_analysis(detailed_data):
     except Exception as e:
         return {'error': f'Mixed model analysis failed: {e}'}
 
+def perform_tier0_rate_statistical_analysis(tier0_data):
+    """Perform chi-squared test for tier 0 rate comparison by gender"""
+    if len(tier0_data) < 2:
+        return {'error': 'Insufficient data for statistical analysis'}
+    
+    genders = list(tier0_data.keys())
+    if len(genders) != 2:
+        return {'error': 'Expected exactly 2 genders for comparison'}
+    
+    gender1, gender2 = genders
+    data1 = tier0_data[gender1]
+    data2 = tier0_data[gender2]
+    
+    # Create 2x2 contingency table for chi-squared test
+    # [zero_tier_count, non_zero_tier_count] for each gender
+    zero1 = data1['zero_tier_count']
+    non_zero1 = data1['sample_size'] - zero1
+    zero2 = data2['zero_tier_count']
+    non_zero2 = data2['sample_size'] - zero2
+    
+    contingency_table = [
+        [zero1, non_zero1],
+        [zero2, non_zero2]
+    ]
+    
+    try:
+        chi2, p_value, dof, expected = stats.chi2_contingency(contingency_table)
+        
+        # Determine which gender has higher proportion of zero-tier cases
+        prop1 = data1['proportion_zero']
+        prop2 = data2['proportion_zero']
+        
+        return {
+            'gender1': gender1,
+            'gender2': gender2,
+            'proportion1': prop1,
+            'proportion2': prop2,
+            'proportion_difference': prop1 - prop2,
+            'chi2_statistic': chi2,
+            'p_value': p_value,
+            'degrees_of_freedom': dof,
+            'significant': p_value < 0.05,
+            'conclusion': 'rejected' if p_value < 0.05 else 'accepted',
+            'higher_proportion_gender': gender1 if prop1 > prop2 else gender2
+        }
+    except Exception as e:
+        return {'error': f'Tier 0 rate statistical analysis failed: {e}'}
+
 def calculate_disadvantage_ranking(zero_shot_mean, n_shot_mean):
     """
     Calculate disadvantage ranking based on mean tiers
@@ -573,6 +693,14 @@ if __name__ == "__main__":
         print(f"  {gender}:")
         for method, stats in methods.items():
             print(f"    {method}: Mean={stats['mean_tier']:.3f}, Count={stats['count']}")
+    
+    print("\nZero-Shot Tier 0 Rate by Gender (Result 6):")
+    for gender, stats in data.get('zero_shot_tier0_rate', {}).items():
+        print(f"  {gender}: Sample Size={stats['sample_size']}, Zero Tier={stats['zero_tier_count']}, Proportion Zero={stats['proportion_zero']:.3f}")
+    
+    print("\nN-Shot Tier 0 Rate by Gender (Result 7):")
+    for gender, stats in data.get('n_shot_tier0_rate', {}).items():
+        print(f"  {gender}: Sample Size={stats['sample_size']}, Zero Tier={stats['zero_tier_count']}, Proportion Zero={stats['proportion_zero']:.3f}")
     
     print("\nDisadvantage Ranking:")
     ranking = data.get('disadvantage_ranking', {})
