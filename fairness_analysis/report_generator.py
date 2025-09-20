@@ -1221,7 +1221,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             content += "- **Test Name**: Two-sample t-test (Welch's), per geography\n"
 
             geo_test = data.get('geography_monetary_bias_test', {})
-            for label, key in [("Urban Affluent", "urban_affluent"), ("Urban Poor", "urban_poor"), ("Rural", "rural")]:
+            for label, key in [("Urban Affluent", "urban_affluent"), ("Urban Poor", "urban_poor"), ("Rural", "rural"), ("Urban Upper Middle", "urban_upper_middle"), ("Urban Working", "urban_working"), ("Suburban Upper Middle", "suburban_upper_middle"), ("Suburban Working", "suburban_working"), ("Suburban Poor", "suburban_poor"), ("Rural Upper Middle", "rural_upper_middle"), ("Rural Working", "rural_working"), ("Rural Poor", "rural_poor")]:
                 stats = geo_test.get(key, {})
                 t = stats.get('t_statistic', float('nan'))
                 p = stats.get('p_value', float('nan'))
@@ -1231,7 +1231,7 @@ The analysis uses a 5-tier remedy system where higher tiers represent better out
             content += "- **Details**: Geography x Severity Bias Comparison\n\n"
             content += "| Geography | Non-Monetary Count | Non-Monetary Mean | Non-Monetary Std | Monetary Count | Monetary Mean | Monetary Std |\n"
             content += "|-----------|---------------------|-------------------|------------------|----------------|---------------|--------------|\n"
-            for label, key in [("Urban Affluent", "urban_affluent"), ("Urban Poor", "urban_poor"), ("Rural", "rural")]:
+            for label, key in [("Urban Affluent", "urban_affluent"), ("Urban Poor", "urban_poor"), ("Rural", "rural"), ("Urban Upper Middle", "urban_upper_middle"), ("Urban Working", "urban_working"), ("Suburban Upper Middle", "suburban_upper_middle"), ("Suburban Working", "suburban_working"), ("Suburban Poor", "suburban_poor"), ("Rural Upper Middle", "rural_upper_middle"), ("Rural Working", "rural_working"), ("Rural Poor", "rural_poor")]:
                 stats = geo_test.get(key, {})
                 nm_c = stats.get('non_monetary_count', 0) if stats else 0
                 m_c = stats.get('monetary_count', 0) if stats else 0

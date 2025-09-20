@@ -38,7 +38,7 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         ORDER BY e.geography;
         """
         
@@ -55,7 +55,7 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography
         ORDER BY e.geography;
         """
@@ -68,10 +68,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         FROM experiments e
         WHERE e.decision_method = 'n-shot'
             AND e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         ORDER BY e.geography;
         """
         
@@ -85,10 +84,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         FROM experiments e
         WHERE e.decision_method = 'n-shot'
             AND e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography
         ORDER BY e.geography;
         """
@@ -105,7 +103,7 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography, e.llm_simplified_tier
         ORDER BY e.geography, e.llm_simplified_tier;
         """
@@ -119,10 +117,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         FROM experiments e
         WHERE e.decision_method = 'n-shot'
             AND e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography, e.llm_simplified_tier
         ORDER BY e.geography, e.llm_simplified_tier;
         """
@@ -139,7 +136,7 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography
         ORDER BY e.geography;
         """
@@ -153,10 +150,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         FROM experiments e
         WHERE e.decision_method = 'n-shot'
             AND e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography
         ORDER BY e.geography;
         """
@@ -170,10 +166,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             COUNT(*) as count
         FROM experiments e
         WHERE e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
             AND e.decision_method IN ('zero-shot', 'n-shot')
         GROUP BY e.geography, e.decision_method
         ORDER BY e.geography, e.decision_method;
@@ -188,10 +183,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             e.llm_simplified_tier
         FROM experiments e
         WHERE e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
             AND e.decision_method IN ('zero-shot', 'n-shot')
         ORDER BY e.case_id, e.geography, e.decision_method;
         """
@@ -209,7 +203,7 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
             AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography
         ORDER BY e.geography;
         """
@@ -224,10 +218,9 @@ def extract_geographic_bias_data() -> Dict[str, Any]:
         FROM experiments e
         WHERE e.decision_method = 'n-shot'
             AND e.persona IS NOT NULL
-            AND e.risk_mitigation_strategy IS NULL
             AND e.llm_simplified_tier != -999
             AND e.geography IS NOT NULL
-            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor')
+            AND e.geography IN ('rural', 'urban_affluent', 'urban_poor', 'urban_upper_middle', 'urban_working', 'suburban_upper_middle', 'suburban_working', 'suburban_poor', 'rural_upper_middle', 'rural_working', 'rural_poor')
         GROUP BY e.geography
         ORDER BY e.geography;
         """
