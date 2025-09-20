@@ -62,6 +62,43 @@ class HTMLDashboard:
 
     def _build_html_structure(self, data: Dict[str, Any]) -> str:
         """Build complete HTML structure with all components"""
+        # Embed accuracy data in JavaScript for client-side filtering
+        accuracy_data_js = ""
+        if 'accuracy_data' in data:
+            import json
+            
+            # Convert tuple keys to strings and handle non-JSON serializable types
+            def convert_for_json(obj):
+                if isinstance(obj, dict):
+                    new_dict = {}
+                    for key, value in obj.items():
+                        if isinstance(key, tuple):
+                            # Convert tuple to string key
+                            new_key = f"{key[0]}|{key[1]}"
+                        else:
+                            new_key = key
+                        new_dict[new_key] = convert_for_json(value)
+                    return new_dict
+                elif isinstance(obj, list):
+                    return [convert_for_json(item) for item in obj]
+                elif hasattr(obj, '__class__') and 'Decimal' in str(obj.__class__):
+                    # Convert Decimal to float
+                    return float(obj)
+                elif hasattr(obj, '__class__') and 'datetime' in str(obj.__class__):
+                    # Convert datetime to string
+                    return str(obj)
+                else:
+                    return obj
+            
+            # Convert the accuracy data to have string keys and handle non-JSON types
+            converted_accuracy_data = convert_for_json(data['accuracy_data'])
+            
+            accuracy_data_js = f"""
+        <script>
+            // Make accuracy data available to JavaScript
+            window.accuracyData = {json.dumps(converted_accuracy_data)};
+        </script>"""
+        
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,6 +107,7 @@ class HTMLDashboard:
     <title>LLM Fairness Dashboard - Bank Complaint Analysis</title>
     {self._get_css_styles()}
     {self._get_javascript()}
+    {accuracy_data_js}
 </head>
 <body>
     <div class="dashboard-container">
@@ -322,6 +360,60 @@ class HTMLDashboard:
         .result-placeholder {
             color: #6c757d;
             font-style: italic;
+        }
+
+        .filter-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .filter-controls label {
+            display: inline-block;
+            margin-right: 10px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .filter-controls select {
+            margin-right: 20px;
+            padding: 5px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background-color: white;
+        }
+
+        .confusion-matrix, .accuracy-rates {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .confusion-matrix th, .confusion-matrix td,
+        .accuracy-rates th, .accuracy-rates td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .confusion-matrix th, .accuracy-rates th {
+            background-color: #e9ecef;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .confusion-matrix tbody tr:nth-child(even),
+        .accuracy-rates tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .confusion-matrix tbody tr:hover,
+        .accuracy-rates tbody tr:hover {
+            background-color: #e3f2fd;
         }
 
         .metrics-grid {
@@ -585,6 +677,190 @@ class HTMLDashboard:
                 });
             });
         });
+        
+        // Accuracy filter functions
+        function updateAccuracyFilters() {
+            const decisionMethod = document.getElementById('decision-method-filter').value;
+            const experimentCategory = document.getElementById('experiment-category-filter').value;
+            
+            // Get the accuracy data from the global variable
+            const accuracyData = window.accuracyData || {};
+            const confusionMatrix = accuracyData.confusion_matrix || {};
+            
+            // Find the appropriate data based on filters
+            let matrixData = null;
+            if (decisionMethod === 'all' && experimentCategory === 'all') {
+                // Show all data combined - we'll need to aggregate
+                matrixData = aggregateConfusionMatrix(confusionMatrix);
+            } else if (decisionMethod === 'all') {
+                // Filter by experiment category only
+                matrixData = aggregateConfusionMatrixByCategory(confusionMatrix, experimentCategory);
+            } else if (experimentCategory === 'all') {
+                // Filter by decision method only
+                matrixData = aggregateConfusionMatrixByMethod(confusionMatrix, decisionMethod);
+            } else {
+                // Filter by both
+                const key = `${decisionMethod}|${experimentCategory}`;
+                matrixData = confusionMatrix[key] || null;
+            }
+            
+            const container = document.getElementById('confusion-matrix-container');
+            if (matrixData) {
+                container.innerHTML = buildConfusionMatrixHTML(matrixData);
+            } else {
+                container.innerHTML = '<div class="result-placeholder">No data available for selected filters: ' + decisionMethod + ' / ' + experimentCategory + '</div>';
+            }
+        }
+        
+        function updateAccuracyRatesFilters() {
+            const decisionMethod = document.getElementById('accuracy-decision-method-filter').value;
+            const experimentCategory = document.getElementById('accuracy-experiment-category-filter').value;
+            
+            // Get the accuracy data from the global variable
+            const accuracyData = window.accuracyData || {};
+            const accuracyRates = accuracyData.accuracy_rates || {};
+            
+            // Filter the data based on selections
+            let filteredData = {};
+            for (const [key, data] of Object.entries(accuracyRates)) {
+                const [method, category] = key.split('|');
+                let includeMethod = (decisionMethod === 'all' || method === decisionMethod);
+                let includeCategory = (experimentCategory === 'all' || category === experimentCategory);
+                
+                if (includeMethod && includeCategory) {
+                    filteredData[key] = data;
+                }
+            }
+            
+            const container = document.getElementById('accuracy-rates-container');
+            if (Object.keys(filteredData).length > 0) {
+                container.innerHTML = buildAccuracyRatesHTML(filteredData);
+            } else {
+                container.innerHTML = '<div class="result-placeholder">No data available for selected filters: ' + decisionMethod + ' / ' + experimentCategory + '</div>';
+            }
+        }
+        
+        // Helper functions for data aggregation
+        function aggregateConfusionMatrix(confusionMatrix) {
+            const aggregated = {};
+            for (const [key, matrixData] of Object.entries(confusionMatrix)) {
+                for (const [gtTier, llmData] of Object.entries(matrixData)) {
+                    if (!aggregated[gtTier]) aggregated[gtTier] = {};
+                    for (const [llmTier, count] of Object.entries(llmData)) {
+                        aggregated[gtTier][llmTier] = (aggregated[gtTier][llmTier] || 0) + count;
+                    }
+                }
+            }
+            return aggregated;
+        }
+        
+        function aggregateConfusionMatrixByCategory(confusionMatrix, category) {
+            const aggregated = {};
+            for (const [key, matrixData] of Object.entries(confusionMatrix)) {
+                const [method, cat] = key.split('|');
+                if (cat === category) {
+                    for (const [gtTier, llmData] of Object.entries(matrixData)) {
+                        if (!aggregated[gtTier]) aggregated[gtTier] = {};
+                        for (const [llmTier, count] of Object.entries(llmData)) {
+                            aggregated[gtTier][llmTier] = (aggregated[gtTier][llmTier] || 0) + count;
+                        }
+                    }
+                }
+            }
+            return aggregated;
+        }
+        
+        function aggregateConfusionMatrixByMethod(confusionMatrix, method) {
+            const aggregated = {};
+            for (const [key, matrixData] of Object.entries(confusionMatrix)) {
+                const [meth, category] = key.split('|');
+                if (meth === method) {
+                    for (const [gtTier, llmData] of Object.entries(matrixData)) {
+                        if (!aggregated[gtTier]) aggregated[gtTier] = {};
+                        for (const [llmTier, count] of Object.entries(llmData)) {
+                            aggregated[gtTier][llmTier] = (aggregated[gtTier][llmTier] || 0) + count;
+                        }
+                    }
+                }
+            }
+            return aggregated;
+        }
+        
+        // HTML building functions
+        function buildConfusionMatrixHTML(matrixData) {
+            if (!matrixData || Object.keys(matrixData).length === 0) {
+                return '<div class="result-placeholder">No confusion matrix data available</div>';
+            }
+            
+            // Get all unique tiers
+            const allGtTiers = Object.keys(matrixData).map(Number).sort((a, b) => a - b);
+            const allLlmTiers = new Set();
+            for (const gtTier of allGtTiers) {
+                for (const llmTier of Object.keys(matrixData[gtTier])) {
+                    allLlmTiers.add(Number(llmTier));
+                }
+            }
+            const sortedLlmTiers = Array.from(allLlmTiers).sort((a, b) => a - b);
+            
+            let html = '<table class="confusion-matrix">\\n';
+            html += '  <thead>\\n';
+            html += '    <tr>\\n';
+            html += '      <th>Ground Truth \\\\ LLM</th>\\n';
+            for (const llmTier of sortedLlmTiers) {
+                html += `      <th>Tier ${llmTier}</th>\\n`;
+            }
+            html += '    </tr>\\n';
+            html += '  </thead>\\n';
+            html += '  <tbody>\\n';
+            
+            for (const gtTier of allGtTiers) {
+                html += `    <tr>\\n`;
+                html += `      <th>Tier ${gtTier}</th>\\n`;
+                for (const llmTier of sortedLlmTiers) {
+                    const count = matrixData[gtTier][llmTier] || 0;
+                    html += `      <td>${count.toLocaleString()}</td>\\n`;
+                }
+                html += '    </tr>\\n';
+            }
+            
+            html += '  </tbody>\\n';
+            html += '</table>\\n';
+            
+            return html;
+        }
+        
+        function buildAccuracyRatesHTML(accuracyRates) {
+            if (!accuracyRates || Object.keys(accuracyRates).length === 0) {
+                return '<div class="result-placeholder">No accuracy rates data available</div>';
+            }
+            
+            let html = '<table class="accuracy-rates">\\n';
+            html += '  <thead>\\n';
+            html += '    <tr>\\n';
+            html += '      <th>Decision Method</th>\\n';
+            html += '      <th>Experiment Category</th>\\n';
+            html += '      <th>Sample Size</th>\\n';
+            html += '      <th>Correct</th>\\n';
+            html += '      <th>Accuracy %</th>\\n';
+            html += '    </tr>\\n';
+            html += '  </thead>\\n';
+            html += '  <tbody>\\n';
+            
+            for (const [key, data] of Object.entries(accuracyRates)) {
+                html += '    <tr>\\n';
+                html += `      <td>${data.decision_method}</td>\\n`;
+                html += `      <td>${data.experiment_category}</td>\\n`;
+                html += `      <td>${data.sample_size.toLocaleString()}</td>\\n`;
+                html += `      <td>${data.correct_count.toLocaleString()}</td>\\n`;
+                html += `      <td>${Math.round(data.accuracy_percentage)}%</td>\\n`;
+                html += '    </tr>\\n';
+            }
+            
+            html += '  </tbody>\\n';
+            html += '</table>\\n';
+            
+            return html;
+        }
         </script>"""
 
     def _build_header(self, data: Dict[str, Any]) -> str:
@@ -1575,6 +1851,9 @@ class HTMLDashboard:
 
     def _build_accuracy_tab(self, data: Dict[str, Any]) -> str:
         """Build Ground Truth Accuracy tab content with sub-tabs"""
+        # Extract accuracy data
+        accuracy_data = data.get('accuracy_data', {})
+        
         return f"""
         <div class="sub-nav-tabs">
             <div class="sub-nav-tab active" data-sub-tab-id="accuracy-overview">Overview</div>
@@ -1588,17 +1867,54 @@ class HTMLDashboard:
 
                 <div class="result-item">
                     <div class="result-title">Result 1: Overall Accuracy Comparison</div>
-                    <div class="result-placeholder">[Placeholder: Comprehensive accuracy comparison across all experimental conditions]</div>
+                    <div class="result-content">
+                        <div class="filter-controls">
+                            <label for="decision-method-filter">Decision Method:</label>
+                            <select id="decision-method-filter" onchange="updateAccuracyFilters()">
+                                <option value="zero-shot">Zero-Shot</option>
+                                <option value="n-shot">N-Shot</option>
+                                <option value="all">All</option>
+                            </select>
+                            
+                            <label for="experiment-category-filter">Experiment Category:</label>
+                            <select id="experiment-category-filter" onchange="updateAccuracyFilters()">
+                                <option value="Baseline">Baseline</option>
+                                <option value="Persona-Injected">Persona-Injected</option>
+                                <option value="Bias Mitigation">Bias Mitigation</option>
+                                <option value="all">All</option>
+                            </select>
+                        </div>
+                        
+                        <div id="confusion-matrix-container">
+                            {self._build_confusion_matrix_html(accuracy_data)}
+                        </div>
+                    </div>
                 </div>
 
                 <div class="result-item">
-                    <div class="result-title">Result 2: Zero-Shot vs N-Shot Accuracy</div>
-                    <div class="result-placeholder">[Placeholder: Direct comparison of zero-shot and n-shot accuracy performance]</div>
-                </div>
-
-                <div class="result-item">
-                    <div class="result-title">Result 3: Confidence vs Accuracy Correlation</div>
-                    <div class="result-placeholder">[Placeholder: Analysis of model confidence levels vs actual accuracy]</div>
+                    <div class="result-title">Result 2: Zero-Shot vs N-Shot Accuracy Rates</div>
+                    <div class="result-content">
+                        <div class="filter-controls">
+                            <label for="accuracy-decision-method-filter">Decision Method:</label>
+                            <select id="accuracy-decision-method-filter" onchange="updateAccuracyRatesFilters()">
+                                <option value="all">All</option>
+                                <option value="zero-shot">Zero-Shot</option>
+                                <option value="n-shot">N-Shot</option>
+                            </select>
+                            
+                            <label for="accuracy-experiment-category-filter">Experiment Category:</label>
+                            <select id="accuracy-experiment-category-filter" onchange="updateAccuracyRatesFilters()">
+                                <option value="all">All</option>
+                                <option value="Baseline">Baseline</option>
+                                <option value="Persona-Injected">Persona-Injected</option>
+                                <option value="Bias Mitigation">Bias Mitigation</option>
+                            </select>
+                        </div>
+                        
+                        <div id="accuracy-rates-container">
+                            {self._build_accuracy_rates_html(accuracy_data)}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1650,6 +1966,105 @@ class HTMLDashboard:
             </div>
         </div>
         """
+
+    def _build_confusion_matrix_html(self, accuracy_data: Dict) -> str:
+        """
+        Build HTML for confusion matrix table.
+        
+        Args:
+            accuracy_data: Dictionary containing accuracy data
+            
+        Returns:
+            HTML string for confusion matrix
+        """
+        confusion_matrix = accuracy_data.get('confusion_matrix', {})
+        
+        if not confusion_matrix:
+            return '<div class="result-placeholder">No confusion matrix data available</div>'
+        
+        # Default to zero-shot and Baseline
+        key = ('zero-shot', 'Baseline')
+        if key not in confusion_matrix:
+            # Try to find any available data
+            available_keys = list(confusion_matrix.keys())
+            if available_keys:
+                key = available_keys[0]
+            else:
+                return '<div class="result-placeholder">No confusion matrix data available</div>'
+        
+        matrix_data = confusion_matrix[key]
+        
+        # Get all unique tiers
+        all_gt_tiers = sorted(set(gt_tier for gt_tier in matrix_data.keys()))
+        all_llm_tiers = sorted(set(llm_tier for gt_tier in matrix_data.values() for llm_tier in gt_tier.keys()))
+        
+        if not all_gt_tiers or not all_llm_tiers:
+            return '<div class="result-placeholder">No confusion matrix data available</div>'
+        
+        # Create HTML table
+        html = '<table class="confusion-matrix">\n'
+        html += '  <thead>\n'
+        html += '    <tr>\n'
+        html += '      <th>Ground Truth \\ LLM</th>\n'
+        for llm_tier in all_llm_tiers:
+            html += f'      <th>Tier {llm_tier}</th>\n'
+        html += '    </tr>\n'
+        html += '  </thead>\n'
+        html += '  <tbody>\n'
+        
+        for gt_tier in all_gt_tiers:
+            html += f'    <tr>\n'
+            html += f'      <th>Tier {gt_tier}</th>\n'
+            for llm_tier in all_llm_tiers:
+                count = matrix_data.get(gt_tier, {}).get(llm_tier, 0)
+                html += f'      <td>{count:,}</td>\n'
+            html += '    </tr>\n'
+        
+        html += '  </tbody>\n'
+        html += '</table>\n'
+        
+        return html
+
+    def _build_accuracy_rates_html(self, accuracy_data: Dict) -> str:
+        """
+        Build HTML for accuracy rates table.
+        
+        Args:
+            accuracy_data: Dictionary containing accuracy data
+            
+        Returns:
+            HTML string for accuracy rates table
+        """
+        accuracy_rates = accuracy_data.get('accuracy_rates', {})
+        
+        if not accuracy_rates:
+            return '<div class="result-placeholder">No accuracy rates data available</div>'
+        
+        html = '<table class="accuracy-rates">\n'
+        html += '  <thead>\n'
+        html += '    <tr>\n'
+        html += '      <th>Decision Method</th>\n'
+        html += '      <th>Experiment Category</th>\n'
+        html += '      <th>Sample Size</th>\n'
+        html += '      <th>Correct</th>\n'
+        html += '      <th>Accuracy %</th>\n'
+        html += '    </tr>\n'
+        html += '  </thead>\n'
+        html += '  <tbody>\n'
+        
+        for key, data in accuracy_rates.items():
+            html += '    <tr>\n'
+            html += f'      <td>{data["decision_method"]}</td>\n'
+            html += f'      <td>{data["experiment_category"]}</td>\n'
+            html += f'      <td>{data["sample_size"]:,}</td>\n'
+            html += f'      <td>{data["correct_count"]:,}</td>\n'
+            html += f'      <td>{round(data["accuracy_percentage"])}%</td>\n'
+            html += '    </tr>\n'
+        
+        html += '  </tbody>\n'
+        html += '</table>\n'
+        
+        return html
 
     def _build_gender_mean_tier_tables(self, gender_data: Dict) -> str:
         """

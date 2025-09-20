@@ -1365,6 +1365,17 @@ class BankComplaintFairnessAnalyzer:
                 }
             }
 
+            # Extract accuracy data for Sub-Tab 5.1: Overview
+            print("[INFO] Extracting accuracy data for dashboard...")
+            try:
+                from extract_accuracy_data import extract_accuracy_data
+                accuracy_data = extract_accuracy_data()
+                experiment_data['accuracy_data'] = accuracy_data
+                print(f"[SUCCESS] Accuracy data extracted successfully")
+            except Exception as e:
+                print(f"[WARNING] Could not extract accuracy data: {e}")
+                experiment_data['accuracy_data'] = {}
+
             # Generate dashboard
             dashboard = HTMLDashboard()
             dashboard_path = dashboard.generate_dashboard(experiment_data)
