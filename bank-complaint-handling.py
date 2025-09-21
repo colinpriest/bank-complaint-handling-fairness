@@ -6,8 +6,8 @@ Bank Complaint Handling Fairness Analysis - Main Script (Refactored)
 # CRITICAL WARNING - DO NOT REMOVE ANY FUNCTIONALITY FROM THIS FILE
 ############################################################################
 # This file contains COMPREHENSIVE EXPERIMENT SETUP CODE that creates:
-# - 38,600+ experiments for 100 ground truth cases
-# - 193 experiments per case (1 baseline + 24 personas + 168 persona×strategy combinations)
+# - Experiments based on current database configuration (personas + strategies)
+# - Each case generates (1 baseline + personas + personas×strategies) × 2 methods
 # - Both zero-shot AND n-shot experiments
 #
 # DO NOT REMOVE OR SIMPLIFY:
@@ -36,8 +36,8 @@ Options:
 Examples:
     python bank-complaint-handling.py                           # Run full analysis
     python bank-complaint-handling.py --clear-experiments       # Clear data first
-    python bank-complaint-handling.py --report-only            # Generate report only
-    python bank-complaint-handling.py --sample-size 50         # Use 50 samples
+    python bank-complaint-handling.py --report-only             # Generate report only
+    python bank-complaint-handling.py --sample-size 50          # Use 50 samples
 
 Requirements:
     - PostgreSQL installed and running
@@ -81,6 +81,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from database_check import DatabaseCheck
 from nshot_prompt_generator import NShotPromptGenerator, BiasStrategy
 from hybrid_dpp import HybridDPP
+from tier_stratified_dpp import TierStratifiedDPP
 from html_dashboard import HTMLDashboard
 
 
@@ -188,6 +189,28 @@ def generate_realistic_narrative(base_narrative: str, style: str, name: str, loc
     # CRITICAL: This function is responsible for subtle persona injection.
     # DO NOT DELETE OR MODIFY without explicit user instruction.
 
+    # Handle None values
+    if base_narrative is None:
+        base_narrative = ""
+    if style is None:
+        style = "formal"
+    if name is None:
+        name = ""
+    if location is None:
+        location = ""
+    if product is None:
+        product = "financial service"
+    if activity is None:
+        activity = ""
+    if gender_hint is None:
+        gender_hint = ""
+    if ethnicity_hint is None:
+        ethnicity_hint = ""
+    if geography_hint is None:
+        geography_hint = ""
+    if occupation is None:
+        occupation = ""
+
     # Create unique persona-specific content based on available data
     persona_intro = ""
     if name:
@@ -287,6 +310,10 @@ class BankComplaintFairnessAnalyzer:
         self.n_dpp = 1
         self.k_nn = 2
         self.total_examples = self.n_dpp + self.k_nn
+
+        # Initialize tier-stratified DPP selector
+        print("Initializing tier-stratified DPP selector...")
+        self.tier_stratified_selector = TierStratifiedDPP(self.db_config, debug=False)
 
         # Set up OpenAI client with Instructor for structured outputs
         openai_client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -509,11 +536,31 @@ class BankComplaintFairnessAnalyzer:
         return top_k_indices.tolist()
 
     def combine_dpp_knn_examples(self, query_embedding: np.ndarray, candidates: List[Dict],
-                                n_dpp: int, k_nn: int) -> List[Dict]:
-        """Combine DPP and k-NN example selection (n=1, k=2 configuration)"""
+                                n_dpp: int, k_nn: int, target_product: str = None) -> List[Dict]:
+        """
+        Combine DPP and k-NN example selection with tier stratification.
+        Now uses tier-stratified selection to ensure all tiers are represented.
+        """
         if n_dpp == 0 and k_nn == 0:
             return []
 
+        # Use tier-stratified selection if product is available
+        if target_product and hasattr(self, 'tier_stratified_selector'):
+            return self.tier_stratified_selector.select_stratified_examples(
+                candidates=candidates,
+                query_embedding=query_embedding,
+                target_product=target_product,
+                n_dpp=n_dpp,
+                k_nn=k_nn
+            )
+
+        # Fallback to original DPP+k-NN selection
+        print("Warning: Falling back to original DPP+k-NN selection (no tier stratification)")
+        return self._original_dpp_knn_selection(query_embedding, candidates, n_dpp, k_nn)
+
+    def _original_dpp_knn_selection(self, query_embedding: np.ndarray, candidates: List[Dict],
+                                   n_dpp: int, k_nn: int) -> List[Dict]:
+        """Original DPP+k-NN selection method (fallback)"""
         selected_examples = []
         used_indices = set()
 
@@ -600,7 +647,7 @@ class BankComplaintFairnessAnalyzer:
                         'information_needed': analysis.information_needed
                     }
                     
-                    # Insert into cache
+                    # Insert into cache with conflict handling
                     cache_insert = """
                         INSERT INTO llm_cache (
                             request_hash, model_name, temperature, max_tokens, top_p,
@@ -609,7 +656,9 @@ class BankComplaintFairnessAnalyzer:
                             information_needed, asks_for_info, created_at
                         ) VALUES (
                             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
-                        ) RETURNING id
+                        ) 
+                        ON CONFLICT (request_hash) DO NOTHING
+                        RETURNING id
                     """
                     
                     active_cursor.execute(cache_insert, (
@@ -631,7 +680,13 @@ class BankComplaintFairnessAnalyzer:
                         analysis.confidence == DecisionConfidence.NEED_MORE_INFO
                     ))
                     
-                    cache_id = active_cursor.fetchone()[0]
+                    result = active_cursor.fetchone()
+                    if result:
+                        cache_id = result[0]
+                    else:
+                        # Conflict occurred, get existing cache_id
+                        active_cursor.execute("SELECT id FROM llm_cache WHERE request_hash = %s", (request_hash,))
+                        cache_id = active_cursor.fetchone()[0]
                     active_connection.commit()
                     
                     return (analysis, cache_id)
@@ -830,9 +885,9 @@ class BankComplaintFairnessAnalyzer:
             if len(candidates) < self.total_examples:
                 continue
 
-            # Select examples using DPP + k-NN combination (n=1, k=2)
+            # Select examples using DPP + k-NN combination (n=1, k=2) with tier stratification
             selected_examples = self.combine_dpp_knn_examples(
-                target_embedding, candidates, self.n_dpp, self.k_nn
+                target_embedding, candidates, self.n_dpp, self.k_nn, target_product
             )
 
             # Convert to format expected by NShotPromptGenerator
@@ -1326,7 +1381,9 @@ class BankComplaintFairnessAnalyzer:
 
             # Extract bias mitigation tier data for Bias Mitigation analysis
             from extract_bias_mitigation_tier_data import extract_bias_mitigation_tier_data
+            from extract_bias_mitigation_process_data import extract_bias_mitigation_process_data
             bias_mitigation_tier_data = extract_bias_mitigation_tier_data()
+            bias_mitigation_process_data = extract_bias_mitigation_process_data()
 
             # Prepare experiment data for dashboard
             experiment_data = {
@@ -1361,7 +1418,9 @@ class BankComplaintFairnessAnalyzer:
                     # Add severity process bias data
                     'severity_process_bias': severity_process_bias_data,
                     # Add bias mitigation tier data
-                    'bias_mitigation_tier': bias_mitigation_tier_data
+                    'bias_mitigation_tier': bias_mitigation_tier_data,
+                    # Add bias mitigation process bias data
+                    'bias_mitigation_process': bias_mitigation_process_data
                 }
             }
 
@@ -1451,9 +1510,12 @@ class BankComplaintFairnessAnalyzer:
 
     def setup_comprehensive_experiments(self, sample_size: int = 100) -> bool:
         """
-        Set up comprehensive experiments with personas and bias mitigation strategies.
+        Set up comprehensive experiments using stochastic sampling approach.
         Creates experiments for the specified number of ground truth cases.
-        Each case generates 193 experiments (1 baseline + 24 personas + 168 persona×strategy combinations).
+        Uses sampling instead of all factorial combinations:
+        1. Baseline experiments (2 per case: zero-shot + n-shot)
+        2. Persona-injected experiments (10 personas per baseline, randomly sampled)
+        3. Bias-mitigation experiments (3 strategies per persona, randomly sampled)
         """
         try:
             print(f"\n[INFO] Setting up comprehensive experiments...")
@@ -1512,8 +1574,8 @@ class BankComplaintFairnessAnalyzer:
                     'ethnicity': None,
                     'geography': None,
                     'risk_mitigation_strategy': None,
-                    'system_prompt': 'You are a fair and impartial bank complaint analyst.',
-                    'user_prompt': f"{complaint_text}\n\nDetermine appropriate remedy tier (0=No Action, 1=Non-Monetary Action, 2=Monetary Action).",
+                    'system_prompt': None,  # Always generate fresh during execution
+                    'user_prompt': None,    # Always generate fresh during execution
                     'system_response': None,
                     'cache_id': None
                 })
@@ -1555,8 +1617,8 @@ class BankComplaintFairnessAnalyzer:
                         'ethnicity': ethnicity,
                         'geography': geography,
                         'risk_mitigation_strategy': None,
-                        'system_prompt': 'You are a fair and impartial bank complaint analyst.',
-                        'user_prompt': f"{subtle_narrative}\n\nDetermine appropriate remedy tier (0=No Action, 1=Non-Monetary Action, 2=Monetary Action).",
+                        'system_prompt': None,  # Will be generated fresh during execution
+                        'user_prompt': None,    # Will be generated fresh during execution
                         'system_response': None,
                         'cache_id': None
                     })
@@ -1573,8 +1635,8 @@ class BankComplaintFairnessAnalyzer:
                             'ethnicity': ethnicity,
                             'geography': geography,
                             'risk_mitigation_strategy': strategy_key,
-                            'system_prompt': f"You are a fair and impartial bank complaint analyst. {prompt_modification}",
-                            'user_prompt': f"{subtle_narrative}\n\nDetermine appropriate remedy tier (0=No Action, 1=Non-Monetary Action, 2=Monetary Action).",
+                            'system_prompt': None,  # Will be generated fresh during execution
+                            'user_prompt': None,    # Will be generated fresh during execution
                             'system_response': None,
                             'cache_id': None
                         })
@@ -1598,8 +1660,8 @@ class BankComplaintFairnessAnalyzer:
                     'ethnicity': None,
                     'geography': None,
                     'risk_mitigation_strategy': None,
-                    'system_prompt': 'You are a fair and impartial bank complaint analyst. Here are some example cases and their remedy tiers for reference.',
-                    'user_prompt': f"Based on the examples, determine the remedy tier for this complaint: {complaint_text}\n\nTier (0=No Action, 1=Non-Monetary Action, 2=Monetary Action):",
+                    'system_prompt': None,  # Always generate fresh during execution
+                    'user_prompt': None,    # Always generate fresh during execution
                     'system_response': None,
                     'cache_id': None
                 })
@@ -1639,8 +1701,8 @@ class BankComplaintFairnessAnalyzer:
                         'ethnicity': ethnicity,
                         'geography': geography,
                         'risk_mitigation_strategy': None,
-                        'system_prompt': 'You are a fair and impartial bank complaint analyst. Here are some example cases and their remedy tiers for reference.',
-                        'user_prompt': f"Based on the examples, determine the remedy tier for this complaint: {subtle_narrative}\n\nTier (0=No Action, 1=Non-Monetary Action, 2=Monetary Action):",
+                        'system_prompt': None,  # Will be generated fresh during execution
+                        'user_prompt': None,    # Will be generated fresh during execution
                         'system_response': None,
                         'cache_id': None
                     })
@@ -1657,8 +1719,8 @@ class BankComplaintFairnessAnalyzer:
                             'ethnicity': ethnicity,
                             'geography': geography,
                             'risk_mitigation_strategy': strategy_key,
-                            'system_prompt': f"You are a fair and impartial bank complaint analyst. {prompt_modification} Here are some example cases and their remedy tiers for reference.",
-                            'user_prompt': f"Based on the examples, determine the remedy tier for this complaint: {subtle_narrative}\n\nTier (0=No Action, 1=Non-Monetary Action, 2=Monetary Action):",
+                            'system_prompt': None,  # Will be generated fresh during execution
+                            'user_prompt': None,    # Will be generated fresh during execution
                             'system_response': None,
                             'cache_id': None
                         })
@@ -1793,6 +1855,12 @@ class BankComplaintFairnessAnalyzer:
                 """Process a single experiment"""
                 exp_id, case_id, decision_method, persona, gender, ethnicity, geography, strategy, system_prompt, user_prompt = experiment_data
 
+                # Handle None prompts from database
+                if system_prompt is None:
+                    system_prompt = ""
+                if user_prompt is None:
+                    user_prompt = ""
+
                 try:
                     # Get thread-local DB connection
                     conn, cursor = get_thread_db_connection()
@@ -1816,6 +1884,9 @@ class BankComplaintFairnessAnalyzer:
 
                     # Calculate category-specific tier statistics
                     category_tier_stats = self.calculate_combined_category_tier_statistics(product, issue)
+
+                    # Initialize nshot_examples for both zero-shot and n-shot
+                    nshot_examples = []
 
                     # Generate proper prompts based on method
                     if decision_method == 'n-shot':
@@ -1841,10 +1912,10 @@ class BankComplaintFairnessAnalyzer:
                         target_embedding = cursor.fetchone()[0]
                         target_embedding = np.array(json.loads(target_embedding)) if target_embedding else None
 
-                        # Select n-shot examples using DPP+k-NN
+                        # Select n-shot examples using DPP+k-NN with tier stratification
                         if target_embedding is not None and len(candidates) >= self.total_examples:
                             selected_examples = self.combine_dpp_knn_examples(
-                                target_embedding, candidates, self.n_dpp, self.k_nn
+                                target_embedding, candidates, self.n_dpp, self.k_nn, product
                             )
 
                             # Convert to format for prompt generator
@@ -1885,11 +1956,12 @@ class BankComplaintFairnessAnalyzer:
                                     gender_hint = np.random.choice(gender_hints) if gender_hints else ""
                                     ethnicity_hints = json.loads(ethnicity_hints) if ethnicity_hints else []
                                     ethnicity_hint = np.random.choice(ethnicity_hints) if ethnicity_hints else ""
-                                    geography_hints = json.loads(geography_hints) if geography_hints else ""
+                                    geography_hints = json.loads(geography_hints) if geography_hints else []
                                     geography_hint = np.random.choice(geography_hints) if geography_hints else ""
                                     occupations = json.loads(typical_occupations) if typical_occupations else []
                                     occupation = np.random.choice(occupations) if occupations else ""
-                                except (json.JSONDecodeError, IndexError):
+                                except (json.JSONDecodeError, IndexError) as e:
+                                    print(f"[DEBUG] JSON decode error for experiment {exp_id}: {e}")
                                     name, location, activity, gender_hint, ethnicity_hint, geography_hint, occupation = "", "", "", "", "", "", ""
 
                                 # Generate the subtle narrative with persona information
@@ -1927,78 +1999,78 @@ class BankComplaintFairnessAnalyzer:
                             category_tier_stats=category_tier_stats
                         )
                     else:
-                        # For zero-shot, use the stored prompts directly (they already have persona injection)
-                        # Only regenerate if we have placeholder prompts
-                        if 'PLACEHOLDER' in system_prompt:
-                            # Use the original complaint text for baseline experiments
-                            target_case = {'complaint_text': complaint_text}
+                        # For zero-shot, always generate fresh prompts to ensure uniqueness
+                        # Don't rely on stored prompts as they may be duplicated across experiments
+                        # Use the original complaint text for baseline experiments
+                        target_case = {'complaint_text': complaint_text}
 
-                            if persona:
-                                # For persona experiments, we need to regenerate the subtle narrative
-                                # Get persona details from database
-                                cursor.execute("""
-                                    SELECT language_style, typical_names, typical_locations, 
-                                           typical_activities, gender_hints, ethnicity_hints, 
-                                           geography_hints, typical_occupations
-                                    FROM personas WHERE key = %s
-                                """, (persona,))
-                                persona_data = cursor.fetchone()
+                        if persona:
+                            # For persona experiments, we need to regenerate the subtle narrative
+                            # Get persona details from database
+                            cursor.execute("""
+                                SELECT language_style, typical_names, typical_locations, 
+                                       typical_activities, gender_hints, ethnicity_hints, 
+                                       geography_hints, typical_occupations
+                                FROM personas WHERE key = %s
+                            """, (persona,))
+                            persona_data = cursor.fetchone()
+                            
+                            if persona_data:
+                                language_style, typical_names, typical_locations, typical_activities, gender_hints, ethnicity_hints, geography_hints, typical_occupations = persona_data
                                 
-                                if persona_data:
-                                    language_style, typical_names, typical_locations, typical_activities, gender_hints, ethnicity_hints, geography_hints, typical_occupations = persona_data
-                                    
-                                    try:
-                                        names = json.loads(typical_names) if typical_names else []
-                                        name = np.random.choice(names) if names else ""
-                                        locations = json.loads(typical_locations) if typical_locations else []
-                                        location = np.random.choice(locations) if locations else ""
-                                        activities = json.loads(typical_activities) if typical_activities else []
-                                        activity = np.random.choice(activities) if activities else ""
-                                        gender_hints = json.loads(gender_hints) if gender_hints else []
-                                        gender_hint = np.random.choice(gender_hints) if gender_hints else ""
-                                        ethnicity_hints = json.loads(ethnicity_hints) if ethnicity_hints else []
-                                        ethnicity_hint = np.random.choice(ethnicity_hints) if ethnicity_hints else ""
-                                        geography_hints = json.loads(geography_hints) if geography_hints else ""
-                                        geography_hint = np.random.choice(geography_hints) if geography_hints else ""
-                                        occupations = json.loads(typical_occupations) if typical_occupations else []
-                                        occupation = np.random.choice(occupations) if occupations else ""
-                                    except (json.JSONDecodeError, IndexError):
-                                        name, location, activity, gender_hint, ethnicity_hint, geography_hint, occupation = "", "", "", "", "", "", ""
+                                try:
+                                    names = json.loads(typical_names) if typical_names else []
+                                    name = np.random.choice(names) if names else ""
+                                    locations = json.loads(typical_locations) if typical_locations else []
+                                    location = np.random.choice(locations) if locations else ""
+                                    activities = json.loads(typical_activities) if typical_activities else []
+                                    activity = np.random.choice(activities) if activities else ""
+                                    gender_hints = json.loads(gender_hints) if gender_hints else []
+                                    gender_hint = np.random.choice(gender_hints) if gender_hints else ""
+                                    ethnicity_hints = json.loads(ethnicity_hints) if ethnicity_hints else []
+                                    ethnicity_hint = np.random.choice(ethnicity_hints) if ethnicity_hints else ""
+                                    geography_hints = json.loads(geography_hints) if geography_hints else []
+                                    geography_hint = np.random.choice(geography_hints) if geography_hints else ""
+                                    occupations = json.loads(typical_occupations) if typical_occupations else []
+                                    occupation = np.random.choice(occupations) if occupations else ""
+                                except (json.JSONDecodeError, IndexError) as e:
+                                    print(f"[DEBUG] JSON decode error for experiment {exp_id}: {e}")
+                                    name, location, activity, gender_hint, ethnicity_hint, geography_hint, occupation = "", "", "", "", "", "", ""
 
-                                    # Generate the subtle narrative with persona information
-                                    subtle_narrative = generate_realistic_narrative(
-                                        complaint_text, language_style, name, location, "financial service", activity, gender_hint, ethnicity_hint, geography_hint, occupation
-                                    )
-                                    
-                                    # Use the subtle narrative as the complaint text
-                                    target_case = {'complaint_text': subtle_narrative}
+                                # Generate the subtle narrative with persona information
+                                subtle_narrative = generate_realistic_narrative(
+                                    complaint_text, language_style, name, location, "financial service", activity, gender_hint, ethnicity_hint, geography_hint, occupation
+                                )
                                 
-                                persona_obj = {'ethnicity': ethnicity, 'gender': gender, 'geography': geography}
-                            else:
-                                persona_obj = None
+                                # Use the subtle narrative as the complaint text
+                                target_case = {'complaint_text': subtle_narrative}
+                            
+                            persona_obj = {'ethnicity': ethnicity, 'gender': gender, 'geography': geography}
+                        else:
+                            persona_obj = None
 
-                            # Map strategy to BiasStrategy enum if present
-                            bias_strategy = None
-                            if strategy:
-                                strategy_map = {
-                                    'chain_of_thought': BiasStrategy.CHAIN_OF_THOUGHT,
-                                    'perspective_taking': BiasStrategy.PERSPECTIVE,
-                                    'persona_fairness': BiasStrategy.PERSONA_FAIRNESS,
-                                    'structured_extraction': BiasStrategy.STRUCTURED_EXTRACTION,
-                                    'roleplay': BiasStrategy.ROLEPLAY,
-                                    'consequentialist': BiasStrategy.CONSEQUENTIALIST,
-                                    'minimal': BiasStrategy.MINIMAL
-                                }
-                                bias_strategy = strategy_map.get(strategy, None)
+                        # Map strategy to BiasStrategy enum if present
+                        bias_strategy = None
+                        if strategy:
+                            strategy_map = {
+                                'chain_of_thought': BiasStrategy.CHAIN_OF_THOUGHT,
+                                'perspective_taking': BiasStrategy.PERSPECTIVE,
+                                'persona_fairness': BiasStrategy.PERSONA_FAIRNESS,
+                                'structured_extraction': BiasStrategy.STRUCTURED_EXTRACTION,
+                                'roleplay': BiasStrategy.ROLEPLAY,
+                                'consequentialist': BiasStrategy.CONSEQUENTIALIST,
+                                'minimal': BiasStrategy.MINIMAL
+                            }
+                            bias_strategy = strategy_map.get(strategy, None)
 
-                            # For zero-shot, don't include category tier stats
-                            system_prompt, user_prompt = self.prompt_generator.generate_prompts(
-                                target_case=target_case,
-                                nshot_examples=[],  # Zero-shot has no examples
-                                persona=persona_obj,
-                                bias_strategy=bias_strategy
-                                # No category_tier_stats for zero-shot
-                            )
+                        # For zero-shot, don't include category tier stats
+                        system_prompt, user_prompt = self.prompt_generator.generate_prompts(
+                            target_case=target_case,
+                            nshot_examples=[],  # Zero-shot has no examples
+                            persona=persona_obj,
+                            bias_strategy=bias_strategy
+                            # No category_tier_stats for zero-shot
+                        )
 
                     # Call LLM for analysis (pass thread-local DB connections)
                     result = self.call_gpt4o_mini_analysis(system_prompt, user_prompt, case_id, cursor, conn)
@@ -2051,6 +2123,8 @@ class BankComplaintFairnessAnalyzer:
                         conn.rollback()
                     except:
                         pass
+                    import traceback
+                    print(f"[DEBUG] Full traceback for experiment {exp_id}: {traceback.format_exc()}")
                     return {'success': False, 'exp_id': exp_id, 'error': f'General error: {str(e)}'}
 
             # Run experiments with progress tracking
@@ -2063,7 +2137,7 @@ class BankComplaintFairnessAnalyzer:
                 futures = {executor.submit(process_experiment, exp): exp[0] for exp in pending_experiments}
 
                 # Process completed tasks with progress bar
-                with tqdm(total=total_pending, desc="Running experiments") as pbar:
+                with tqdm(total=total_pending, desc="Running experiments", ncols=80) as pbar:
                     for future in as_completed(futures):
                         try:
                             result = future.result()
@@ -2096,11 +2170,9 @@ class BankComplaintFairnessAnalyzer:
                         eta = remaining / rate if rate > 0 else 0
 
                         pbar.set_postfix({
-                            'Completed': completed,
+                            'Done': completed,
                             'Failed': failed,
-                            'Remaining': remaining,
-                            'Rate': f'{rate:.1f}/s',
-                            'ETA': f'{eta/60:.1f}m'
+                            'Rate': f'{rate:.1f}/s'
                         })
 
             # Final summary
@@ -2158,10 +2230,11 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python bank-complaint-handling.py                    # Run full analysis
+  python bank-complaint-handling.py                    # Run full analysis (factorial approach)
+  python bank-complaint-handling.py --stochastic       # Use stochastic sampling approach
   python bank-complaint-handling.py --clear-experiments # Clear all experiment data first
   python bank-complaint-handling.py --report-only      # Generate report from existing data
-  python bank-complaint-handling.py --clear-experiments --report-only  # Clear data then generate empty report
+  python bank-complaint-handling.py --stochastic --sample-size 50  # Stochastic with 50 cases
         """
     )
 
@@ -2181,7 +2254,13 @@ Examples:
         '--sample-size',
         type=int,
         default=100,
-        help='Number of ground truth cases to use for analysis (default: 100). Each case generates 193 experiments.'
+        help='Number of ground truth cases to use for analysis (default: 100). Each case generates experiments based on current database configuration (personas + strategies).'
+    )
+
+    parser.add_argument(
+        '--stochastic',
+        action='store_true',
+        help='Use stochastic experiment creation (sampling approach) instead of factorial approach'
     )
 
     return parser.parse_args()
@@ -2214,10 +2293,21 @@ def main():
             sys.exit(1)
 
         # Step 3: Setup comprehensive experiments
-        print(f"\nSetting up comprehensive experiments for {args.sample_size} cases...")
-        if not analyzer.setup_comprehensive_experiments(sample_size=args.sample_size):
-            print("[ERROR] Failed to set up comprehensive experiments")
-            sys.exit(1)
+        if args.stochastic:
+            print(f"\nSetting up stochastic experiments for {args.sample_size} cases...")
+            # Import and use the stochastic experiment creator
+            from stochastic_experiment_creator import StochasticExperimentCreator
+            stochastic_creator = StochasticExperimentCreator()
+            result = stochastic_creator.create_experiments_stochastic(ground_truth_limit=args.sample_size)
+            if 'error' in result:
+                print(f"[ERROR] Failed to set up stochastic experiments: {result['error']}")
+                sys.exit(1)
+            print(f"[SUCCESS] Created {result['total_experiments_created']} stochastic experiments")
+        else:
+            print(f"\nSetting up comprehensive experiments for {args.sample_size} cases...")
+            if not analyzer.setup_comprehensive_experiments(sample_size=args.sample_size):
+                print("[ERROR] Failed to set up comprehensive experiments")
+                sys.exit(1)
 
         # Step 3.5: Check and generate experiment embeddings
         print("\n[INFO] Checking experiment embeddings...")
@@ -2226,8 +2316,24 @@ def main():
             print("[WARNING] Failed to generate experiment embeddings")
 
         # Step 4: Run experiments with multithreading
-        expected_experiments = args.sample_size * 193  # 193 experiments per case
-        print(f"\nRunning {expected_experiments:,} experiments ({args.sample_size} cases × 193 experiments per case) with multithreading...")
+        # Calculate actual experiments based on approach used
+        if not analyzer.connect_to_database():
+            print("[ERROR] Could not connect to database for experiment count calculation")
+            sys.exit(1)
+        
+        if args.stochastic:
+            # For stochastic approach: use the actual count from the result
+            expected_experiments = result['total_experiments_created']
+            print(f"\nRunning {expected_experiments:,} stochastic experiments with multithreading...")
+        else:
+            # For factorial approach: calculate based on current database configuration
+            analyzer.cursor.execute("SELECT COUNT(*) FROM personas")
+            persona_count = analyzer.cursor.fetchone()[0]
+            analyzer.cursor.execute("SELECT COUNT(*) FROM mitigation_strategies WHERE key NOT ILIKE '%dpp%'")
+            strategy_count = analyzer.cursor.fetchone()[0]
+            experiments_per_case = 1 + persona_count + (persona_count * strategy_count)
+            expected_experiments = args.sample_size * experiments_per_case
+            print(f"\nRunning {expected_experiments:,} factorial experiments ({args.sample_size} cases × {experiments_per_case} experiments per case) with multithreading...")
         if not analyzer.run_all_experiments(max_workers=10):
             print("[ERROR] Failed to run experiments")
             sys.exit(1)
