@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 from scipy.stats import chi2_contingency
+from ai_commentary_generator import AICommentaryGenerator, extract_findings_for_commentary
 
 
 def calculate_cohens_d_paired(group1, group2):
@@ -478,6 +479,13 @@ class HTMLDashboard:
 
         # Initialize statistical result collector
         self.collector = StatisticalResultCollector()
+        
+        # Initialize AI commentary generator
+        try:
+            self.ai_commentary = AICommentaryGenerator()
+        except Exception as e:
+            print(f"Warning: Could not initialize AI commentary generator: {e}")
+            self.ai_commentary = None
 
         # Dashboard configuration
         self.tabs = [
@@ -1308,6 +1316,124 @@ class HTMLDashboard:
             border-left: 3px solid #4CAF50;
         }
 
+        /* Enhanced Commentary Styles */
+        .enhanced-commentary-section {
+            margin: 1rem 0;
+        }
+
+        .toggle-commentary-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .toggle-commentary-btn:hover {
+            background: #1976D2;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s;
+        }
+
+        .toggle-commentary-btn.expanded .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .enhanced-commentary-content {
+            margin-top: 1rem;
+            padding: 1.5rem;
+            background: #F8F9FA;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .enhanced-commentary h4 {
+            color: #1976D2;
+            margin: 1.5rem 0 0.75rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .enhanced-commentary h4:first-child {
+            margin-top: 0;
+        }
+
+        .enhanced-commentary p {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+
+        .enhanced-commentary ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .enhanced-commentary li {
+            margin: 0.25rem 0;
+            line-height: 1.5;
+        }
+
+        /* Executive Summary Styles */
+        .executive-summary-content {
+            margin: 1.5rem 0;
+        }
+
+        .executive-summary h4 {
+            color: #1976D2;
+            margin: 1.5rem 0 0.75rem 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .executive-summary h4:first-child {
+            margin-top: 0;
+        }
+
+        .executive-summary p {
+            margin: 0.75rem 0;
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: #F5F5F5;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 120px;
+            border: 1px solid #E0E0E0;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: #1976D2;
+            margin: 0 0 0.5rem 0;
+            font-weight: 700;
+        }
+
+        .stat-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
         /* Trivial Warning */
         .trivial-warning {
             background: #FFF3E0;
@@ -1743,6 +1869,24 @@ class HTMLDashboard:
                 });
             }
         });
+
+        // Enhanced commentary toggle function
+        function toggleEnhancedCommentary(index) {
+            const content = document.getElementById(`enhanced-commentary-${index}`);
+            const button = content.previousElementSibling;
+            const toggleText = button.querySelector('.toggle-text');
+            const toggleIcon = button.querySelector('.toggle-icon');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                toggleText.textContent = 'Hide Enhanced Analysis';
+                button.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                toggleText.textContent = 'Show Enhanced Analysis';
+                button.classList.remove('expanded');
+            }
+        }
         </script>"""
 
     def _build_header(self, data: Dict[str, Any]) -> str:
@@ -1815,7 +1959,10 @@ class HTMLDashboard:
         return content_html
 
     def _build_headline_tab(self, data: Dict[str, Any]) -> str:
-        """Build Headline Results tab content with material and trivial findings"""
+        """Build Headline Results tab content with executive summary, material and trivial findings"""
+        
+        # Generate executive summary sub-tab
+        executive_summary_html = self._generate_executive_summary_subtab()
         
         # Generate material findings sub-tab
         material_html = self._generate_material_findings_subtab()
@@ -1825,7 +1972,10 @@ class HTMLDashboard:
         
         return f'''
         <div class="sub-nav-tabs">
-            <div class="sub-nav-tab active" data-sub-tab-id="MaterialFindings">
+            <div class="sub-nav-tab active" data-sub-tab-id="ExecutiveSummary">
+                Executive Summary
+            </div>
+            <div class="sub-nav-tab" data-sub-tab-id="MaterialFindings">
                 Statistically Significant and Material ({len(self.collector.results['material'])})
             </div>
             <div class="sub-nav-tab" data-sub-tab-id="TrivialFindings">
@@ -1833,7 +1983,11 @@ class HTMLDashboard:
             </div>
         </div>
 
-        <div id="MaterialFindings" class="sub-tab-content active">
+        <div id="ExecutiveSummary" class="sub-tab-content active">
+            {executive_summary_html}
+        </div>
+
+        <div id="MaterialFindings" class="sub-tab-content">
             {material_html}
         </div>
 
@@ -2015,6 +2169,70 @@ class HTMLDashboard:
             </div>
         </div>
         """
+
+    def _generate_executive_summary_subtab(self) -> str:
+        """Generate the executive summary sub-tab content with AI-powered commentary"""
+        try:
+            # Extract findings for commentary generation
+            material_findings, trivial_findings_count = extract_findings_for_commentary(
+                self.collector.results['material'] + self.collector.results['trivial']
+            )
+            
+            # Generate AI-powered executive summary
+            if self.ai_commentary and material_findings:
+                executive_summary = self.ai_commentary.generate_executive_summary(
+                    material_findings, trivial_findings_count
+                )
+            else:
+                executive_summary = self._get_fallback_executive_summary(material_findings, trivial_findings_count)
+            
+            return f'''
+            <div class="headline-header">
+                <h2>Executive Summary</h2>
+                <p>AI-powered analysis of fairness testing results for bank complaint handling system</p>
+            </div>
+            
+            <div class="executive-summary-content">
+                {executive_summary}
+            </div>
+            
+            <div class="summary-stats">
+                <div class="stat-card">
+                    <h3>{len(material_findings)}</h3>
+                    <p>Material Findings</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{trivial_findings_count}</h3>
+                    <p>Trivial Findings</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{len(material_findings) + trivial_findings_count}</h3>
+                    <p>Total Findings</p>
+                </div>
+            </div>
+            '''
+            
+        except Exception as e:
+            print(f"Error generating executive summary: {e}")
+            return f'''
+            <div class="headline-header">
+                <h2>Executive Summary</h2>
+                <p>Error generating AI-powered summary: {str(e)}</p>
+            </div>
+            '''
+    
+    def _get_fallback_executive_summary(self, material_findings: List[Dict], trivial_findings_count: int) -> str:
+        """Provide fallback executive summary when AI generation fails"""
+        return f'''<div class="executive-summary">
+    <h4>Key Findings Overview</h4>
+    <p>Analysis of the LLM fairness testing revealed {len(material_findings)} material bias findings and {trivial_findings_count} statistically significant but trivial findings. The most concerning patterns include demographic disparities in question rates and severity-dependent bias effects that could impact regulatory compliance.</p>
+    
+    <h4>Financial Services Industry Implications</h4>
+    <p>These findings indicate potential regulatory compliance risks, particularly around Fair Lending Act requirements and CFPB enforcement priorities. The bias patterns could impact customer trust, operational risk management, and competitive positioning in AI adoption.</p>
+    
+    <h4>Strategic Recommendations</h4>
+    <p>Immediate action is required to address material findings through prompt engineering improvements and bias mitigation strategies. Long-term governance should include ongoing monitoring, regular fairness testing, and integration of AI ethics into operational procedures.</p>
+</div>'''
 
     def _generate_material_findings_subtab(self) -> str:
         """Generate the material findings sub-tab content"""
@@ -2209,10 +2427,23 @@ class HTMLDashboard:
         '''
 
         if category == 'material':
+            # Generate enhanced AI commentary for material findings
+            enhanced_commentary = self._generate_enhanced_commentary_for_result(result)
+            
             card_html += f'''
                 <div class="implication-box">
                     <strong>What this means:</strong>
                     <p>{result['implication']}</p>
+                </div>
+                
+                <div class="enhanced-commentary-section">
+                    <button class="toggle-commentary-btn" onclick="toggleEnhancedCommentary({index})">
+                        <span class="toggle-text">Show Enhanced Analysis</span>
+                        <span class="toggle-icon">▼</span>
+                    </button>
+                    <div class="enhanced-commentary-content" id="enhanced-commentary-{index}" style="display: none;">
+                        {enhanced_commentary}
+                    </div>
                 </div>
             '''
         else:  # trivial
@@ -2235,6 +2466,76 @@ class HTMLDashboard:
         '''
 
         return card_html
+
+    def _generate_enhanced_commentary_for_result(self, result: Dict) -> str:
+        """Generate enhanced AI commentary for a specific result"""
+        try:
+            if self.ai_commentary:
+                # Prepare finding data for AI commentary
+                finding_data = {
+                    'finding': result.get('finding', 'N/A'),
+                    'test_name': result.get('test_name', 'N/A'),
+                    'p_value': result.get('p_value', 'N/A'),
+                    'effect_size': result.get('effect_size', 'N/A'),
+                    'effect_type': result.get('effect_type', 'N/A'),
+                    'sample_size': result.get('sample_size', 'N/A'),
+                    'implication': result.get('implication', 'N/A')
+                }
+                
+                return self.ai_commentary.generate_enhanced_commentary(finding_data)
+            else:
+                return self._get_fallback_enhanced_commentary(result)
+                
+        except Exception as e:
+            print(f"Error generating enhanced commentary for result: {e}")
+            return self._get_fallback_enhanced_commentary(result)
+    
+    def _get_fallback_enhanced_commentary(self, result: Dict) -> str:
+        """Provide fallback enhanced commentary when AI generation fails"""
+        return f'''<div class="enhanced-commentary">
+    <h4>Financial Services Impact</h4>
+    <p>This finding indicates potential bias in the complaint handling system that could affect regulatory compliance and customer treatment. The effect size of {result.get('effect_size', 'N/A')} suggests {self._get_effect_interpretation(result.get('effect_size', 0), result.get('effect_type', ''))}.</p>
+    
+    <h4>Customer Experience Implications</h4>
+    <p>Different demographic groups may receive inconsistent treatment, potentially impacting customer trust and satisfaction. This could lead to regulatory scrutiny and reputational risk.</p>
+    
+    <h4>Recommended Actions</h4>
+    <ul>
+        <li>Review and update prompt engineering for this specific test case</li>
+        <li>Implement additional monitoring for the affected demographic groups</li>
+        <li>Conduct follow-up testing to validate mitigation efforts</li>
+        <li>Consider bias mitigation strategies specific to this finding</li>
+    </ul>
+    
+    <h4>Monitoring Strategy</h4>
+    <p>Establish ongoing monitoring protocols to track this bias pattern and measure improvement over time. Regular testing should be conducted to ensure bias mitigation efforts are effective.</p>
+</div>'''
+    
+    def _get_effect_interpretation(self, effect_size: float, effect_type: str) -> str:
+        """Get interpretation of effect size"""
+        if effect_type == 'cohens_d':
+            if abs(effect_size) >= 0.8:
+                return "a large practical effect"
+            elif abs(effect_size) >= 0.5:
+                return "a medium practical effect"
+            else:
+                return "a small practical effect"
+        elif effect_type == 'eta_squared':
+            if effect_size >= 0.06:
+                return "a large practical effect"
+            elif effect_size >= 0.01:
+                return "a medium practical effect"
+            else:
+                return "a small practical effect"
+        elif effect_type in ['disparity_rate', 'selection_ratio_deficit']:
+            if effect_size >= 0.20:
+                return "a severe disparity requiring immediate attention"
+            elif effect_size >= 0.10:
+                return "a material disparity requiring action"
+            else:
+                return "a concerning disparity requiring monitoring"
+        else:
+            return "a notable effect requiring attention"
 
     def _collect_real_statistical_results(self, experiment_data: Dict[str, Any]):
         """Collect real statistical results from all analyses in the experiment data"""
