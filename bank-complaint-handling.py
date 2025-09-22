@@ -625,16 +625,19 @@ class BankComplaintFairnessAnalyzer:
                 except Exception as e:
                     print(f"[WARNING] Failed to parse cached result: {e}")
 
-            # Make API call if not cached
-            analysis = self.client.chat.completions.create(
+            # Make API call if not cached with enhanced error handling
+            from enhanced_error_handler import enhanced_api_call_with_retry
+            
+            analysis = enhanced_api_call_with_retry(
+                client=self.client,
                 model="gpt-4o-mini",
-                response_model=ProcessAnalysis,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
+                response_model=ProcessAnalysis,
                 temperature=0.0,
-                max_retries=2
+                max_retries=3
             )
 
             # Cache the result (same pattern as nshot optimization)
@@ -2123,9 +2126,27 @@ class BankComplaintFairnessAnalyzer:
                         conn.rollback()
                     except:
                         pass
-                    import traceback
-                    print(f"[DEBUG] Full traceback for experiment {exp_id}: {traceback.format_exc()}")
-                    return {'success': False, 'exp_id': exp_id, 'error': f'General error: {str(e)}'}
+                    
+                    # Enhanced error reporting
+                    from enhanced_error_handler import EnhancedOpenAIErrorHandler
+                    handler = EnhancedOpenAIErrorHandler()
+                    
+                    # Check if this is an OpenAI error
+                    if hasattr(e, '__class__') and 'openai' in str(e.__class__.__module__):
+                        context = {
+                            "exp_id": exp_id,
+                            "case_id": case_id,
+                            "decision_method": decision_method,
+                            "persona": persona,
+                            "strategy": strategy
+                        }
+                        error_info = handler.handle_openai_error(e, context)
+                        handler.print_detailed_error(error_info)
+                        return {'success': False, 'exp_id': exp_id, 'error': f'OpenAI API error: {error_info["error_category"]} - {error_info["error_message"]}'}
+                    else:
+                        import traceback
+                        print(f"[DEBUG] Full traceback for experiment {exp_id}: {traceback.format_exc()}")
+                        return {'success': False, 'exp_id': exp_id, 'error': f'General error: {str(e)}'}
 
             # Run experiments with progress tracking
             completed = 0
