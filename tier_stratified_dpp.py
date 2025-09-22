@@ -50,16 +50,20 @@ class TierStratifiedDPP:
     def _load_or_compute_central_examples(self):
         """Load central examples from cache or compute them"""
         if os.path.exists(self.cache_file):
-            print(f"Loading central examples from {self.cache_file}")
+            if self.debug:
+                print(f"Loading central examples from {self.cache_file}")
             try:
                 with open(self.cache_file, 'r') as f:
                     self.central_examples_cache = json.load(f)
-                print(f"Loaded {len(self.central_examples_cache)} product categories")
+                if self.debug:
+                    print(f"Loaded {len(self.central_examples_cache)} product categories")
                 return
             except Exception as e:
-                print(f"Error loading cache: {e}. Recomputing...")
+                if self.debug:
+                    print(f"Error loading cache: {e}. Recomputing...")
 
-        print("Computing central examples for each tier-product combination...")
+        if self.debug:
+            print("Computing central examples for each tier-product combination...")
         self._compute_central_examples()
 
     def _compute_central_examples(self):
@@ -82,10 +86,12 @@ class TierStratifiedDPP:
             """)
             products = [row[0] for row in cursor.fetchall()]
 
-            print(f"Processing {len(products)} products...")
+            if self.debug:
+                print(f"Processing {len(products)} products...")
 
             for product_idx, product in enumerate(products):
-                print(f"Processing product {product_idx + 1}/{len(products)}: {product}")
+                if self.debug:
+                    print(f"Processing product {product_idx + 1}/{len(products)}: {product}")
 
                 product_cache = {}
 
@@ -107,7 +113,8 @@ class TierStratifiedDPP:
                     examples = cursor.fetchall()
 
                     if len(examples) == 0:
-                        print(f"  No examples found for Tier {tier}")
+                        if self.debug:
+                            print(f"  No examples found for Tier {tier}")
                         continue
 
                     if len(examples) == 1:
@@ -118,10 +125,12 @@ class TierStratifiedDPP:
                             'tier': tier,
                             'centrality_score': 1.0  # Only one example
                         }
-                        print(f"  Tier {tier}: 1 example (automatic central)")
+                        if self.debug:
+                            print(f"  Tier {tier}: 1 example (automatic central)")
                         continue
 
-                    print(f"  Tier {tier}: {len(examples)} examples, computing centrality...")
+                    if self.debug:
+                        print(f"  Tier {tier}: {len(examples)} examples, computing centrality...")
 
                     # Extract embeddings
                     embeddings = []
@@ -135,11 +144,13 @@ class TierStratifiedDPP:
                                 embeddings.append(np.array(embedding))
                                 valid_examples.append((case_id, complaint_text, tier))
                         except (json.JSONDecodeError, ValueError) as e:
-                            print(f"    Warning: Invalid embedding for case {case_id}: {e}")
+                            if self.debug:
+                                print(f"    Warning: Invalid embedding for case {case_id}: {e}")
                             continue
 
                     if len(embeddings) == 0:
-                        print(f"  Tier {tier}: No valid embeddings found")
+                        if self.debug:
+                            print(f"  Tier {tier}: No valid embeddings found")
                         continue
 
                     # Compute central example
@@ -165,7 +176,8 @@ class TierStratifiedDPP:
                         'centrality_score': float(centrality_score)
                     }
 
-                    print(f"  Tier {tier}: Central example found (case_id={case_id}, centrality={centrality_score:.3f})")
+                    if self.debug:
+                        print(f"  Tier {tier}: Central example found (case_id={case_id}, centrality={centrality_score:.3f})")
 
                 self.central_examples_cache[product] = product_cache
 
@@ -173,7 +185,8 @@ class TierStratifiedDPP:
             with open(self.cache_file, 'w') as f:
                 json.dump(self.central_examples_cache, f, indent=2)
 
-            print(f"Central examples computed and saved to {self.cache_file}")
+            if self.debug:
+                print(f"Central examples computed and saved to {self.cache_file}")
 
         finally:
             connection.close()
@@ -313,7 +326,8 @@ class TierStratifiedDPP:
                         selected_examples.append(candidates[idx])
                         used_indices.add(idx)
             except Exception as e:
-                print(f"DPP selection failed: {e}, falling back to random selection")
+                if self.debug:
+                    print(f"DPP selection failed: {e}, falling back to random selection")
                 # Fallback to random selection
                 available_indices = list(range(len(candidates)))
                 np.random.shuffle(available_indices)
@@ -376,7 +390,8 @@ class TierStratifiedDPP:
             }
 
         # Fallback: try to find any example from this tier in the database
-        print(f"No cached central example for {product} Tier {tier}, searching database...")
+        if self.debug:
+            print(f"No cached central example for {product} Tier {tier}, searching database...")
         return self._find_fallback_example(product, tier)
 
     def _find_fallback_example(self, product: str, tier: int) -> Optional[Dict]:
@@ -405,7 +420,8 @@ class TierStratifiedDPP:
                 }
 
         except Exception as e:
-            print(f"Error finding fallback example: {e}")
+            if self.debug:
+                print(f"Error finding fallback example: {e}")
 
         finally:
             connection.close()

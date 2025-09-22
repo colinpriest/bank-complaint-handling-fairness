@@ -83,6 +83,7 @@ from nshot_prompt_generator import NShotPromptGenerator, BiasStrategy
 from hybrid_dpp import HybridDPP
 from tier_stratified_dpp import TierStratifiedDPP
 from html_dashboard import HTMLDashboard
+from logging_config import configure_experiment_logging
 
 
 def get_product_category_group(product: str) -> str:
@@ -2289,6 +2290,9 @@ Examples:
 
 def main():
     """Main function to run bank complaint handling setup and analysis"""
+    # Configure logging to reduce OpenAI API verbosity
+    configure_experiment_logging()
+    
     args = parse_arguments()
     analyzer = BankComplaintFairnessAnalyzer()
 

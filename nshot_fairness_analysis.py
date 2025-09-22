@@ -1106,7 +1106,7 @@ Your Decision:
             future_to_task = {executor.submit(process_complaint, task): task for task in tasks}
             
             # Process completed tasks with progress bar
-            with tqdm(total=len(tasks), desc="Processing complaints") as pbar:
+            with tqdm(total=len(tasks), desc="Processing complaints", ncols=80) as pbar:
                 for future in as_completed(future_to_task):
                     try:
                         result = future.result()

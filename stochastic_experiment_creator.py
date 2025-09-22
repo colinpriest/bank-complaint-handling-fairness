@@ -175,7 +175,6 @@ class StochasticExperimentCreator:
                 )
                 
                 if experiment_key in existing_experiments:
-                    print(f"  Baseline experiment already exists: {ground_truth['case_id']} - {decision_method}")
                     continue
                 
                 # Create baseline experiment
@@ -203,7 +202,6 @@ class StochasticExperimentCreator:
                 })
                 
                 existing_experiments.add(experiment_key)
-                print(f"  Created baseline: {ground_truth['case_id']} - {decision_method}")
         
         try:
             self.session.commit()
@@ -258,7 +256,6 @@ class StochasticExperimentCreator:
                 )
                 
                 if experiment_key in existing_experiments:
-                    print(f"    Persona experiment already exists: {case_id} - {decision_method} - {persona['key']}")
                     continue
                 
                 # Create persona-injected experiment
@@ -287,7 +284,6 @@ class StochasticExperimentCreator:
                 })
                 
                 existing_experiments.add(experiment_key)
-                print(f"    Created persona experiment: {case_id} - {decision_method} - {persona['key']}")
         
         try:
             self.session.commit()
@@ -306,7 +302,9 @@ class StochasticExperimentCreator:
         
         For each persona-injected experiment:
         1. Get its experiment number
-        2. For each bias mitigation strategy, create a bias-mitigation experiment
+        2. Set the random seed to the experiment number
+        3. Randomly select 3 bias strategies (from the several in the table)
+        4. Create bias-mitigation experiments for each selected strategy
         
         Args:
             persona_injected_experiments: List of persona-injected experiments
@@ -325,7 +323,13 @@ class StochasticExperimentCreator:
             decision_method = persona_exp['decision_method']
             persona_key = persona_exp['persona_key']
             
-            for strategy in mitigation_strategies:
+            # Set random seed to experiment number for reproducibility
+            random.seed(experiment_id)
+            
+            # Randomly select 3 bias strategies
+            selected_strategies = random.sample(mitigation_strategies, min(3, len(mitigation_strategies)))
+            
+            for strategy in selected_strategies:
                 # Check if this bias-mitigation experiment already exists
                 experiment_key = (
                     case_id,
@@ -335,7 +339,6 @@ class StochasticExperimentCreator:
                 )
                 
                 if experiment_key in existing_experiments:
-                    print(f"      Mitigation experiment already exists: {case_id} - {decision_method} - {persona_key} - {strategy['key']}")
                     continue
                 
                 # Create bias-mitigation experiment
@@ -365,7 +368,6 @@ class StochasticExperimentCreator:
                 })
                 
                 existing_experiments.add(experiment_key)
-                print(f"      Created mitigation experiment: {case_id} - {decision_method} - {persona_key} - {strategy['key']}")
         
         try:
             self.session.commit()

@@ -2492,23 +2492,39 @@ class HTMLDashboard:
     
     def _get_fallback_enhanced_commentary(self, result: Dict) -> str:
         """Provide fallback enhanced commentary when AI generation fails"""
+        finding = result.get('finding', 'N/A')
+        effect_size = result.get('effect_size', 0)
+        effect_type = result.get('effect_type', 'N/A')
+        
+        # Extract specific information from the finding
+        if 'severity' in finding.lower():
+            specific_context = "This severity-dependent bias pattern suggests the AI system treats high-stakes complaints differently, which could amplify regulatory risk for the most important cases."
+        elif 'geographic' in finding.lower() or 'suburban' in finding.lower() or 'urban' in finding.lower():
+            specific_context = "This geographic bias pattern indicates the AI system may be influenced by location-based factors that correlate with socioeconomic status, creating indirect discrimination risks."
+        elif 'zero-shot' in finding.lower() or 'n-shot' in finding.lower():
+            specific_context = "This method-dependent bias suggests the prompting approach significantly affects fairness outcomes, requiring careful prompt engineering and method selection."
+        elif 'question' in finding.lower():
+            specific_context = "This process bias in questioning behavior indicates the AI system's decision-making process itself is biased, not just the final outcomes."
+        else:
+            specific_context = f"This bias pattern with effect size {effect_size} ({effect_type}) indicates systematic differences in treatment that require targeted intervention."
+        
         return f'''<div class="enhanced-commentary">
     <h4>Financial Services Impact</h4>
-    <p>This finding indicates potential bias in the complaint handling system that could affect regulatory compliance and customer treatment. The effect size of {result.get('effect_size', 'N/A')} suggests {self._get_effect_interpretation(result.get('effect_size', 0), result.get('effect_type', ''))}.</p>
+    <p>{specific_context} The effect size of {effect_size} ({effect_type}) suggests {self._get_effect_interpretation(effect_size, effect_type)} that could impact regulatory compliance and customer treatment.</p>
     
     <h4>Customer Experience Implications</h4>
-    <p>Different demographic groups may receive inconsistent treatment, potentially impacting customer trust and satisfaction. This could lead to regulatory scrutiny and reputational risk.</p>
+    <p>The specific demographic groups and conditions identified in this finding may receive inconsistent treatment, potentially impacting customer trust and satisfaction in ways that correlate with protected characteristics.</p>
     
     <h4>Recommended Actions</h4>
     <ul>
-        <li>Review and update prompt engineering for this specific test case</li>
-        <li>Implement additional monitoring for the affected demographic groups</li>
-        <li>Conduct follow-up testing to validate mitigation efforts</li>
-        <li>Consider bias mitigation strategies specific to this finding</li>
+        <li>Investigate the specific prompt engineering or model behavior causing this bias pattern</li>
+        <li>Implement targeted monitoring for the specific demographic groups and conditions identified</li>
+        <li>Conduct follow-up testing to validate mitigation efforts for this specific bias type</li>
+        <li>Consider whether this finding indicates broader systemic issues requiring model retraining</li>
     </ul>
     
     <h4>Monitoring Strategy</h4>
-    <p>Establish ongoing monitoring protocols to track this bias pattern and measure improvement over time. Regular testing should be conducted to ensure bias mitigation efforts are effective.</p>
+    <p>Establish targeted monitoring protocols specifically for this bias pattern, including regular testing of the identified demographic groups and conditions to measure improvement over time.</p>
 </div>'''
     
     def _get_effect_interpretation(self, effect_size: float, effect_type: str) -> str:

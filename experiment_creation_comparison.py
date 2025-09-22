@@ -72,21 +72,22 @@ class ExperimentCreationComparison:
         }
     
     def calculate_stochastic_approach(self, ground_truth_count: int = 100, 
-                                    personas_per_baseline: int = 10) -> Dict[str, int]:
+                                    personas_per_baseline: int = 10,
+                                    strategies_per_persona: int = 3) -> Dict[str, int]:
         """
         Calculate how many experiments the new stochastic approach would create
         
         New approach:
         1. Baseline experiments: ground_truth_count × 2 (zero-shot, n-shot)
         2. Persona-injected experiments: baseline_count × personas_per_baseline
-        3. Bias-mitigation experiments: persona_injected_count × mitigation_strategies
+        3. Bias-mitigation experiments: persona_injected_count × strategies_per_persona (randomly sampled)
         
         This creates a much smaller, more manageable set of experiments
         """
         
         # Get actual counts from database
         mitigation_strategies = self.creator.get_mitigation_strategies()
-        mitigation_count = len(mitigation_strategies)
+        total_mitigation_count = len(mitigation_strategies)
         decision_methods = 2  # zero-shot, n-shot
         
         # Step 1: Baseline experiments
@@ -95,8 +96,8 @@ class ExperimentCreationComparison:
         # Step 2: Persona-injected experiments (stochastic sampling)
         persona_injected_experiments = baseline_experiments * personas_per_baseline
         
-        # Step 3: Bias-mitigation experiments
-        bias_mitigation_experiments = persona_injected_experiments * mitigation_count
+        # Step 3: Bias-mitigation experiments (stochastic sampling of strategies)
+        bias_mitigation_experiments = persona_injected_experiments * strategies_per_persona
         
         total_stochastic = baseline_experiments + persona_injected_experiments + bias_mitigation_experiments
         
@@ -104,7 +105,8 @@ class ExperimentCreationComparison:
             'ground_truth_cases': ground_truth_count,
             'decision_methods': decision_methods,
             'personas_per_baseline': personas_per_baseline,
-            'mitigation_strategies': mitigation_count,
+            'total_mitigation_strategies': total_mitigation_count,
+            'strategies_per_persona': strategies_per_persona,
             'baseline_experiments': baseline_experiments,
             'persona_injected_experiments': persona_injected_experiments,
             'bias_mitigation_experiments': bias_mitigation_experiments,
@@ -112,11 +114,12 @@ class ExperimentCreationComparison:
         }
     
     def compare_approaches(self, ground_truth_count: int = 100, 
-                          personas_per_baseline: int = 10) -> Dict[str, Any]:
+                          personas_per_baseline: int = 10,
+                          strategies_per_persona: int = 3) -> Dict[str, Any]:
         """Compare factorial vs stochastic approaches"""
         
         factorial = self.calculate_factorial_approach(ground_truth_count)
-        stochastic = self.calculate_stochastic_approach(ground_truth_count, personas_per_baseline)
+        stochastic = self.calculate_stochastic_approach(ground_truth_count, personas_per_baseline, strategies_per_persona)
         
         # Calculate efficiency metrics
         reduction_factor = factorial['total_experiments'] / stochastic['total_experiments']
@@ -125,7 +128,9 @@ class ExperimentCreationComparison:
         
         # Calculate coverage metrics
         total_personas = factorial['personas']
-        coverage_percentage = (personas_per_baseline / total_personas) * 100
+        total_strategies = factorial['mitigation_strategies']
+        persona_coverage_percentage = (personas_per_baseline / total_personas) * 100
+        strategy_coverage_percentage = (strategies_per_persona / total_strategies) * 100
         
         return {
             'factorial_approach': factorial,
@@ -138,19 +143,23 @@ class ExperimentCreationComparison:
             'coverage': {
                 'total_personas': total_personas,
                 'personas_per_baseline': personas_per_baseline,
-                'coverage_percentage': coverage_percentage
+                'persona_coverage_percentage': persona_coverage_percentage,
+                'total_strategies': total_strategies,
+                'strategies_per_persona': strategies_per_persona,
+                'strategy_coverage_percentage': strategy_coverage_percentage
             }
         }
     
     def print_comparison(self, ground_truth_count: int = 100, 
-                        personas_per_baseline: int = 10):
+                        personas_per_baseline: int = 10,
+                        strategies_per_persona: int = 3):
         """Print a detailed comparison of the two approaches"""
         
-        comparison = self.compare_approaches(ground_truth_count, personas_per_baseline)
+        comparison = self.compare_approaches(ground_truth_count, personas_per_baseline, strategies_per_persona)
         
         print("EXPERIMENT CREATION APPROACH COMPARISON")
         print("=" * 60)
-        print(f"Configuration: {ground_truth_count} ground truth cases, {personas_per_baseline} personas per baseline")
+        print(f"Configuration: {ground_truth_count} ground truth cases, {personas_per_baseline} personas per baseline, {strategies_per_persona} strategies per persona")
         print()
         
         # Factorial approach
@@ -175,7 +184,8 @@ class ExperimentCreationComparison:
         print(f"Ground truth cases: {stochastic['ground_truth_cases']:,}")
         print(f"Decision methods: {stochastic['decision_methods']}")
         print(f"Personas per baseline (sampled): {stochastic['personas_per_baseline']}")
-        print(f"Mitigation strategies: {stochastic['mitigation_strategies']}")
+        print(f"Total mitigation strategies available: {stochastic['total_mitigation_strategies']}")
+        print(f"Strategies per persona (sampled): {stochastic['strategies_per_persona']}")
         print()
         print(f"Baseline experiments: {stochastic['baseline_experiments']:,}")
         print(f"Persona-injected experiments: {stochastic['persona_injected_experiments']:,}")
@@ -198,7 +208,11 @@ class ExperimentCreationComparison:
         coverage = comparison['coverage']
         print(f"Total personas available: {coverage['total_personas']:,}")
         print(f"Personas sampled per baseline: {coverage['personas_per_baseline']}")
-        print(f"Coverage percentage: {coverage['coverage_percentage']:.1f}%")
+        print(f"Persona coverage percentage: {coverage['persona_coverage_percentage']:.1f}%")
+        print()
+        print(f"Total strategies available: {coverage['total_strategies']}")
+        print(f"Strategies sampled per persona: {coverage['strategies_per_persona']}")
+        print(f"Strategy coverage percentage: {coverage['strategy_coverage_percentage']:.1f}%")
         print()
         
         # Benefits

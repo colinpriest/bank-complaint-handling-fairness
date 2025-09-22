@@ -720,7 +720,7 @@ class NShotFairnessAnalyzerV2:
         dpp_comparison_samples = max(10, n_samples // 5)  # 20% of samples for comparison
         comparison_evaluations = dpp_comparison_samples * 3 * 2  # 3 personas, 2 methods (DPP and NN)
         total_evaluations = n_samples * (1 + 10 + 10) + comparison_evaluations
-        progress_bar = tqdm(total=total_evaluations, desc="Running evaluations")
+        progress_bar = tqdm(total=total_evaluations, desc="Running evaluations", ncols=80)
         
         # Process each complaint
         for idx, row in df.iterrows():

@@ -2116,31 +2116,48 @@ class AdvancedFairnessAnalyzer:
             strategies = list(strategy_effectiveness.keys())[:7]  # Limit to top 7
             models = ['GPT-4O-MINI', 'CLAUDE-3.5', 'GEMINI-2.5', 'GPT-4O']
             
-            # Use real effectiveness data - no random/mock data
-            # np.random.seed(42)  # REMOVED - no random data
-            # effectiveness_matrix = np.random.rand(len(strategies), len(models)) * 100  # REMOVED
-            # TODO: Calculate real effectiveness from actual experimental results
-            effectiveness_matrix = np.zeros((len(strategies), len(models)))  # Placeholder zeros until real data available
-            
-            im = ax.imshow(effectiveness_matrix, cmap='RdYlGn', aspect='auto', vmin=0, vmax=100)
-            
+            # Calculate real effectiveness from experimental results if available
+            # Use NaN for missing data instead of zeros
+            effectiveness_matrix = np.full((len(strategies), len(models)), np.nan)  # Use NaN for missing values
+
+            # TODO: Populate effectiveness_matrix with actual experimental results
+            # For now, this will show as missing data (white/gray cells)
+
+            # Create a custom colormap that handles NaN values
+            masked_array = np.ma.array(effectiveness_matrix, mask=np.isnan(effectiveness_matrix))
+
+            # Use a colormap that clearly shows missing data
+            im = ax.imshow(masked_array, cmap='RdYlGn', aspect='auto', vmin=0, vmax=100)
+
             ax.set_xticks(range(len(models)))
             ax.set_yticks(range(len(strategies)))
             ax.set_xticklabels(models, rotation=45, ha='right')
             ax.set_yticklabels([s.replace('_', ' ').title() for s in strategies])
-            
-            # Add text annotations
+
+            # Add text annotations - show "N/A" for missing values
             for i in range(len(strategies)):
                 for j in range(len(models)):
-                    ax.text(j, i, f'{effectiveness_matrix[i, j]:.0f}%',
-                           ha='center', va='center', fontweight='bold')
+                    if np.isnan(effectiveness_matrix[i, j]):
+                        ax.text(j, i, 'N/A',
+                               ha='center', va='center', fontweight='bold',
+                               color='gray', fontsize=8)
+                    else:
+                        ax.text(j, i, f'{effectiveness_matrix[i, j]:.0f}%',
+                               ha='center', va='center', fontweight='bold')
             
             cbar = plt.colorbar(im, ax=ax)
             cbar.set_label('Bias Reduction (%)', fontweight='bold')
         
         ax.set_xlabel('Model', fontweight='bold')
         ax.set_ylabel('Fairness Strategy', fontweight='bold')
-        ax.set_title('Strategy × Model Effectiveness Matrix\n(Interaction Effects)', fontweight='bold')
+
+        # Add title with note about missing data
+        if np.all(np.isnan(effectiveness_matrix)):
+            ax.set_title('Strategy × Model Effectiveness Matrix\n(No experimental data available yet)',
+                        fontweight='bold', color='darkred')
+        else:
+            ax.set_title('Strategy × Model Effectiveness Matrix\n(Interaction Effects)',
+                        fontweight='bold')
         
         plt.tight_layout()
         plt.savefig(plots_dir / "figure4_strategy_model_heatmap.png", dpi=300, bbox_inches='tight')

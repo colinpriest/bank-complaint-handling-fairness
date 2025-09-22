@@ -29,7 +29,9 @@ The stochastic experiment creation algorithm replaces the previous factorial com
 ### 4. Bias-Mitigation Experiments
 - For each persona-injected experiment:
   - Get its experiment number
-  - For each bias mitigation strategy, create a bias-mitigation experiment
+  - Set the random seed to the experiment number
+  - Randomly select 3 bias strategies (from the several in the table)
+  - Create bias-mitigation experiments for each selected strategy
 - Only add if no matching experiment already exists
 
 ## Key Benefits
